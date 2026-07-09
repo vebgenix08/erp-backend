@@ -1,0 +1,20 @@
+{
+  "name": "@school-erp/admissions-service",
+  "private": true,
+  "dependencies": {
+    "@school-erp/api": "workspace:*",
+    "@school-erp/auth": "workspace:*",
+    "@school-erp/errors": "workspace:*",
+    "@school-erp/logger": "workspace:*",
+    "@school-erp/mongodb": "workspace:*",
+    "@school-erp/tenancy": "workspace:*",
+    "@school-erp/test-utils": "workspace:*",
+    "@school-erp/types": "workspace:*",
+    "@school-erp/validation": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node scripts/run-tests.mjs"
+  }
+}

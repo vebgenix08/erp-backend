@@ -1,0 +1,21 @@
+{
+  "name": "@school-erp/aws-infrastructure",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "cdk": "cdk",
+    "dev": "pnpm cdk synth -c environment=dev",
+    "deploy:dev": "pnpm cdk deploy --require-approval never -c environment=dev",
+    "deploy:prod": "pnpm cdk deploy --require-approval never -c environment=prod",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.14",
+    "aws-cdk": "^2.176.0",
+    "aws-cdk-lib": "^2.176.0",
+    "constructs": "^10.4.2",
+    "esbuild": "^0.24.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.4"
+  }
+}

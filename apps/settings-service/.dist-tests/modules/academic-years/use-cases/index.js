@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.updateAcademicYearUseCase = exports.listAcademicYearsUseCase = exports.getAcademicYearUseCase = exports.createAcademicYearUseCase = exports.activateAcademicYearUseCase = void 0;
+var activate_academic_year_use_case_1 = require("./activate-academic-year.use-case");
+Object.defineProperty(exports, "activateAcademicYearUseCase", { enumerable: true, get: function () { return activate_academic_year_use_case_1.activateAcademicYearUseCase; } });
+var create_academic_year_use_case_1 = require("./create-academic-year.use-case");
+Object.defineProperty(exports, "createAcademicYearUseCase", { enumerable: true, get: function () { return create_academic_year_use_case_1.createAcademicYearUseCase; } });
+var get_academic_year_use_case_1 = require("./get-academic-year.use-case");
+Object.defineProperty(exports, "getAcademicYearUseCase", { enumerable: true, get: function () { return get_academic_year_use_case_1.getAcademicYearUseCase; } });
+var list_academic_years_use_case_1 = require("./list-academic-years.use-case");
+Object.defineProperty(exports, "listAcademicYearsUseCase", { enumerable: true, get: function () { return list_academic_years_use_case_1.listAcademicYearsUseCase; } });
+var update_academic_year_use_case_1 = require("./update-academic-year.use-case");
+Object.defineProperty(exports, "updateAcademicYearUseCase", { enumerable: true, get: function () { return update_academic_year_use_case_1.updateAcademicYearUseCase; } });

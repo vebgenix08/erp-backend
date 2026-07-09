@@ -1,0 +1,12 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": ".dist-tests",
+    "rootDir": "src",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "types": []
+  },
+  "include": ["src/modules/session/**/*.ts"],
+  "exclude": [".dist-tests", "node_modules"]
+}

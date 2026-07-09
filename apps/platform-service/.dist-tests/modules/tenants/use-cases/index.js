@@ -1,0 +1,18 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deactivateTenant = exports.deactivateTenantUseCase = exports.listTenants = exports.listTenantsUseCase = exports.updateTenant = exports.updateTenantUseCase = exports.getTenant = exports.getTenantUseCase = exports.createTenant = exports.createTenantUseCase = void 0;
+var create_tenant_use_case_1 = require("./create-tenant.use-case");
+Object.defineProperty(exports, "createTenantUseCase", { enumerable: true, get: function () { return create_tenant_use_case_1.createTenantUseCase; } });
+Object.defineProperty(exports, "createTenant", { enumerable: true, get: function () { return create_tenant_use_case_1.createTenantUseCase; } });
+var get_tenant_use_case_1 = require("./get-tenant.use-case");
+Object.defineProperty(exports, "getTenantUseCase", { enumerable: true, get: function () { return get_tenant_use_case_1.getTenantUseCase; } });
+Object.defineProperty(exports, "getTenant", { enumerable: true, get: function () { return get_tenant_use_case_1.getTenantUseCase; } });
+var update_tenant_use_case_1 = require("./update-tenant.use-case");
+Object.defineProperty(exports, "updateTenantUseCase", { enumerable: true, get: function () { return update_tenant_use_case_1.updateTenantUseCase; } });
+Object.defineProperty(exports, "updateTenant", { enumerable: true, get: function () { return update_tenant_use_case_1.updateTenantUseCase; } });
+var list_tenants_use_case_1 = require("./list-tenants.use-case");
+Object.defineProperty(exports, "listTenantsUseCase", { enumerable: true, get: function () { return list_tenants_use_case_1.listTenantsUseCase; } });
+Object.defineProperty(exports, "listTenants", { enumerable: true, get: function () { return list_tenants_use_case_1.listTenantsUseCase; } });
+var deactivate_tenant_use_case_1 = require("./deactivate-tenant.use-case");
+Object.defineProperty(exports, "deactivateTenantUseCase", { enumerable: true, get: function () { return deactivate_tenant_use_case_1.deactivateTenantUseCase; } });
+Object.defineProperty(exports, "deactivateTenant", { enumerable: true, get: function () { return deactivate_tenant_use_case_1.deactivateTenantUseCase; } });

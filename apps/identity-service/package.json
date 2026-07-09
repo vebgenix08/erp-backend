@@ -1,0 +1,17 @@
+{
+  "name": "@school-erp/identity-service",
+  "private": true,
+  "dependencies": {
+    "@school-erp/api": "workspace:*",
+    "@school-erp/auth": "workspace:*",
+    "@school-erp/errors": "workspace:*",
+    "@school-erp/tenancy": "workspace:*",
+    "@school-erp/test-utils": "workspace:*",
+    "@school-erp/types": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node scripts/run-tests.mjs"
+  }
+}

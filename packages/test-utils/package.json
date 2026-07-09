@@ -1,0 +1,14 @@
+{
+  "name": "@school-erp/test-utils",
+  "private": true,
+  "dependencies": {
+    "@school-erp/logger": "workspace:*",
+    "@school-erp/types": "workspace:*"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

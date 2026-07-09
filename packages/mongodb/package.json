@@ -1,0 +1,16 @@
+{
+  "name": "@school-erp/mongodb",
+  "private": true,
+  "dependencies": {
+    "@school-erp/config": "workspace:*",
+    "@school-erp/errors": "workspace:*",
+    "mongodb": "^6.19.0"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node scripts/run-tests.mjs"
+  }
+}
