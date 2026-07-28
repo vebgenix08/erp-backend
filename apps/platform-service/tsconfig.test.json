@@ -7,6 +7,21 @@
     "moduleResolution": "Node",
     "types": []
   },
-  "include": ["src/modules/tenants/**/*.ts"],
+  "include": [
+    "src/handlers/graphql.ts",
+    "src/handlers/runtime-config.ts",
+    "src/handlers/cognito-post-authentication.ts",
+    "src/handlers/aws-sdk-shim.d.ts",
+    "src/handlers/tests/**/*.ts",
+    "src/middleware/**/*.ts",
+    "src/modules/tenants/**/*.ts",
+    "src/modules/bootstrap/**/*.ts",
+    "src/modules/dashboard/**/*.ts",
+    "src/modules/feature-flags/**/*.ts",
+    "src/modules/audit-logs/**/*.ts",
+    "src/modules/provisioning/**/*.ts",
+    "src/modules/entitlements/**/*.ts",
+    "src/modules/integrations/**/*.ts"
+  ],
   "exclude": [".dist-tests", "node_modules"]
 }

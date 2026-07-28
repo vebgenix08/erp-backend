@@ -15,9 +15,21 @@ export const settingsPermissions = {
     update: "settings.academicYears.update",
     activate: "settings.academicYears.activate",
   },
+  templates: {
+    read: "settings.templates.read",
+    create: "settings.templates.create",
+    update: "settings.templates.update",
+    publish: "settings.templates.publish",
+    delete: "settings.templates.delete",
+  },
+  numbering: { read: "settings.numbering.read", manage: "settings.numbering.manage" },
+  notifications: { read: "settings.notifications.read", update: "settings.notifications.update" },
 } as const;
 
 export type SettingsPermission =
   (typeof settingsPermissions.institution)[keyof typeof settingsPermissions.institution]
   | (typeof settingsPermissions.campuses)[keyof typeof settingsPermissions.campuses]
-  | (typeof settingsPermissions.academicYears)[keyof typeof settingsPermissions.academicYears];
+  | (typeof settingsPermissions.academicYears)[keyof typeof settingsPermissions.academicYears]
+  | (typeof settingsPermissions.templates)[keyof typeof settingsPermissions.templates]
+  | (typeof settingsPermissions.numbering)[keyof typeof settingsPermissions.numbering]
+  | (typeof settingsPermissions.notifications)[keyof typeof settingsPermissions.notifications];

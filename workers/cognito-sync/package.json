@@ -1,8 +1,17 @@
 {
   "name": "@school-erp/cognito-sync",
   "private": true,
+  "dependencies": {
+    "@school-erp/api": "workspace:*",
+    "@school-erp/identity-service": "workspace:*",
+    "@school-erp/platform-service": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node scripts/run-tests.mjs"
   }
 }

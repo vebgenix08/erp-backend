@@ -18,3 +18,9 @@ export {
   deactivateTenantUseCase,
   deactivateTenantUseCase as deactivateTenant,
 } from "./deactivate-tenant.use-case";
+export {
+  activateTenantUseCase,
+  suspendTenantUseCase,
+  requestTenantDeletionUseCase,
+  confirmTenantDeletionUseCase,
+} from "./lifecycle.use-cases";

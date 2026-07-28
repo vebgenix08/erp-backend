@@ -1,4 +1,10 @@
-import type { ClientSession, Collection, Document, Filter, MongoClient } from "mongodb";
+import type { ClientSession, Collection, Document, Filter, MongoClient, Sort } from "mongodb";
+
+export interface CollectionQueryOptions<TDocument extends Document> {
+  sort?: Sort;
+  skip?: number;
+  limit?: number;
+}
 
 export interface MongoConfig {
   stage: "dev" | "prod" | "test";
@@ -44,9 +50,11 @@ export interface RepositoryContext {
 export interface CollectionAdapter<TDocument extends Document> {
   readonly name: string;
   findOne(filter: Filter<TDocument>): Promise<TDocument | null>;
-  findMany(filter?: Filter<TDocument>): Promise<TDocument[]>;
+  findMany(filter?: Filter<TDocument>, options?: CollectionQueryOptions<TDocument>): Promise<TDocument[]>;
+  count(filter?: Filter<TDocument>): Promise<number>;
   insertOne(document: TDocument): Promise<TDocument>;
   replaceOne(filter: Filter<TDocument>, document: TDocument): Promise<TDocument | null>;
+  findOneAndUpdate(filter: Filter<TDocument>, update: Document, options?: { upsert?: boolean; returnDocument?: "before" | "after" }): Promise<TDocument | null>;
   deleteOne(filter: Filter<TDocument>): Promise<boolean>;
 }
 

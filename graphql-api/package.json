@@ -1,0 +1,9 @@
+{
+  "name": "@school-erp/graphql-api",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build-schema.mjs",
+    "typecheck": "node scripts/build-schema.mjs --check",
+    "test": "node --test tests/schema.test.mjs"
+  }
+}

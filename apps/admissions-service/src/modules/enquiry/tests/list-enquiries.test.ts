@@ -50,3 +50,27 @@ test("list enquiries supports status, source, and search filters", async () => {
   assert.equal(byClosedStatus.length, 1);
   assert.equal(byClosedStatus[0]?.status, "CLOSED");
 });
+
+test("list enquiries page returns stable tenant-scoped totals and boundaries", async () => {
+  const repository = new InMemoryEnquiryRepository();
+  for (const studentName of ["Aarav Rao", "Diya Shah", "Ishaan Mehta"]) {
+    await createEnquiryUseCase(
+      createEnquiryInput({ studentName }),
+      createEnquiryServiceContext({ tenantId: "tenant_a" }),
+      { repository },
+    );
+  }
+  await createEnquiryUseCase(
+    createEnquiryInput({ studentName: "Other Tenant" }),
+    createEnquiryServiceContext({ tenantId: "tenant_b" }),
+    { repository },
+  );
+
+  const first = await repository.listPage("tenant_a", { limit: 2, offset: 0 });
+  const second = await repository.listPage("tenant_a", { limit: 2, offset: 2 });
+
+  assert.equal(first.total, 3);
+  assert.deepEqual(first.items.map((item) => item.studentName), ["Aarav Rao", "Diya Shah"]);
+  assert.equal(second.total, 3);
+  assert.deepEqual(second.items.map((item) => item.studentName), ["Ishaan Mehta"]);
+});

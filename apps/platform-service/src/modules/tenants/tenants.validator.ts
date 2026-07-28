@@ -9,11 +9,11 @@ import {
 import type { TenantCreateInput, TenantUpdateInput } from "./tenants.model";
 
 function isTenantType(value: unknown): value is TenantType {
-  return value === "SCHOOL" || value === "COLLEGE" || value === "DEGREE_COLLEGE";
+  return value === "INSTITUTION" || value === "SCHOOL" || value === "COLLEGE" || value === "DEGREE_COLLEGE";
 }
 
 function isTenantStatus(value: unknown): value is TenantStatus {
-  return value === "ACTIVE" || value === "INACTIVE" || value === "SUSPENDED";
+  return value === "ONBOARDING" || value === "ACTIVE" || value === "INACTIVE" || value === "SUSPENDED" || value === "DELETION_PENDING";
 }
 
 function validateMonth(value: unknown): number | undefined {
@@ -28,6 +28,7 @@ function validateMonth(value: unknown): number | undefined {
 export function validateTenantCreateInput(input: Record<string, unknown>): TenantCreateInput {
   const name = validateNonEmptyString(input.name, "name");
   const code = validateNonEmptyString(input.code, "code");
+  const clientRequestId = validateNonEmptyString(input.clientRequestId, "clientRequestId");
   const contactEmail = input.contactEmail === undefined ? undefined : validateEmail(input.contactEmail, "contactEmail");
   const contactPhone = input.contactPhone === undefined ? undefined : validatePhone(input.contactPhone, "contactPhone");
   const address = optionalString(input.address);
@@ -36,6 +37,7 @@ export function validateTenantCreateInput(input: Record<string, unknown>): Tenan
 
   if (!name.success) errors.push({ field: "name", message: name.errors[0] ?? "name is required" });
   if (!code.success) errors.push({ field: "code", message: code.errors[0] ?? "code is required" });
+  if (!clientRequestId.success) errors.push({ field: "clientRequestId", message: clientRequestId.errors[0] ?? "clientRequestId is required" });
   if (!isTenantType(type)) errors.push({ field: "type", message: "type is required" });
   if (contactEmail !== undefined && !contactEmail.success) errors.push({ field: "contactEmail", message: contactEmail.errors[0] ?? "contactEmail is invalid" });
   if (contactPhone !== undefined && !contactPhone.success) errors.push({ field: "contactPhone", message: contactPhone.errors[0] ?? "contactPhone is invalid" });
@@ -50,7 +52,9 @@ export function validateTenantCreateInput(input: Record<string, unknown>): Tenan
 
   return {
     name: validatedName,
+    slug: optionalString(input.slug),
     code: validatedCode,
+    clientRequestId: clientRequestId.success ? clientRequestId.value : "",
     type: validatedType,
     contactEmail: contactEmail?.success ? contactEmail.value : undefined,
     contactPhone: contactPhone?.success ? contactPhone.value : undefined,
@@ -68,6 +72,7 @@ export function validateTenantUpdateInput(input: Record<string, unknown>): Tenan
     if (!value.success) errors.push({ field: "name", message: value.errors[0] ?? "name cannot be empty" });
     else update.name = value.value;
   }
+  if (input.slug !== undefined) update.slug = optionalString(input.slug);
 
   if (input.code !== undefined) {
     const value = validateNonEmptyString(input.code, "code");

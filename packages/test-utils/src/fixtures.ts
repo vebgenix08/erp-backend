@@ -2,6 +2,7 @@ import type { TenantStatus, TenantType, UserStatus } from "@school-erp/types";
 
 export interface TenantFixture {
   id: string;
+  clientRequestId: string;
   name: string;
   code: string;
   type: TenantType;
@@ -25,6 +26,7 @@ export type FixtureRecord<T> = T & Record<string, unknown>;
 export function createTenantFixture(overrides: Partial<TenantFixture> = {}): FixtureRecord<TenantFixture> {
   return {
     id: "tenant_test_1",
+    clientRequestId: "request_tenant_test_1",
     name: "Sample School",
     code: "SAMPLE-SCHOOL",
     type: "SCHOOL",

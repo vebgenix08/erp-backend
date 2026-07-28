@@ -7,6 +7,6 @@
     "moduleResolution": "Node",
     "types": []
   },
-  "include": ["src/modules/**/*.ts"],
+  "include": ["src/modules/**/*.ts", "src/handlers/tests/**/*.ts", "src/handlers/graphql.ts", "src/handlers/runtime-config.ts"],
   "exclude": [".dist-tests", "node_modules"]
 }

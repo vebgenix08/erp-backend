@@ -1,7 +1,8 @@
 export const userPermissions = {
-  list: "identity.users.read",
-  get: "identity.users.read",
-  create: "identity.users.create",
-  update: "identity.users.update",
-  delete: "identity.users.delete",
+  list: "identity.user.read",
+  get: "identity.user.read",
+  create: "identity.user.create",
+  update: "identity.user.update",
+  deactivate: "identity.user.deactivate",
+  invite: "identity.user.invite",
 } as const;

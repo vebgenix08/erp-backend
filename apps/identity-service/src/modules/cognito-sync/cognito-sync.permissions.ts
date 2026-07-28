@@ -1,4 +1,6 @@
 export const cognitoSyncPermissions = {
-  list: "identity.cognito-sync.run",
-  get: "identity.cognito-sync.run",
+  read: "identity.cognito-sync.read",
+  create: "identity.cognito-sync.create",
+  update: "identity.cognito-sync.update",
+  delete: "identity.cognito-sync.delete",
 } as const;

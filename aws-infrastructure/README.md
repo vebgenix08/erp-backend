@@ -4,7 +4,7 @@ This package contains the CDK scaffold for the ERP deployment target.
 
 ## Requirements
 
-- `environment=dev` or `environment=prod`
+- CDK context `--context environment=dev|prod` (preferred), or process environment variable `environment`
 - `AWS_ACCOUNT_ID`
 - `AWS_REGION`
 
@@ -25,10 +25,9 @@ pnpm install
 ## Synthesize
 
 ```powershell
-$env:environment = 'dev'
 $env:AWS_ACCOUNT_ID = '<your-account-id>'
 $env:AWS_REGION = 'ap-south-1'
-pnpm cdk synth
+pnpm cdk synth --context environment=dev
 ```
 
 ## Deploy

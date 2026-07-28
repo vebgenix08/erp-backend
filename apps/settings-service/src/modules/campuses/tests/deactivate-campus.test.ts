@@ -16,6 +16,7 @@ test("deactivate campus marks the campus inactive", async () => {
     } as any,
   });
   const created = await createCampusUseCase(context as any, createCampusFixture(), { repository });
+  await createCampusUseCase(context as any, createCampusFixture({ name: "North Campus" }), { repository });
   const deactivated = await deactivateCampusUseCase(context as any, created.id, { repository });
   assert.equal(deactivated?.status, "INACTIVE");
   assert.ok(deactivated?.deactivatedAt);

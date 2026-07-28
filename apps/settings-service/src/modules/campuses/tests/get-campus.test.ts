@@ -17,5 +17,5 @@ test("get campus returns only the stored campus", async () => {
   });
   const created = await createCampusUseCase(context as any, createCampusFixture(), { repository });
   const result = await getCampusUseCase(context as any, created.id, { repository });
-  assert.equal(result?.code, "MAIN");
+  assert.equal(result?.code, "CAMP-001");
 });

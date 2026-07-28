@@ -1,0 +1,228 @@
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  FOLLOW_UP
+  CONVERTED
+  CLOSED
+}
+enum EnquiryGender {
+  MALE
+  FEMALE
+  OTHER
+}
+type Enquiry {
+  id: ID!
+  enquiryNumber: String!
+  campusId: ID
+  academicYearId: ID
+  academicTargetId: ID
+  studentName: String!
+  dateOfBirth: AWSDateTime
+  gender: EnquiryGender
+  parentName: String!
+  phone: String!
+  email: AWSEmail
+  interestedClass: String
+  source: String
+  status: EnquiryStatus!
+  notes: String
+  templateId: ID
+  templateVersion: Int
+  customFields: AWSJSON
+  createdBy: ID!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+  closedAt: AWSDateTime
+}
+input EnquiryFilter {
+  campusId: ID
+  academicYearId: ID
+  status: EnquiryStatus
+  source: String
+  search: String
+  limit: Int
+  offset: Int
+}
+type EnquiryPage { items: [Enquiry!]! total: Int! limit: Int! offset: Int! }
+input CreateEnquiryInput {
+  campusId: ID
+  academicYearId: ID
+  academicTargetId: ID
+  studentName: String!
+  dateOfBirth: AWSDateTime
+  gender: EnquiryGender
+  parentName: String!
+  phone: String!
+  email: AWSEmail
+  interestedClass: String
+  source: String
+  notes: String
+  templateId: ID
+  templateVersion: Int
+  customFields: AWSJSON
+}
+input UpdateEnquiryInput {
+  studentName: String
+  dateOfBirth: AWSDateTime
+  gender: EnquiryGender
+  parentName: String
+  phone: String
+  email: AWSEmail
+  interestedClass: String
+  source: String
+  notes: String
+  status: EnquiryStatus
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CONFIRMED
+  CANCELLED
+}
+type ApplicationDocumentReference {
+  fileId: ID!
+  documentType: String!
+  fileName: String!
+}
+type ApplicationReview {
+  decision: ApplicationStatus!
+  reviewedBy: ID!
+  reviewedAt: AWSDateTime!
+  remarks: String
+}
+type ApplicationStageEntry {
+  status: ApplicationStatus!
+  at: AWSDateTime!
+  actorId: ID!
+  remarks: String
+}
+type AdmissionApplication {
+  id: ID!
+  applicationNumber: String
+  admissionNumber: String
+  enquiryId: ID
+  campusId: ID!
+  academicYearId: ID!
+  academicTargetId: ID!
+  sectionId: ID
+  status: ApplicationStatus!
+  studentName: String!
+  dateOfBirth: AWSDateTime
+  gender: EnquiryGender
+  phone: String!
+  email: AWSEmail
+  address: String
+  parentName: String!
+  parentPhone: String
+  parentRelation: String
+  templateId: ID!
+  templateVersion: Int!
+  customFields: AWSJSON
+  documents: [ApplicationDocumentReference!]!
+  reviews: [ApplicationReview!]!
+  stageHistory: [ApplicationStageEntry!]!
+  createdBy: ID!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+  submittedAt: AWSDateTime
+  approvedAt: AWSDateTime
+  approvedBy: ID
+  rejectedAt: AWSDateTime
+  rejectedBy: ID
+  rejectionReason: String
+  confirmedAt: AWSDateTime
+  confirmedBy: ID
+  cancelledAt: AWSDateTime
+  cancelledBy: ID
+  cancellationReason: String
+}
+input ApplicationDocumentInput {
+  fileId: ID!
+  documentType: String!
+  fileName: String!
+}
+input ApplicationFilter {
+  status: ApplicationStatus
+  campusId: ID
+  academicYearId: ID
+  academicTargetId: ID
+  search: String
+  page: Int
+  pageSize: Int
+}
+type AdmissionApplicationPage {
+  items: [AdmissionApplication!]!
+  total: Int!
+  page: Int!
+  pageSize: Int!
+  totalPages: Int!
+}
+input CreateApplicationInput {
+  enquiryId: ID
+  campusId: ID!
+  academicYearId: ID!
+  academicTargetId: ID!
+  sectionId: ID
+  studentName: String!
+  dateOfBirth: AWSDateTime
+  gender: EnquiryGender
+  phone: String!
+  email: AWSEmail
+  address: String
+  parentName: String!
+  parentPhone: String
+  parentRelation: String
+  templateId: ID!
+  templateVersion: Int!
+  customFields: AWSJSON
+  documents: [ApplicationDocumentInput!]
+}
+input UpdateApplicationInput {
+  academicTargetId: ID
+  sectionId: ID
+  studentName: String
+  dateOfBirth: AWSDateTime
+  gender: EnquiryGender
+  phone: String
+  email: AWSEmail
+  address: String
+  parentName: String
+  parentPhone: String
+  parentRelation: String
+  customFields: AWSJSON
+  documents: [ApplicationDocumentInput!]
+}
+input ApplicationReviewInput {
+  remarks: String
+}
+input ApplicationRejectInput {
+  reason: String!
+}
+input ApplicationCancelInput {
+  reason: String!
+}
+enum ApplicationDuplicateReason {
+  PHONE
+  EMAIL
+  NAME_AND_DATE_OF_BIRTH
+}
+type ApplicationDuplicateMatch {
+  applicationId: ID!
+  applicationNumber: String
+  admissionNumber: String
+  studentName: String!
+  status: ApplicationStatus!
+  reasons: [ApplicationDuplicateReason!]!
+}
+type ApplicationDuplicateCheck {
+  applicationId: ID!
+  hasPotentialDuplicates: Boolean!
+  matches: [ApplicationDuplicateMatch!]!
+  checkedAt: AWSDateTime!
+}
+input AdmissionConfirmationInput {
+  duplicateReviewAcknowledged: Boolean!
+}

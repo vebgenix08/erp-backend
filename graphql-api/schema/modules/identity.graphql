@@ -1,0 +1,25 @@
+enum IdentityUserStatus { ACTIVE INACTIVE SUSPENDED INVITED }
+type IdentityUser { id: ID! email: AWSEmail! name: String! status: IdentityUserStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
+type IdentityRole { id: ID! code: String! name: String! description: String isSystemRole: Boolean! isActive: Boolean! createdAt: AWSDateTime! updatedAt: AWSDateTime! }
+type PermissionCatalogItem { code: String! domain: String! resource: String! action: String! label: String! }
+enum AccessScopeType { TENANT CAMPUS PROGRAM CLASS SECTION ASSIGNED_ONLY }
+type AccessScope { scopeType: AccessScopeType! campusIds: [ID!] programIds: [ID!] classIds: [ID!] sectionIds: [ID!] }
+type UserRoleAssignment { id: ID! userId: ID! roleId: ID! scope: AccessScope! isActive: Boolean! createdAt: AWSDateTime! updatedAt: AWSDateTime! }
+type RolePermissionBinding { id: ID! roleId: ID! permission: String! createdAt: AWSDateTime! updatedAt: AWSDateTime! }
+type IdentityAccessSnapshot { permissions: [PermissionCatalogItem!]! assignments: [UserRoleAssignment!]! rolePermissions: [RolePermissionBinding!]! }
+input CreateIdentityRoleInput { code: String! name: String! description: String }
+input UpdateIdentityRoleInput { name: String description: String isActive: Boolean }
+input AccessScopeInput { scopeType: AccessScopeType! campusIds: [ID!] programIds: [ID!] classIds: [ID!] sectionIds: [ID!] }
+input AssignIdentityUserRoleInput { userId: ID! roleId: ID! scope: AccessScopeInput! }
+input SaveIdentityRolePermissionsInput { roleId: ID! permissions: [String!]! }
+enum StaffCategory { TEACHING NON_TEACHING }
+enum StaffType { PRINCIPAL VICE_PRINCIPAL DEAN HOD TEACHER LECTURER LAB_FACULTY ADMIN_STAFF SUPPORT_STAFF OTHER }
+enum EmploymentType { FULL_TIME PART_TIME CONTRACT VISITING }
+enum EmployeeStatus { ACTIVE INACTIVE ENDED }
+enum EmployeeLoginStatus { NONE INVITED ACTIVE DISABLED FAILED }
+type Employee { id: ID! employeeCode: String! fullName: String! email: AWSEmail phone: String staffCategory: StaffCategory! staffType: StaffType! employmentType: EmploymentType! designation: String department: String primaryCampusId: ID! campusIds: [ID!]! joiningDate: AWSDateTime! status: EmployeeStatus! loginStatus: EmployeeLoginStatus! inviteAttempts: Int! inviteError: String lastInviteAttemptAt: AWSDateTime invitedAt: AWSDateTime externalHrCode: String templateId: ID templateVersion: Int customFields: AWSJSON createdAt: AWSDateTime! updatedAt: AWSDateTime! endedAt: AWSDateTime endReason: String }
+enum EmployeeInviteAttemptStatus { SENT FAILED }
+type EmployeeInviteAttempt { id: ID! employeeId: ID! email: AWSEmail! attemptNumber: Int! status: EmployeeInviteAttemptStatus! provider: String! error: String createdBy: ID! createdAt: AWSDateTime! }
+input EmployeeFilter { search: String status: EmployeeStatus staffCategory: StaffCategory campusId: ID loginStatus: EmployeeLoginStatus }
+input CreateEmployeeInput { fullName: String! email: AWSEmail phone: String staffCategory: StaffCategory! staffType: StaffType! employmentType: EmploymentType! designation: String department: String primaryCampusId: ID! campusIds: [ID!]! joiningDate: AWSDateTime! loginEnabled: Boolean! roleIds: [ID!]! scopeType: AccessScopeType! externalHrCode: String templateId: ID templateVersion: Int customFields: AWSJSON }
+input UpdateEmployeeInput { fullName: String phone: String designation: String department: String primaryCampusId: ID campusIds: [ID!] externalHrCode: String }

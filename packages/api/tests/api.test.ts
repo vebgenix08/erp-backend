@@ -47,6 +47,27 @@ test("jsonResponse and errorResponse return transport shapes", () => {
   assert.equal((error.body as { error?: { code?: string } } | undefined)?.error?.code, "CONFLICT");
 });
 
+test("errorResponse sanitizes unknown failures and maps capacity failures", () => {
+  const unknown = errorResponse(new Error("mongodb password leaked here"));
+  assert.equal(unknown.statusCode, 500);
+  assert.deepEqual(
+    (unknown.body as { error: { code: string; message: string; retryable: boolean } }).error,
+    {
+      code: "INTERNAL_SERVER_ERROR",
+      message: "The request could not be completed.",
+      retryable: false,
+      traceId: (unknown.body as { error: { traceId: string } }).error.traceId,
+    },
+  );
+
+  const throttled = new Error("Rate exceeded");
+  throttled.name = "TooManyRequestsException";
+  const busy = errorResponse(throttled);
+  assert.equal(busy.statusCode, 503);
+  assert.equal((busy.body as { error: { code: string } }).error.code, "SERVICE_BUSY");
+  assert.equal((busy.body as { error: { retryable: boolean } }).error.retryable, true);
+});
+
 test("route matcher handles method and path registration", () => {
   const route = { method: "GET" as const, path: "/tenants/:id", handler: async () => undefined, middlewares: [] };
   const match = matchRoute(route, "GET", "/tenants/tenant-1");

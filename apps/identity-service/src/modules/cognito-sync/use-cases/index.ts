@@ -1,9 +1,5 @@
-import { getCognitoSync as getCognitoSyncService, listCognitoSync as listCognitoSyncService } from "../cognito-sync.service";
-
-export async function listCognitoSync(input: Record<string, unknown> = {}) {
-  return listCognitoSyncService(input);
-}
-
-export async function getCognitoSync(id: string) {
-  return getCognitoSyncService(id);
-}
+export { createCognitoSyncUseCase } from "./create-cognito-sync.use-case";
+export { getCognitoSyncUseCase } from "./get-cognito-sync.use-case";
+export { listCognitoSyncUseCase } from "./list-cognito-sync.use-case";
+export { updateCognitoSyncUseCase } from "./update-cognito-sync.use-case";
+export { deleteCognitoSyncUseCase } from "./delete-cognito-sync.use-case";

@@ -36,3 +36,19 @@ test("create enquiry ignores tenantId in the request body", async () => {
 
   assert.equal(result?.tenantId, "tenant_context_wins");
 });
+
+test("create enquiry preserves the published template snapshot and operating context", async () => {
+  const repository = new InMemoryEnquiryRepository();
+  const result = await createEnquiryUseCase(createEnquiryInput({
+    campusId: "campus_main",
+    academicYearId: "year_2026",
+    academicTargetId: "class_10",
+    templateId: "template_admission",
+    templateVersion: 3,
+    customFields: { admission_source: "Website", blood_group: "O+" },
+  }), createEnquiryServiceContext(), { repository });
+
+  assert.equal(result?.campusId, "campus_main");
+  assert.equal(result?.templateVersion, 3);
+  assert.deepEqual(result?.customFields, { admission_source: "Website", blood_group: "O+" });
+});

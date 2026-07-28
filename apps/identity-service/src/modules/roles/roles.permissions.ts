@@ -1,7 +1,8 @@
 export const rolePermissions = {
-  list: "identity.roles.read",
-  get: "identity.roles.read",
-  create: "identity.roles.create",
-  update: "identity.roles.update",
-  delete: "identity.roles.delete",
+  list: "identity.role.read",
+  get: "identity.role.read",
+  create: "identity.role.create",
+  update: "identity.role.update",
+  deactivate: "identity.role.deactivate",
+  assign: "identity.role.assign",
 } as const;

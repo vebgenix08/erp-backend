@@ -1,5 +1,5 @@
-export type TenantType = "SCHOOL" | "COLLEGE" | "DEGREE_COLLEGE";
-export type TenantStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
+export type TenantType = "INSTITUTION" | "SCHOOL" | "COLLEGE" | "DEGREE_COLLEGE";
+export type TenantStatus = "ONBOARDING" | "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETION_PENDING";
 
 export type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED" | "INVITED";
 export type AdmissionStatus =

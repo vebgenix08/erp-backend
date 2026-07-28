@@ -1,6 +1,9 @@
 {
   "name": "@school-erp/events",
   "private": true,
+  "dependencies": {
+    "@aws-sdk/client-eventbridge": "^3.1090.0"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

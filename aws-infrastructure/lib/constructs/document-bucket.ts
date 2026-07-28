@@ -20,6 +20,13 @@ export class DocumentBucket extends Construct {
       removalPolicy: props.config.removalPolicy ?? RemovalPolicy.RETAIN,
       autoDeleteObjects: props.config.removalPolicy === RemovalPolicy.DESTROY,
       encryption: s3.BucketEncryption.S3_MANAGED,
+      cors: [{
+        allowedMethods: [s3.HttpMethods.PUT],
+        allowedOrigins: props.config.allowedOrigins,
+        allowedHeaders: ['content-type'],
+        exposedHeaders: ['etag'],
+        maxAge: 900,
+      }],
     });
   }
 }

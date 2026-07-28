@@ -1,4 +1,4 @@
-export type AcademicYearStatus = "ACTIVE" | "INACTIVE";
+export type AcademicYearStatus = "DRAFT" | "ACTIVE" | "CLOSED";
 
 export interface AcademicYearRecord {
   id: string;
@@ -12,6 +12,9 @@ export interface AcademicYearRecord {
   updatedAt: Date;
   activatedAt?: Date | undefined;
   deactivatedAt?: Date | undefined;
+  closedAt?: Date | undefined;
+  reopenedAt?: Date | undefined;
+  lifecycleReason?: string | undefined;
 }
 
 export interface AcademicYearCreateInput {

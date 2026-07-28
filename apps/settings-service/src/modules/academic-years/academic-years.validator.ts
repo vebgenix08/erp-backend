@@ -3,7 +3,7 @@ import { isNonEmptyString } from "@school-erp/validation";
 import type { AcademicYearCreateInput, AcademicYearListFilter, AcademicYearUpdateInput } from "./academic-years.model";
 import type { AcademicYearStatus } from "./academic-years.model";
 
-const STATUS: AcademicYearStatus[] = ["ACTIVE", "INACTIVE"];
+const STATUS: AcademicYearStatus[] = ["DRAFT", "ACTIVE", "CLOSED"];
 
 function normalizeOptional(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
@@ -26,16 +26,17 @@ export function validateAcademicYearCreateInput(input: unknown): AcademicYearCre
     throw new BadRequestError("academic year payload is required");
   }
   const payload = input as Record<string, unknown>;
-  const code = normalizeOptional(payload.code);
   const name = normalizeOptional(payload.name);
-  if (!isNonEmptyString(code ?? "")) throw new BadRequestError("academic year code is required");
   if (!isNonEmptyString(name ?? "")) throw new BadRequestError("academic year name is required");
   const startDate = normalizeDate(payload.startDate, "start date");
   const endDate = normalizeDate(payload.endDate, "end date");
   if (new Date(startDate).getTime() >= new Date(endDate).getTime()) {
     throw new BadRequestError("end date must be after start date");
   }
-  return { code: code as string, name: name as string, startDate, endDate };
+  const startYear = new Date(startDate).getUTCFullYear();
+  const endYear = new Date(endDate).getUTCFullYear();
+  const code = startYear === endYear ? String(startYear) : `${startYear}-${String(endYear).slice(-2)}`;
+  return { code, name: name as string, startDate, endDate };
 }
 
 export function validateAcademicYearUpdateInput(input: unknown): AcademicYearUpdateInput {

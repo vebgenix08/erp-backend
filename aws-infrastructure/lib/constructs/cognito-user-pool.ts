@@ -20,6 +20,17 @@ export class CognitoUserPool extends Construct {
         email: true,
       },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      email: cognito.UserPoolEmail.withSES({
+        fromEmail: props.config.sesFromEmail,
+        fromName: props.config.sesFromName,
+        sesRegion: props.config.region,
+        sesVerifiedDomain: props.config.sesVerifiedDomain,
+        configurationSetName: props.config.sesConfigurationSetName,
+      }),
+      customAttributes: {
+        tenantId: new cognito.StringAttribute({ minLen: 1, maxLen: 128, mutable: true }),
+        role: new cognito.StringAttribute({ minLen: 1, maxLen: 64, mutable: true }),
+      },
       passwordPolicy: {
         minLength: 12,
         requireDigits: true,
@@ -41,6 +52,12 @@ export class CognitoUserPool extends Construct {
       accessTokenValidity: Duration.hours(8),
       idTokenValidity: Duration.hours(8),
       refreshTokenValidity: Duration.days(30),
+    });
+
+    new cognito.CfnUserPoolGroup(this, 'TenantAdminGroup', {
+      userPoolId: this.userPool.userPoolId,
+      groupName: 'TENANT_ADMIN',
+      description: 'Tenant administrators',
     });
   }
 }

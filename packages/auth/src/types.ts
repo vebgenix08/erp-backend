@@ -32,6 +32,8 @@ export interface AuthJwtClaimsPlaceholder {
 export interface AuthRequestLike {
   headers?: Record<string, string | string[] | undefined> | undefined;
   requestId?: string | undefined;
+  authorization?: string | undefined;
+  bearerToken?: string | undefined;
   jwtClaims?: AuthJwtClaimsPlaceholder | undefined;
   claims?: AuthJwtClaimsPlaceholder | undefined;
   userId?: string | undefined;
@@ -43,4 +45,19 @@ export interface AuthRequestLike {
 
 export interface AuthContextOptions {
   defaultSource?: AuthResolutionSource | undefined;
+  cognito?: CognitoIntegrationConfig | undefined;
+  verifyJwt?: ((token: string, config: CognitoIntegrationConfig) => Promise<CognitoVerificationResult> | CognitoVerificationResult) | undefined;
+}
+
+export interface CognitoIntegrationConfig {
+  userPoolId: string;
+  clientId: string;
+  region: string;
+  issuer?: string | undefined;
+}
+
+export interface CognitoVerificationResult {
+  verified: boolean;
+  claims?: AuthJwtClaimsPlaceholder | undefined;
+  reason?: string | undefined;
 }

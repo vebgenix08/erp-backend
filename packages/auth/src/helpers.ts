@@ -1,6 +1,7 @@
 import { BadRequestError } from "@school-erp/errors";
 import { createTenantContext, resolveTenantFromRequest as resolveTenantContextFromRequest, type TenantContext, type TenantRequestLike } from "@school-erp/tenancy";
-import type { AuthJwtClaimsPlaceholder, AuthRequestLike, AuthUser, Permission } from "./types";
+import type { AuthJwtClaimsPlaceholder, AuthRequestLike, AuthUser, CognitoIntegrationConfig, CognitoVerificationResult, Permission } from "./types";
+import { verifyCognitoJwt } from "./cognito";
 
 const USER_ID_HEADERS = ["x-user-id"];
 const USER_EMAIL_HEADERS = ["x-user-email"];
@@ -80,6 +81,15 @@ export function getUserPermissionsFromHeaders(request: AuthRequestLike): Permiss
   return normalizePermissions(readHeader(request.headers, USER_PERMISSIONS_HEADERS));
 }
 
+export function getBearerToken(request: AuthRequestLike): string | undefined {
+  const explicit = request.bearerToken?.trim();
+  if (explicit) return explicit;
+  const header = readHeader(request.headers, ["authorization", "Authorization"]);
+  if (!header) return undefined;
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  return match?.[1]?.trim() || undefined;
+}
+
 export function buildTenantContext(request: AuthRequestLike): TenantContext | undefined {
   if (request.tenantId || request.headers?.["x-tenant-id"]) {
     const tenantRequest: TenantRequestLike = {
@@ -129,4 +139,14 @@ export function ensurePermissionFormat(permission: string): Permission {
     throw new BadRequestError("permission must use domain.resource.action format");
   }
   return normalized;
+}
+
+export async function verifyAuthToken(
+  token: string,
+  config: CognitoIntegrationConfig,
+  verifier?: ((token: string, config: CognitoIntegrationConfig) => Promise<CognitoVerificationResult> | CognitoVerificationResult) | undefined,
+): Promise<AuthJwtClaimsPlaceholder | undefined> {
+  if (!token.trim()) return undefined;
+  const result = verifier ? await verifier(token, config) : await verifyCognitoJwt(token, config);
+  return result.verified ? normalizeAuthClaims(result.claims) : undefined;
 }

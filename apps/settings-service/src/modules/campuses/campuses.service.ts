@@ -1,6 +1,5 @@
 import type { RequestContext } from "@school-erp/api";
 import { requireAuth, requirePermission } from "@school-erp/auth";
-import { ConflictError } from "@school-erp/errors";
 import type { StructuredLogger } from "@school-erp/logger";
 import { requireTenantId } from "@school-erp/tenancy";
 import { campusPermissions } from "./campuses.permissions";
@@ -8,6 +7,7 @@ import { toCampusView } from "./campuses.mapper";
 import { campusRepository as defaultRepository, type CampusRepository } from "./campuses.repository";
 import { validateCampusCreateInput, validateCampusListFilter, validateCampusUpdateInput } from "./campuses.validator";
 import type { CampusListFilter, CampusView } from "./campuses.model";
+import { BadRequestError, ConflictError } from "@school-erp/errors";
 
 export interface CampusServiceDeps {
   repository?: CampusRepository;
@@ -57,11 +57,10 @@ export async function createCampus(context: RequestContext, input: unknown, deps
   const repository = resolveRepository(deps);
   const tenantId = getTenantId(context);
   const payload = validateCampusCreateInput(input);
-  const existing = await repository.getByCode(tenantId, payload.code);
-  if (existing) {
-    throw new ConflictError("campus code must be unique");
-  }
-  const created = await repository.create(tenantId, payload);
+  const duplicate = (await repository.list(tenantId)).some((campus) => campus.name.trim().toLowerCase().replace(/\s+/g, " ") === payload.name.trim().toLowerCase().replace(/\s+/g, " "));
+  if (duplicate) throw new ConflictError("campus name must be unique within the tenant");
+  const code = await repository.reserveNextCode(tenantId);
+  const created = await repository.create(tenantId, { ...payload, code });
   log(deps, context, `campus.created:${created.code}`);
   return toCampusView(created) as CampusView;
 }
@@ -78,12 +77,7 @@ export async function updateCampus(
   const existing = await repository.getById(tenantId, id);
   if (!existing) return null;
   const payload = validateCampusUpdateInput(input);
-  if (payload.code) {
-    const duplicate = await repository.getByCode(tenantId, payload.code);
-    if (duplicate && duplicate.id !== id) {
-      throw new ConflictError("campus code must be unique");
-    }
-  }
+  if (payload.name && (await repository.list(tenantId)).some((campus) => campus.id !== id && campus.name.trim().toLowerCase().replace(/\s+/g, " ") === payload.name!.trim().toLowerCase().replace(/\s+/g, " "))) throw new ConflictError("campus name must be unique within the tenant");
   const updated = await repository.update(tenantId, id, payload);
   log(deps, context, `campus.updated:${existing.code}`);
   return toCampusView(updated);
@@ -95,7 +89,21 @@ export async function deactivateCampus(context: RequestContext, id: string, deps
   const tenantId = getTenantId(context);
   const existing = await repository.getById(tenantId, id);
   if (!existing) return null;
+  if (existing.status === "INACTIVE") return toCampusView(existing);
+  const activeCampuses = await repository.list(tenantId, { status: "ACTIVE" });
+  if (activeCampuses.length <= 1) throw new BadRequestError("the only active campus cannot be deactivated");
   const updated = await repository.deactivate(tenantId, id);
   log(deps, context, `campus.deactivated:${existing.code}`);
+  return toCampusView(updated);
+}
+
+export async function reactivateCampus(context: RequestContext, id: string, deps?: CampusServiceDeps): Promise<CampusView | null> {
+  ensure(context, campusPermissions.activate);
+  const repository = resolveRepository(deps);
+  const tenantId = getTenantId(context);
+  const existing = await repository.getById(tenantId, id);
+  if (!existing) return null;
+  const updated = await repository.reactivate(tenantId, id);
+  log(deps, context, `campus.reactivated:${existing.code}`);
   return toCampusView(updated);
 }

@@ -4,7 +4,8 @@
   "dependencies": {
     "@school-erp/errors": "workspace:*",
     "@school-erp/tenancy": "workspace:*",
-    "@school-erp/test-utils": "workspace:*"
+    "@school-erp/test-utils": "workspace:*",
+    "jose": "^5.10.0"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

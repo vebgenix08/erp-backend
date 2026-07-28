@@ -36,6 +36,7 @@ export function validateInstitutionProfileInput(input: unknown): InstitutionProf
     ...(contactPhone !== undefined ? { contactPhone } : {}),
     ...(normalizeOptional(payload.address) !== undefined ? { address: normalizeOptional(payload.address) } : {}),
     ...(normalizeOptional(payload.logoUrl) !== undefined ? { logoUrl: normalizeOptional(payload.logoUrl) } : {}),
+    ...(normalizeOptional(payload.logoFileId) !== undefined ? { logoFileId: normalizeOptional(payload.logoFileId) } : {}),
   };
 }
 
@@ -79,6 +80,9 @@ export function validateInstitutionProfileUpdateInput(input: unknown): Instituti
 
   const logoUrl = normalizeOptional(payload.logoUrl);
   if (logoUrl !== undefined) result.logoUrl = logoUrl;
+
+  const logoFileId = normalizeOptional(payload.logoFileId);
+  if (logoFileId !== undefined) result.logoFileId = logoFileId;
 
   return result;
 }

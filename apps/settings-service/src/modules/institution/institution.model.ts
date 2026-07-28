@@ -7,6 +7,7 @@ export interface InstitutionProfileRecord {
   contactPhone?: string | undefined;
   address?: string | undefined;
   logoUrl?: string | undefined;
+  logoFileId?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +19,7 @@ export interface InstitutionProfileInput {
   contactPhone?: string | undefined;
   address?: string | undefined;
   logoUrl?: string | undefined;
+  logoFileId?: string | undefined;
 }
 
 export type InstitutionProfileUpdateInput = Partial<InstitutionProfileInput>;

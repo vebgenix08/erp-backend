@@ -54,7 +54,6 @@ function parseOptionalString(value: unknown): string | undefined {
 export function validateEnquiryCreateInput(input: unknown): EnquiryCreateInput {
   const body = normalizeObject(input);
   const errors: Array<{ field: string; message: string }> = [];
-
   const studentName = validateNonEmptyString(body.studentName, "studentName");
   const parentName = validateNonEmptyString(body.parentName, "parentName");
   const phone = validatePhone(body.phone, "phone");
@@ -75,6 +74,9 @@ export function validateEnquiryCreateInput(input: unknown): EnquiryCreateInput {
   const validatedEmail = email?.success ? email.value : undefined;
 
   return {
+    campusId: parseOptionalString(body.campusId),
+    academicYearId: parseOptionalString(body.academicYearId),
+    academicTargetId: parseOptionalString(body.academicTargetId),
     studentName: validatedStudentName,
     dateOfBirth: parseDate(body.dateOfBirth, "dateOfBirth"),
     gender: parseGender(body.gender),
@@ -84,6 +86,9 @@ export function validateEnquiryCreateInput(input: unknown): EnquiryCreateInput {
     interestedClass: parseOptionalString(body.interestedClass),
     source: parseOptionalString(body.source),
     notes: parseOptionalString(body.notes),
+    templateId: parseOptionalString(body.templateId),
+    templateVersion: typeof body.templateVersion === "number" && Number.isInteger(body.templateVersion) && body.templateVersion > 0 ? body.templateVersion : undefined,
+    customFields: body.customFields && typeof body.customFields === "object" && !Array.isArray(body.customFields) ? body.customFields as Record<string, unknown> : undefined,
   };
 }
 
@@ -175,6 +180,11 @@ export function validateEnquiryListFilter(input: unknown): EnquiryListFilter {
   const body = input as Record<string, unknown>;
   const filter: EnquiryListFilter = {};
   const errors: Array<{ field: string; message: string }> = [];
+  for (const field of ["campusId", "academicYearId"] as const) {
+    if (body[field] === undefined) continue;
+    const value = optionalString(body[field]);
+    if (value) filter[field] = value;
+  }
 
   if (body.status !== undefined) {
     if (typeof body.status !== "string") {
@@ -202,6 +212,12 @@ export function validateEnquiryListFilter(input: unknown): EnquiryListFilter {
       filter.search = value;
     }
   }
+  for (const field of ["limit", "offset"] as const) {
+    if (body[field] === undefined) continue;
+    if (typeof body[field] !== "number" || !Number.isSafeInteger(body[field]) || Number(body[field]) < 0) errors.push({ field, message: `${field} must be a non-negative integer` });
+    else filter[field] = Number(body[field]);
+  }
+  if ((filter.limit ?? 25) > 100) errors.push({ field: "limit", message: "limit cannot exceed 100" });
 
   if (errors.length > 0) {
     throw new ValidationError(errors);

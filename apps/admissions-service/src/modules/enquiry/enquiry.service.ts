@@ -101,6 +101,12 @@ export async function listEnquiries(
   return enquiries.map((enquiry) => toEnquiryView(enquiry) as EnquiryView);
 }
 
+export async function listEnquiryPage(context: EnquiryServiceContext, deps?: AdmissionsServiceDeps, filter?: EnquiryListFilter) {
+  assertPermission(context, enquiryPermissions.read);
+  const page = await resolveRepository(deps).listPage(getTenantId(context), validateEnquiryListFilter(filter));
+  return { ...page, items: page.items.map((enquiry) => toEnquiryView(enquiry) as EnquiryView) };
+}
+
 export async function updateEnquiry(
   id: string,
   input: unknown,

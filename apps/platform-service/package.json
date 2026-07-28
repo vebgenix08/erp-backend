@@ -1,8 +1,14 @@
 {
   "name": "@school-erp/platform-service",
   "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.750.0",
+    "@aws-sdk/client-secrets-manager": "^3.1090.0",
+    "@aws-sdk/client-sesv2": "^3.750.0",
     "@school-erp/api": "workspace:*",
+    "@school-erp/auth": "workspace:*",
     "@school-erp/config": "workspace:*",
     "@school-erp/errors": "workspace:*",
     "@school-erp/mongodb": "workspace:*",

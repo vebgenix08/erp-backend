@@ -15,8 +15,8 @@ test("list campuses sorts by name", async () => {
       authenticatedAt: new Date(),
     } as any,
   });
-  await createCampusUseCase(context as any, createCampusFixture({ code: "B", name: "Beta Campus" }), { repository });
-  await createCampusUseCase(context as any, createCampusFixture({ code: "A", name: "Alpha Campus" }), { repository });
+  await createCampusUseCase(context as any, createCampusFixture({ name: "Beta Campus" }), { repository });
+  await createCampusUseCase(context as any, createCampusFixture({ name: "Alpha Campus" }), { repository });
   const results = await listCampusesUseCase(context as any, { repository });
   assert.equal(results[0]?.name, "Alpha Campus");
 });

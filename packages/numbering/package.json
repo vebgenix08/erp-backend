@@ -1,0 +1,16 @@
+{
+  "name": "@school-erp/numbering",
+  "private": true,
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "dependencies": {
+    "@school-erp/errors": "workspace:*",
+    "@school-erp/mongodb": "workspace:*",
+    "mongodb": "^6.19.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test dist-tests/tests/numbering.test.js"
+  }
+}

@@ -1,0 +1,44 @@
+enum AcademicEntityStatus { ACTIVE INACTIVE }
+enum SubjectType { THEORY PRACTICAL MIXED }
+
+type AcademicProgram { id: ID! tenantId: ID! campusId: ID! code: String! name: String! description: String status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
+type AcademicClass { id: ID! tenantId: ID! campusId: ID! programId: ID! code: String! name: String! description: String status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
+type AcademicSection { id: ID! tenantId: ID! campusId: ID! programId: ID! classId: ID! code: String! name: String! description: String status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
+type AcademicSubject { id: ID! tenantId: ID! campusId: ID! programId: ID! classId: ID code: String! name: String! subjectType: SubjectType! credits: Float status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
+
+input AcademicProgramFilter { campusId: ID! status: AcademicEntityStatus }
+input AcademicClassFilter { campusId: ID! programId: ID status: AcademicEntityStatus }
+input AcademicSectionFilter { campusId: ID! programId: ID classId: ID status: AcademicEntityStatus }
+input AcademicSubjectFilter { campusId: ID! programId: ID classId: ID status: AcademicEntityStatus }
+input CreateAcademicProgramInput { campusId: ID! name: String! description: String }
+input UpdateAcademicProgramInput { name: String description: String status: AcademicEntityStatus }
+input CreateAcademicClassInput { campusId: ID! programId: ID! name: String! description: String }
+input UpdateAcademicClassInput { programId: ID name: String description: String status: AcademicEntityStatus }
+input CreateAcademicSectionInput { campusId: ID! programId: ID! classId: ID! name: String! description: String }
+input UpdateAcademicSectionInput { programId: ID classId: ID name: String description: String status: AcademicEntityStatus }
+input CreateAcademicSubjectInput { campusId: ID! programId: ID! classId: ID name: String! subjectType: SubjectType! credits: Float }
+input UpdateAcademicSubjectInput { programId: ID classId: ID name: String subjectType: SubjectType credits: Float status: AcademicEntityStatus }
+
+enum TeachingAssignmentRole { SUBJECT_TEACHER SECTION_INCHARGE }
+type TeachingAssignment { id: ID! tenantId: ID! campusId: ID! academicYearId: ID! employeeId: ID! employeeName: String! role: TeachingAssignmentRole! programId: ID! classId: ID! sectionId: ID! subjectId: ID status: AcademicEntityStatus! createdBy: ID! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
+input TeachingAssignmentFilter { campusId: ID! academicYearId: ID employeeId: ID classId: ID sectionId: ID subjectId: ID role: TeachingAssignmentRole status: AcademicEntityStatus }
+input CreateTeachingAssignmentInput { campusId: ID! academicYearId: ID! employeeId: ID! employeeName: String! role: TeachingAssignmentRole! programId: ID! classId: ID! sectionId: ID! subjectId: ID }
+
+enum StudentDocumentType { BONAFIDE_CERTIFICATE STUDY_CERTIFICATE TRANSFER_CERTIFICATE STUDENT_ID_CARD }
+enum StudentDocumentStatus { ISSUED REVOKED }
+type StudentDocument { id: ID! documentNumber: String! documentType: StudentDocumentType! studentId: ID! studentName: String! admissionNumber: String! registrationNumber: String! campusId: ID! academicYearId: ID! classId: ID! sectionId: ID purpose: String validUntil: AWSDateTime status: StudentDocumentStatus! issuedBy: ID! issuedAt: AWSDateTime! updatedAt: AWSDateTime! revokedAt: AWSDateTime revokedBy: ID revokeReason: String }
+input StudentDocumentFilter { studentId: ID campusId: ID academicYearId: ID documentType: StudentDocumentType status: StudentDocumentStatus }
+input IssueStudentDocumentInput { studentId: ID! documentType: StudentDocumentType! purpose: String validUntil: AWSDateTime }
+
+enum StudentStatus { ACTIVE INACTIVE GRADUATED TRANSFERRED }
+enum EnrollmentStatus { ACTIVE COMPLETED CANCELLED }
+type StudentGuardian { name: String! phone: String relation: String }
+type StudentEnrollment { id: ID! campusId: ID! academicYearId: ID! programId: ID! classId: ID! sectionId: ID rollNumber: String status: EnrollmentStatus! enrolledAt: AWSDateTime! }
+type Student { id: ID! admissionApplicationId: ID! admissionNumber: String! registrationNumber: String! name: String! dateOfBirth: AWSDateTime gender: EnquiryGender phone: String! email: AWSEmail address: String guardian: StudentGuardian! status: StudentStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! enrollment: StudentEnrollment! }
+enum SortDirection { ASC DESC }
+enum StudentSortField { name admissionNumber registrationNumber createdAt }
+type StudentPage { items: [Student!]! page: Int! pageSize: Int! total: Int! totalPages: Int! sortBy: StudentSortField! sortDirection: SortDirection! }
+input StudentFilter { campusId: ID academicYearId: ID classId: ID sectionId: ID status: StudentStatus search: String limit: Int offset: Int page: Int pageSize: Int sortBy: StudentSortField sortDirection: SortDirection }
+input ChangeStudentEnrollmentInput { campusId: ID! academicYearId: ID! classId: ID! sectionId: ID rollNumber: String reason: String! }
+type StudentNote { id: ID! studentId: ID! body: String! createdBy: ID! createdAt: AWSDateTime! updatedAt: AWSDateTime! }
+input StudentNoteInput { body: String! }

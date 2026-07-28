@@ -5,6 +5,7 @@ export type {
 } from "./error-response-mapper";
 export {
   mapErrorToResponse,
+  toGraphqlError,
   toErrorResponse,
 } from "./error-response-mapper";
 export type { AppErrorOptions, ValidationErrorDetails } from "./app-error";

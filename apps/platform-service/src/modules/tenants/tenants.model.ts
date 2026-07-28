@@ -4,7 +4,9 @@ export type { TenantStatus, TenantType };
 
 export interface TenantRecord {
   id: string;
+  clientRequestId: string;
   name: string;
+  slug?: string | undefined;
   code: string;
   type: TenantType;
   status: TenantStatus;
@@ -15,10 +17,18 @@ export interface TenantRecord {
   createdAt: Date;
   updatedAt: Date;
   deactivatedAt?: Date | undefined;
+  deletionRequestedAt?: Date | undefined;
+  deletionRequestedBy?: string | undefined;
+  deletionReason?: string | undefined;
+  deletedAt?: Date | undefined;
+  deletedBy?: string | undefined;
+  purgeEligibleAt?: Date | undefined;
 }
 
 export interface TenantCreateInput {
+  clientRequestId: string;
   name: string;
+  slug?: string | undefined;
   code: string;
   type: TenantType;
   contactEmail?: string | undefined;
@@ -29,6 +39,7 @@ export interface TenantCreateInput {
 
 export interface TenantUpdateInput {
   name?: string;
+  slug?: string | undefined;
   code?: string;
   type?: TenantType;
   status?: TenantStatus;
@@ -37,4 +48,10 @@ export interface TenantUpdateInput {
   address?: string | undefined;
   academicYearStartMonth?: number | undefined;
   deactivatedAt?: Date | undefined;
+  deletionRequestedAt?: Date | undefined;
+  deletionRequestedBy?: string | undefined;
+  deletionReason?: string | undefined;
+  deletedAt?: Date | undefined;
+  deletedBy?: string | undefined;
+  purgeEligibleAt?: Date | undefined;
 }

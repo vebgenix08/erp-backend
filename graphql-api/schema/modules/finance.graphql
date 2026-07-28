@@ -1,0 +1,487 @@
+enum FinanceRecordStatus {
+  ACTIVE
+  INACTIVE
+}
+enum FeeHeadCategory {
+  TUITION
+  ADMISSION
+  EXAM
+  LIBRARY
+  LAB
+  TRANSPORT
+  HOSTEL
+  OTHER
+}
+enum FeeSchedulePattern {
+  ANNUAL
+  ONE_TIME
+  PERIODIC
+  MANUAL
+}
+enum FeeCollectionPolicy {
+  FULL_ONLY
+  PARTIAL_ALLOWED
+}
+
+type FeeHead {
+  id: ID!
+  code: String!
+  name: String!
+  category: FeeHeadCategory!
+  description: String
+  refundable: Boolean!
+  status: FinanceRecordStatus!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+type FeeSchedule {
+  id: ID!
+  campusId: ID!
+  academicYearId: ID!
+  code: String!
+  name: String!
+  pattern: FeeSchedulePattern!
+  collectionPolicy: FeeCollectionPolicy!
+  status: FinanceRecordStatus!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+type FeeStructureComponent {
+  feeHeadId: ID!
+  amountMinor: Int!
+  allocationPriority: Int!
+}
+type FeeStructure {
+  id: ID!
+  campusId: ID!
+  academicYearId: ID!
+  code: String!
+  name: String!
+  currency: String!
+  components: [FeeStructureComponent!]!
+  totalAmountMinor: Int!
+  status: FinanceRecordStatus!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+type FeeMappingTarget {
+  programId: ID
+  classId: ID!
+  sectionId: ID
+}
+type FeeMapping {
+  id: ID!
+  campusId: ID!
+  academicYearId: ID!
+  structureId: ID!
+  scheduleId: ID!
+  target: FeeMappingTarget!
+  status: FinanceRecordStatus!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+type FeeConfiguration {
+  feeHeads: [FeeHead!]!
+  schedules: [FeeSchedule!]!
+  structures: [FeeStructure!]!
+  mappings: [FeeMapping!]!
+}
+type FinanceMutationResult {
+  updated: Boolean!
+}
+type FinanceDashboard {
+  campusId: ID!
+  academicYearId: ID!
+  totalAssignedMinor: Int!
+  grossCollectedMinor: Int!
+  reversedMinor: Int!
+  collectedMinor: Int!
+  outstandingMinor: Int!
+  collectedTodayMinor: Int!
+  openOrders: Int!
+  paidOrders: Int!
+  paymentCount: Int!
+  adjustmentCount: Int!
+  generatedAt: AWSDateTime!
+}
+
+enum FeeOrderStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+enum FeeOrderSourceType {
+  ANNUAL
+  GENERAL
+  TRANSFER_ADJUSTMENT
+}
+type FeeOrderCharge {
+  id: ID!
+  feeHeadId: ID!
+  feeHeadCode: String!
+  label: String!
+  refundable: Boolean!
+  sequence: Int!
+  amountMinor: Int!
+  paidMinor: Int!
+  balanceMinor: Int!
+}
+type FeeOrder {
+  id: ID!
+  orderNumber: String!
+  sourceType: FeeOrderSourceType!
+  sourceId: ID!
+  note: String
+  studentId: ID!
+  studentName: String!
+  registrationNumber: String!
+  enrollmentId: ID!
+  campusId: ID!
+  academicYearId: ID!
+  programId: ID!
+  classId: ID!
+  sectionId: ID
+  mappingId: ID!
+  structureId: ID!
+  structureCode: String!
+  structureName: String!
+  scheduleId: ID!
+  scheduleCode: String!
+  scheduleName: String!
+  collectionPolicy: FeeCollectionPolicy!
+  currency: String!
+  charges: [FeeOrderCharge!]!
+  totalMinor: Int!
+  paidMinor: Int!
+  balanceMinor: Int!
+  status: FeeOrderStatus!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+input FeeOrderFilter {
+  campusId: ID
+  academicYearId: ID
+  studentId: ID
+  classId: ID
+  sectionId: ID
+  status: FeeOrderStatus
+  sourceType: FeeOrderSourceType
+  search: String
+  limit: Int
+  offset: Int
+}
+type FeeOrderPage {
+  items: [FeeOrder!]!
+  total: Int!
+  limit: Int!
+  offset: Int!
+}
+
+enum GeneralChargeTargetType {
+  STUDENT
+  CLASS
+  SECTION
+}
+enum GeneralChargeStatus {
+  ASSIGNING
+  ASSIGNED
+  FAILED
+}
+type GeneralChargeTarget {
+  type: GeneralChargeTargetType!
+  ids: [ID!]!
+}
+type GeneralCharge {
+  id: ID!
+  campusId: ID!
+  academicYearId: ID!
+  name: String!
+  note: String
+  feeHeadId: ID!
+  feeHeadCode: String!
+  amountMinor: Int!
+  collectionPolicy: FeeCollectionPolicy!
+  target: GeneralChargeTarget!
+  status: GeneralChargeStatus!
+  assignedCount: Int!
+  failureReason: String
+  createdBy: ID!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+input GeneralChargeTargetInput {
+  type: GeneralChargeTargetType!
+  ids: [ID!]!
+}
+input CreateGeneralChargeInput {
+  campusId: ID!
+  academicYearId: ID!
+  name: String!
+  note: String
+  feeHeadId: ID!
+  amountMinor: Int!
+  collectionPolicy: FeeCollectionPolicy!
+  target: GeneralChargeTargetInput!
+  idempotencyKey: ID!
+}
+input GeneralChargeFilter {
+  campusId: ID
+  academicYearId: ID
+  status: GeneralChargeStatus
+}
+
+input FeeConfigurationScopeInput {
+  campusId: ID!
+  academicYearId: ID!
+}
+input CreateFeeHeadInput {
+  name: String!
+  category: FeeHeadCategory!
+  description: String
+  refundable: Boolean
+}
+input UpdateFeeHeadInput {
+  name: String!
+  category: FeeHeadCategory!
+  description: String
+  refundable: Boolean
+}
+input CreateFeeScheduleInput {
+  campusId: ID!
+  academicYearId: ID!
+  name: String!
+  pattern: FeeSchedulePattern!
+  collectionPolicy: FeeCollectionPolicy!
+}
+input FeeStructureComponentInput {
+  feeHeadId: ID!
+  amountMinor: Int!
+  allocationPriority: Int
+}
+input CreateFeeStructureInput {
+  campusId: ID!
+  academicYearId: ID!
+  name: String!
+  components: [FeeStructureComponentInput!]!
+}
+input FeeMappingTargetInput {
+  programId: ID
+  classId: ID!
+  sectionId: ID
+}
+input CreateFeeMappingInput {
+  campusId: ID!
+  academicYearId: ID!
+  structureId: ID!
+  scheduleId: ID!
+  target: FeeMappingTargetInput!
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  ONLINE
+}
+enum PaymentStatus {
+  SUCCESS
+  PARTIALLY_REFUNDED
+  VOIDED
+  REFUNDED
+}
+type PaymentChargeAllocation {
+  chargeId: ID!
+  feeHeadId: ID!
+  label: String!
+  amountMinor: Int!
+}
+type PaymentAllocation {
+  feeOrderId: ID!
+  label: String!
+  amountMinor: Int!
+  chargeAllocations: [PaymentChargeAllocation!]!
+}
+type FinancePayment {
+  id: ID!
+  campusId: ID!
+  academicYearId: ID!
+  studentId: ID!
+  studentName: String!
+  receiptNumber: String!
+  amountMinor: Int!
+  reversedMinor: Int!
+  currency: String!
+  method: PaymentMethod!
+  reference: String
+  note: String
+  status: PaymentStatus!
+  allocations: [PaymentAllocation!]!
+  paidAt: AWSDateTime!
+  createdAt: AWSDateTime!
+}
+type FinancePaymentPage {
+  items: [FinancePayment!]!
+  total: Int!
+  limit: Int!
+  offset: Int!
+}
+type ReceiptStudent {
+  id: ID!
+  name: String!
+}
+type FinanceReceipt {
+  receiptNumber: String!
+  paymentId: ID!
+  status: PaymentStatus!
+  student: ReceiptStudent!
+  campusId: ID!
+  academicYearId: ID!
+  currency: String!
+  amountMinor: Int!
+  method: PaymentMethod!
+  reference: String
+  note: String
+  allocations: [PaymentAllocation!]!
+  paidAt: AWSDateTime!
+  issuedAt: AWSDateTime!
+  collectedBy: ID!
+  fileName: String!
+  documentHtml: String!
+  pdfBase64: String!
+  contentType: String!
+  paperSize: ReceiptPaperSize!
+}
+enum ReceiptPaperSize {
+  A4
+  A5
+  THERMAL_80MM
+}
+type FinanceReceiptTemplate {
+  id: ID!
+  title: String!
+  headerText: String
+  footerText: String
+  signatureLabel: String!
+  paperSize: ReceiptPaperSize!
+  accentColor: String!
+  showInstitutionLogo: Boolean!
+  showInstitutionAddress: Boolean!
+  showPaymentMethod: Boolean!
+  showPaymentReference: Boolean!
+  updatedBy: ID!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+input SaveFinanceReceiptTemplateInput {
+  title: String!
+  headerText: String
+  footerText: String
+  signatureLabel: String!
+  paperSize: ReceiptPaperSize!
+  accentColor: String!
+  showInstitutionLogo: Boolean!
+  showInstitutionAddress: Boolean!
+  showPaymentMethod: Boolean!
+  showPaymentReference: Boolean!
+}
+input PaymentFilter {
+  campusId: ID
+  academicYearId: ID
+  studentId: ID
+  status: PaymentStatus
+  method: PaymentMethod
+  paidFrom: AWSDate
+  paidTo: AWSDate
+  search: String
+  limit: Int
+  offset: Int
+}
+input PaymentAllocationInput {
+  feeOrderId: ID!
+  amountMinor: Int!
+  chargeAllocations: [PaymentChargeAllocationInput!]
+}
+input PaymentChargeAllocationInput {
+  chargeId: ID!
+  amountMinor: Int!
+}
+input CollectPaymentInput {
+  studentId: ID!
+  method: PaymentMethod!
+  reference: String
+  note: String
+  allocations: [PaymentAllocationInput!]!
+  idempotencyKey: ID!
+  paidAt: AWSDateTime
+}
+
+enum PaymentAdjustmentType {
+  VOID
+  REFUND
+}
+type PaymentAdjustmentAllocation {
+  feeOrderId: ID!
+  chargeId: ID!
+  feeHeadId: ID!
+  label: String!
+  amountMinor: Int!
+}
+type FinancePaymentAdjustment {
+  id: ID!
+  adjustmentNumber: String!
+  paymentId: ID!
+  receiptNumber: String!
+  studentId: ID!
+  campusId: ID!
+  academicYearId: ID!
+  type: PaymentAdjustmentType!
+  amountMinor: Int!
+  reason: String!
+  allocations: [PaymentAdjustmentAllocation!]!
+  createdBy: ID!
+  createdAt: AWSDateTime!
+}
+input PaymentAdjustmentFilter {
+  paymentId: ID
+  campusId: ID
+  academicYearId: ID
+  type: PaymentAdjustmentType
+}
+input CreatePaymentAdjustmentInput {
+  paymentId: ID!
+  type: PaymentAdjustmentType!
+  amountMinor: Int
+  reason: String!
+  idempotencyKey: ID!
+}
+
+enum FeeOrderRecoveryStatus {
+  PENDING
+  RESOLVED
+}
+type FeeOrderRecovery {
+  id: ID!
+  eventId: ID!
+  studentId: ID!
+  studentName: String!
+  registrationNumber: String!
+  campusId: ID!
+  academicYearId: ID!
+  status: FeeOrderRecoveryStatus!
+  attempts: Int!
+  lastError: String!
+  lastAttemptAt: AWSDateTime!
+  resolvedAt: AWSDateTime
+  resolvedBy: ID
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+input FeeOrderRecoveryFilter {
+  campusId: ID
+  academicYearId: ID
+  status: FeeOrderRecoveryStatus
+  search: String
+}

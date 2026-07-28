@@ -36,8 +36,27 @@ export class InMemoryCollection<TDocument extends Document> implements Collectio
     return null;
   }
 
-  async findMany(filter: Filter<TDocument> = {}) {
-    return [...this.records.values()].filter((record) => matchesFilter(record, filter)).map((record) => structuredClone(record));
+  async findMany(filter: Filter<TDocument> = {}, options: { sort?: Record<string, 1 | -1>; skip?: number; limit?: number } = {}) {
+    let records = [...this.records.values()].filter((record) => matchesFilter(record, filter));
+    if (options.sort) {
+      const sortEntries = Object.entries(options.sort);
+      records.sort((left, right) => {
+        for (const [field, direction] of sortEntries) {
+          const a = (left as Record<string, unknown>)[field];
+          const b = (right as Record<string, unknown>)[field];
+          const comparison = String(a ?? "").localeCompare(String(b ?? ""));
+          if (comparison) return comparison * direction;
+        }
+        return 0;
+      });
+    }
+    const start = Math.max(0, options.skip ?? 0);
+    const end = options.limit === undefined ? undefined : start + Math.max(0, options.limit);
+    return records.slice(start, end).map((record) => structuredClone(record));
+  }
+
+  async count(filter: Filter<TDocument> = {}) {
+    return [...this.records.values()].filter((record) => matchesFilter(record, filter)).length;
   }
 
   async insertOne(document: TDocument) {
@@ -53,6 +72,17 @@ export class InMemoryCollection<TDocument extends Document> implements Collectio
       }
     }
     return null;
+  }
+
+  async findOneAndUpdate(filter: Filter<TDocument>, update: Document, options: { upsert?: boolean; returnDocument?: "before" | "after" } = {}) {
+    const existing = await this.findOne(filter);
+    if (!existing && !options.upsert) return null;
+    const before = existing ? structuredClone(existing) : null;
+    const base = existing ?? ({ ...(filter as Record<string, unknown>), ...((update.$setOnInsert as Record<string, unknown> | undefined) ?? {}) } as TDocument);
+    const next = { ...base, ...((update.$set as Record<string, unknown> | undefined) ?? {}) } as Record<string, unknown>;
+    for (const [key, amount] of Object.entries((update.$inc as Record<string, number> | undefined) ?? {})) next[key] = Number(next[key] ?? 0) + amount;
+    this.seed(next as TDocument);
+    return structuredClone((options.returnDocument ?? "after") === "before" ? before : next as TDocument);
   }
 
   async deleteOne(filter: Filter<TDocument>) {

@@ -12,6 +12,7 @@ export interface ApiRequest {
   method: string;
   path: string;
   headers?: ApiHeaders | undefined;
+  authorization?: string | undefined;
   query?: ApiQuery | undefined;
   body?: ApiBody | undefined;
   rawBody?: string | undefined;

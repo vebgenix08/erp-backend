@@ -13,13 +13,13 @@ export class GithubOidcRole extends Construct {
     super(scope, id);
 
     const providerArn = `arn:aws:iam::${props.config.accountId}:oidc-provider/token.actions.githubusercontent.com`;
-    const subject = props.config.githubRepository === '*/*'
-      ? 'repo:*/*:ref:refs/heads/*'
-      : `repo:${props.config.githubRepository}:ref:refs/heads/${props.config.githubBranch}`;
+    const subjects = props.config.githubRepositories.flatMap((repository) =>
+      props.config.githubEnvironments.map((environment) => `repo:${repository}:environment:${environment}`),
+    );
 
     this.role = new iam.Role(this, 'Role', {
       roleName: `github-oidc-role-${props.config.environment}`,
-      description: 'Placeholder GitHub Actions role for ERP deployment',
+      description: 'GitHub Actions deployment role restricted to approved ERP repositories and environments',
       assumedBy: new iam.FederatedPrincipal(
         providerArn,
         {
@@ -27,7 +27,7 @@ export class GithubOidcRole extends Construct {
             'token.actions.githubusercontent.com:aud': 'sts.amazonaws.com',
           },
           StringLike: {
-            'token.actions.githubusercontent.com:sub': subject,
+            'token.actions.githubusercontent.com:sub': subjects,
           },
         },
         'sts:AssumeRoleWithWebIdentity',

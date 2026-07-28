@@ -1,0 +1,457 @@
+enum TenantType {
+  INSTITUTION
+  SCHOOL
+  COLLEGE
+  DEGREE_COLLEGE
+}
+
+enum TenantStatus {
+  ONBOARDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETION_PENDING
+}
+
+type Tenant {
+  id: ID!
+  name: String!
+  organizationName: String!
+  slug: String
+  type: TenantType!
+  status: TenantStatus!
+  contactEmail: String
+  contactPhone: String
+  address: String
+  academicYearStartMonth: Int
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+  deactivatedAt: AWSDateTime
+  deletionRequestedAt: AWSDateTime
+  deletionRequestedBy: ID
+  deletionReason: String
+  deletedAt: AWSDateTime
+  deletedBy: ID
+  purgeEligibleAt: AWSDateTime
+}
+
+type ProvisionTenantWarning {
+  code: String!
+  message: String!
+}
+type ProvisionTenantPayload {
+  tenantId: ID!
+  organizationName: String!
+  slug: String!
+  onboardingStatus: String!
+  primaryAdminInviteStatus: String!
+  warnings: [ProvisionTenantWarning!]!
+}
+input ProvisionTenantInput {
+  organizationName: String!
+  slug: String!
+  primaryAdminFullName: String!
+  primaryAdminEmail: AWSEmail!
+  clientRequestId: ID!
+}
+
+type TenantEdge {
+  cursor: String!
+  node: Tenant!
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
+}
+
+type TenantConnection {
+  edges: [TenantEdge!]!
+  pageInfo: PageInfo!
+}
+
+type CurrentTenantSummary {
+  name: String!
+  code: String!
+  slug: String
+  status: TenantStatus!
+}
+
+type PlatformDashboardSummary {
+  tenantCount: Int!
+  activeTenantCount: Int!
+  suspendedTenantCount: Int!
+  bootstrapCount: Int!
+  activeFeatureFlagCount: Int!
+  auditLogCount: Int!
+  onboardingTenantCount: Int!
+  deletionPendingTenantCount: Int!
+  failedBootstrapCount: Int!
+  pendingBootstrapCount: Int!
+}
+
+enum FeatureFlagStatus {
+  ACTIVE
+  INACTIVE
+}
+type PlatformFeatureFlag {
+  id: ID!
+  code: String!
+  name: String!
+  description: String
+  isEnabled: Boolean!
+  status: FeatureFlagStatus!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+  deactivatedAt: AWSDateTime
+}
+
+type PlatformAuditLog {
+  id: ID!
+  actorId: ID
+  tenantId: ID
+  tenantName: String
+  action: String!
+  entityType: String!
+  entityId: ID
+  details: AWSJSON
+  createdAt: AWSDateTime!
+}
+
+enum BootstrapStatus {
+  PENDING
+  INVITED
+  COMPLETED
+  FAILED
+}
+type FirstAdminBootstrap {
+  id: ID!
+  tenantId: ID!
+  adminName: String!
+  adminEmail: AWSEmail!
+  adminPhone: String
+  roleCode: String!
+  status: BootstrapStatus!
+  inviteId: ID
+  inviteError: String
+  inviteAttempts: Int!
+  lastInviteAttemptAt: AWSDateTime
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+  invitedAt: AWSDateTime
+  completedAt: AWSDateTime
+}
+
+input CreateFeatureFlagInput {
+  code: String!
+  name: String!
+  description: String
+  isEnabled: Boolean
+}
+input UpdateFeatureFlagInput {
+  id: ID!
+  name: String
+  description: String
+  isEnabled: Boolean
+  status: FeatureFlagStatus
+}
+input CreateFirstAdminBootstrapInput {
+  tenantId: ID!
+  adminName: String!
+  adminEmail: AWSEmail!
+  adminPhone: String
+}
+
+enum TenantEntitlementStatus {
+  ENABLED
+  DISABLED
+}
+type TenantCapability {
+  code: String!
+  name: String!
+  description: String!
+  owner: String!
+  designSections: [Int!]!
+  dependencies: [String!]!
+}
+type TenantEntitlement {
+  id: ID!
+  tenantId: ID!
+  featureCode: String!
+  status: TenantEntitlementStatus!
+  limits: AWSJSON
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+input SetTenantEntitlementInput {
+  tenantId: ID!
+  featureCode: String!
+  status: TenantEntitlementStatus!
+  limits: AWSJSON
+}
+enum PlatformIntegrationCode {
+  EMAIL
+  SMS
+  PAYMENTS
+  STORAGE
+}
+enum PlatformIntegrationStatus {
+  CONFIGURED
+  DISABLED
+  DEGRADED
+}
+type PlatformIntegration {
+  id: ID!
+  code: PlatformIntegrationCode!
+  status: PlatformIntegrationStatus!
+  secretReference: String
+  settings: AWSJSON!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+input SetPlatformIntegrationInput {
+  code: PlatformIntegrationCode!
+  status: PlatformIntegrationStatus!
+  secretReference: String
+  settings: AWSJSON
+}
+enum EmailDeliveryEventType {
+  SEND
+  DELIVERY
+  DELIVERY_DELAY
+  BOUNCE
+  COMPLAINT
+  REJECT
+  RENDERING_FAILURE
+}
+type EmailDeliveryEvent {
+  id: ID!
+  messageId: ID!
+  eventType: EmailDeliveryEventType!
+  occurredAt: AWSDateTime!
+  recipients: [AWSEmail!]!
+}
+
+input UpdateTenantInput {
+  tenantId: ID!
+  name: String
+  contactEmail: String
+  contactPhone: String
+  address: String
+  academicYearStartMonth: Int
+  clientRequestId: ID!
+}
+
+type Query {
+  apiHealth: ApiHealth!
+  currentTenantSummary: CurrentTenantSummary!
+  tenants(first: Int = 25, after: String): TenantConnection!
+  tenant(tenantId: ID!): Tenant
+  platformDashboardSummary: PlatformDashboardSummary!
+  platformFeatureFlags: [PlatformFeatureFlag!]!
+  platformAuditLogs(
+    tenantId: ID
+    entityType: String
+    action: String
+    first: Int = 50
+    after: String
+  ): [PlatformAuditLog!]!
+  firstAdminBootstrap(tenantId: ID!): FirstAdminBootstrap
+  tenantCapabilityCatalog: [TenantCapability!]!
+  tenantEntitlements(tenantId: ID): [TenantEntitlement!]!
+  platformIntegrations: [PlatformIntegration!]!
+  inviteDeliveryEvents(email: AWSEmail!): [EmailDeliveryEvent!]!
+  institutionProfile: InstitutionProfile
+  campuses(
+    status: CampusStatus
+    campusType: TenantType
+    search: String
+  ): [Campus!]!
+  academicYears(status: AcademicYearStatus): [AcademicYear!]!
+  tenantReadiness: TenantReadiness!
+  tenantAdminDashboard(input: TenantAdminDashboardInput!): TenantAdminDashboard!
+  tenantTemplates(
+    status: TemplateStatus
+    templateType: TemplateType
+    search: String
+  ): [TenantTemplate!]!
+  numberingPolicies: [NumberingPolicy!]!
+  notificationPolicy: NotificationPolicy!
+  academicPrograms(filter: AcademicProgramFilter): [AcademicProgram!]!
+  academicClasses(filter: AcademicClassFilter): [AcademicClass!]!
+  academicSections(filter: AcademicSectionFilter): [AcademicSection!]!
+  academicSubjects(filter: AcademicSubjectFilter): [AcademicSubject!]!
+  teachingAssignments(filter: TeachingAssignmentFilter!): [TeachingAssignment!]!
+  studentDocuments(filter: StudentDocumentFilter): [StudentDocument!]!
+  studentNotes(id: ID!): [StudentNote!]!
+  studentDocument(id: ID!): StudentDocument!
+  students(filter: StudentFilter): [Student!]!
+  studentPage(filter: StudentFilter): StudentPage!
+  student(id: ID!): Student!
+  studentByAdmissionApplicationId(id: ID!): Student!
+  identityUsers: [IdentityUser!]!
+  identityRoles: [IdentityRole!]!
+  identityAccess: IdentityAccessSnapshot!
+  employees(filter: EmployeeFilter): [Employee!]!
+  employee(id: ID!): Employee!
+  employeeInviteAttempts(id: ID!): [EmployeeInviteAttempt!]!
+  enquiries(filter: EnquiryFilter): [Enquiry!]!
+  enquiryPage(filter: EnquiryFilter): EnquiryPage!
+  enquiry(id: ID!): Enquiry!
+  applications(filter: ApplicationFilter): [AdmissionApplication!]!
+  applicationPage(filter: ApplicationFilter): AdmissionApplicationPage!
+  application(id: ID!): AdmissionApplication!
+  applicationDuplicateCheck(id: ID!): ApplicationDuplicateCheck!
+  feeConfiguration(scope: FeeConfigurationScopeInput!): FeeConfiguration!
+  financeDashboard(scope: FeeConfigurationScopeInput!): FinanceDashboard!
+  feeOrders(filter: FeeOrderFilter): [FeeOrder!]!
+  feeOrderPage(filter: FeeOrderFilter): FeeOrderPage!
+  generalCharges(filter: GeneralChargeFilter): [GeneralCharge!]!
+  feeOrder(id: ID!): FeeOrder!
+  financeReceipt(paymentId: ID!): FinanceReceipt!
+  financeReceiptTemplate: FinanceReceiptTemplate!
+  financePayments(filter: PaymentFilter): [FinancePayment!]!
+  financePaymentPage(filter: PaymentFilter): FinancePaymentPage!
+  financePaymentAdjustments(
+    filter: PaymentAdjustmentFilter
+  ): [FinancePaymentAdjustment!]!
+  feeOrderRecoveries(filter: FeeOrderRecoveryFilter): [FeeOrderRecovery!]!
+}
+
+type Mutation {
+  provisionTenant(input: ProvisionTenantInput!): ProvisionTenantPayload!
+  updateTenant(input: UpdateTenantInput!): Tenant!
+  deactivateTenant(tenantId: ID!, clientRequestId: ID!): Tenant!
+  activateTenant(tenantId: ID!, clientRequestId: ID!): Tenant!
+  suspendTenant(tenantId: ID!, clientRequestId: ID!): Tenant!
+  requestTenantDeletion(
+    tenantId: ID!
+    reason: String!
+    clientRequestId: ID!
+  ): Tenant!
+  confirmTenantDeletion(tenantId: ID!, clientRequestId: ID!): Tenant!
+  createPlatformFeatureFlag(
+    input: CreateFeatureFlagInput!
+  ): PlatformFeatureFlag!
+  updatePlatformFeatureFlag(
+    input: UpdateFeatureFlagInput!
+  ): PlatformFeatureFlag!
+  createFirstAdminBootstrap(
+    input: CreateFirstAdminBootstrapInput!
+  ): FirstAdminBootstrap!
+  resendFirstAdminBootstrapInvite(tenantId: ID!): FirstAdminBootstrap!
+  completeFirstAdminBootstrap(tenantId: ID!, inviteId: ID): FirstAdminBootstrap!
+  setTenantEntitlement(input: SetTenantEntitlementInput!): TenantEntitlement!
+  setPlatformIntegration(
+    input: SetPlatformIntegrationInput!
+  ): PlatformIntegration!
+  updateInstitutionProfile(
+    input: UpdateInstitutionProfileInput!
+  ): InstitutionProfile!
+  createCampus(input: CreateCampusInput!): Campus!
+  updateCampus(id: ID!, input: UpdateCampusInput!): Campus!
+  deactivateCampus(id: ID!): Campus!
+  reactivateCampus(id: ID!): Campus!
+  createAcademicYear(input: CreateAcademicYearInput!): AcademicYear!
+  updateAcademicYear(id: ID!, input: UpdateAcademicYearInput!): AcademicYear!
+  activateAcademicYear(id: ID!): AcademicYear!
+  closeAcademicYear(id: ID!, reason: String!): AcademicYear!
+  reopenAcademicYear(id: ID!, reason: String!): AcademicYear!
+  createTenantTemplate(input: CreateTenantTemplateInput!): TenantTemplate!
+  updateTenantTemplate(
+    id: ID!
+    input: UpdateTenantTemplateInput!
+  ): TenantTemplate!
+  publishTenantTemplate(id: ID!): TenantTemplate!
+  archiveTenantTemplate(id: ID!): Boolean!
+  saveNumberingPolicy(input: SaveNumberingPolicyInput!): NumberingPolicy!
+  updateNotificationPolicy(
+    input: UpdateNotificationPolicyInput!
+  ): NotificationPolicy!
+  createAcademicProgram(input: CreateAcademicProgramInput!): AcademicProgram!
+  updateAcademicProgram(
+    id: ID!
+    input: UpdateAcademicProgramInput!
+  ): AcademicProgram!
+  deactivateAcademicProgram(id: ID!): AcademicProgram!
+  createAcademicClass(input: CreateAcademicClassInput!): AcademicClass!
+  updateAcademicClass(id: ID!, input: UpdateAcademicClassInput!): AcademicClass!
+  deactivateAcademicClass(id: ID!): AcademicClass!
+  createAcademicSection(input: CreateAcademicSectionInput!): AcademicSection!
+  updateAcademicSection(
+    id: ID!
+    input: UpdateAcademicSectionInput!
+  ): AcademicSection!
+  deactivateAcademicSection(id: ID!): AcademicSection!
+  createAcademicSubject(input: CreateAcademicSubjectInput!): AcademicSubject!
+  updateAcademicSubject(
+    id: ID!
+    input: UpdateAcademicSubjectInput!
+  ): AcademicSubject!
+  deactivateAcademicSubject(id: ID!): AcademicSubject!
+  createTeachingAssignment(input: CreateTeachingAssignmentInput!): TeachingAssignment!
+  deactivateTeachingAssignment(id: ID!): TeachingAssignment!
+  issueStudentDocument(input: IssueStudentDocumentInput!): StudentDocument!
+  revokeStudentDocument(id: ID!, reason: String!): StudentDocument!
+  changeStudentEnrollment(id: ID!, input: ChangeStudentEnrollmentInput!): Student!
+  createStudentNote(id: ID!, input: StudentNoteInput!): StudentNote!
+  updateStudentNote(id: ID!, input: StudentNoteInput!): StudentNote!
+  createIdentityRole(input: CreateIdentityRoleInput!): IdentityRole!
+  updateIdentityRole(id: ID!, input: UpdateIdentityRoleInput!): IdentityRole!
+  deactivateIdentityRole(id: ID!): IdentityRole!
+  assignIdentityUserRole(
+    input: AssignIdentityUserRoleInput!
+  ): UserRoleAssignment!
+  revokeIdentityUserRole(id: ID!): UserRoleAssignment!
+  saveIdentityRolePermissions(
+    input: SaveIdentityRolePermissionsInput!
+  ): [RolePermissionBinding!]!
+  createEmployee(input: CreateEmployeeInput!): Employee!
+  updateEmployee(id: ID!, input: UpdateEmployeeInput!): Employee!
+  resendEmployeeInvite(id: ID!): Employee!
+  endEmployment(id: ID!, reason: String!): Employee!
+  createEnquiry(input: CreateEnquiryInput!): Enquiry!
+  updateEnquiry(id: ID!, input: UpdateEnquiryInput!): Enquiry!
+  closeEnquiry(id: ID!): Enquiry!
+  createApplication(input: CreateApplicationInput!): AdmissionApplication!
+  updateApplication(
+    id: ID!
+    input: UpdateApplicationInput!
+  ): AdmissionApplication!
+  submitApplication(id: ID!): AdmissionApplication!
+  approveApplication(
+    id: ID!
+    input: ApplicationReviewInput
+  ): AdmissionApplication!
+  rejectApplication(
+    id: ID!
+    input: ApplicationRejectInput!
+  ): AdmissionApplication!
+  cancelApplication(
+    id: ID!
+    input: ApplicationCancelInput!
+  ): AdmissionApplication!
+  confirmApplication(
+    id: ID!
+    input: AdmissionConfirmationInput!
+  ): AdmissionApplication!
+  createFeeHead(input: CreateFeeHeadInput!): FeeHead!
+  updateFeeHead(id: ID!, input: UpdateFeeHeadInput!): FeeHead!
+  createFeeSchedule(input: CreateFeeScheduleInput!): FeeSchedule!
+  createFeeStructure(input: CreateFeeStructureInput!): FeeStructure!
+  createFeeMapping(input: CreateFeeMappingInput!): FeeMapping!
+  setFeeConfigurationStatus(
+    entity: String!
+    id: ID!
+    status: FinanceRecordStatus!
+  ): FinanceMutationResult!
+  collectFinancePayment(input: CollectPaymentInput!): FinancePayment!
+  createGeneralCharge(input: CreateGeneralChargeInput!): GeneralCharge!
+  saveFinanceReceiptTemplate(
+    input: SaveFinanceReceiptTemplateInput!
+  ): FinanceReceiptTemplate!
+  createFinancePaymentAdjustment(
+    input: CreatePaymentAdjustmentInput!
+  ): FinancePaymentAdjustment!
+  retryFeeOrderRecovery(id: ID!): FeeOrderRecovery!
+}

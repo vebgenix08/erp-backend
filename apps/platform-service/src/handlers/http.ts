@@ -1,6 +1,6 @@
 import type { ApiRequest, ApiResponse } from "@school-erp/api";
-import { platformServiceRouter } from "../routes";
+import { platformApp } from "../app";
 
 export async function handlePlatformHttp(request: ApiRequest): Promise<ApiResponse> {
-  return platformServiceRouter.handle(request);
+  return platformApp.handle(request);
 }

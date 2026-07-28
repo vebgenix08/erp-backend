@@ -24,5 +24,7 @@ export {
   requireAuth,
   requirePermission,
   resolveAuthFromRequest,
+  resolveAuthFromRequestAsync,
 } from "./auth";
+export { verifyCognitoJwt } from "./cognito";
 export { verifyCognitoJwtPlaceholder } from "./jwt-placeholder";

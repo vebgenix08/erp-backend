@@ -3,3 +3,4 @@ export { deactivateCampusUseCase } from "./deactivate-campus.use-case";
 export { getCampusUseCase } from "./get-campus.use-case";
 export { listCampusesUseCase } from "./list-campuses.use-case";
 export { updateCampusUseCase } from "./update-campus.use-case";
+export { reactivateCampusUseCase } from "./reactivate-campus.use-case";

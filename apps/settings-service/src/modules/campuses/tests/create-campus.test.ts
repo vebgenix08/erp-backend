@@ -17,5 +17,6 @@ test("create campus stores a tenant-scoped campus", async () => {
   });
   const result = await createCampusUseCase(context as any, createCampusFixture(), { repository });
   assert.equal(result.name, "Main Campus");
+  assert.equal(result.code, "CAMP-001");
   assert.equal(result.status, "ACTIVE");
 });

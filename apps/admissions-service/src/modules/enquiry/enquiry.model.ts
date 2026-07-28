@@ -6,15 +6,23 @@ export type EnquiryStatus = "NEW" | "CONTACTED" | "FOLLOW_UP" | "CONVERTED" | "C
 export type EnquiryGender = "MALE" | "FEMALE" | "OTHER";
 
 export interface EnquiryListFilter {
+  campusId?: string | undefined;
+  academicYearId?: string | undefined;
   status?: EnquiryStatus | undefined;
   source?: string | undefined;
   search?: string | undefined;
+  limit?: number | undefined;
+  offset?: number | undefined;
 }
+export interface EnquiryPage { items: EnquiryRecord[]; total: number; limit: number; offset: number; }
 
 export interface EnquiryRecord {
   id: string;
   tenantId: string;
   enquiryNumber: string;
+  campusId?: string | undefined;
+  academicYearId?: string | undefined;
+  academicTargetId?: string | undefined;
   studentName: string;
   dateOfBirth?: Date | undefined;
   gender?: EnquiryGender | undefined;
@@ -25,6 +33,9 @@ export interface EnquiryRecord {
   source?: string | undefined;
   status: EnquiryStatus;
   notes?: string | undefined;
+  templateId?: string | undefined;
+  templateVersion?: number | undefined;
+  customFields?: Record<string, unknown> | undefined;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +43,9 @@ export interface EnquiryRecord {
 }
 
 export interface EnquiryCreateInput {
+  campusId?: string | undefined;
+  academicYearId?: string | undefined;
+  academicTargetId?: string | undefined;
   studentName: string;
   dateOfBirth?: Date | undefined;
   gender?: EnquiryGender | undefined;
@@ -41,9 +55,15 @@ export interface EnquiryCreateInput {
   interestedClass?: string | undefined;
   source?: string | undefined;
   notes?: string | undefined;
+  templateId?: string | undefined;
+  templateVersion?: number | undefined;
+  customFields?: Record<string, unknown> | undefined;
 }
 
 export interface EnquiryUpdateInput {
+  campusId?: string | undefined;
+  academicYearId?: string | undefined;
+  academicTargetId?: string | undefined;
   studentName?: string | undefined;
   dateOfBirth?: Date | undefined;
   gender?: EnquiryGender | undefined;
@@ -53,6 +73,9 @@ export interface EnquiryUpdateInput {
   interestedClass?: string | undefined;
   source?: string | undefined;
   notes?: string | undefined;
+  templateId?: string | undefined;
+  templateVersion?: number | undefined;
+  customFields?: Record<string, unknown> | undefined;
   status?: Exclude<EnquiryStatus, "CLOSED"> | undefined;
 }
 
@@ -74,6 +97,9 @@ export interface EnquiryView {
   id: string;
   tenantId: string;
   enquiryNumber: string;
+  campusId?: string | undefined;
+  academicYearId?: string | undefined;
+  academicTargetId?: string | undefined;
   studentName: string;
   dateOfBirth?: string | undefined;
   gender?: EnquiryGender | undefined;
@@ -84,6 +110,9 @@ export interface EnquiryView {
   source?: string | undefined;
   status: EnquiryStatus;
   notes?: string | undefined;
+  templateId?: string | undefined;
+  templateVersion?: number | undefined;
+  customFields?: Record<string, unknown> | undefined;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

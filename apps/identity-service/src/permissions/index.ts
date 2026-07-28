@@ -12,8 +12,10 @@ export const identityPermissions = {
     delete: "identity.roles.delete",
   },
   permissions: {
+    create: "identity.permissions.create",
     read: "identity.permissions.read",
     update: "identity.permissions.update",
+    delete: "identity.permissions.delete",
   },
   invites: {
     create: "identity.invites.create",
@@ -21,6 +23,9 @@ export const identityPermissions = {
     delete: "identity.invites.delete",
   },
   cognitoSync: {
-    run: "identity.cognito-sync.run",
+    create: "identity.cognito-sync.create",
+    read: "identity.cognito-sync.read",
+    update: "identity.cognito-sync.update",
+    delete: "identity.cognito-sync.delete",
   },
 } as const;

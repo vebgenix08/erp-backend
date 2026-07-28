@@ -1,6 +1,7 @@
 import { MongoClient } from "mongodb";
 import { createMongoConfig } from "./config";
 import type { MongoConfig, MongoConnectionState, MongoEnvLike } from "./types";
+import type { Db, Document } from "mongodb";
 
 const connectionCache = new Map<string, Promise<MongoConnectionState>>();
 
@@ -45,6 +46,15 @@ export async function getMongoClient(env?: MongoEnvLike): Promise<MongoClient> {
 export async function getDb(env?: MongoEnvLike) {
   const connection = await getMongoConnection(env);
   return connection.client.db(connection.dbName);
+}
+
+export function getCollectionFromDb<TCollectionDocument extends Document = Document>(db: Db, name: string) {
+  return db.collection<TCollectionDocument>(name);
+}
+
+export async function getCollection<TCollectionDocument extends Document = Document>(name: string, env?: MongoEnvLike) {
+  const db = await getDb(env);
+  return getCollectionFromDb<TCollectionDocument>(db, name);
 }
 
 export async function closeMongoConnections(): Promise<void> {

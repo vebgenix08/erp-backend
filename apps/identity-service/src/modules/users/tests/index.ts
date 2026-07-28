@@ -1,1 +1,1 @@
-export const userModuleTests = [];
+export {};

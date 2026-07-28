@@ -1,7 +1,7 @@
 import type { ApiRouter, RequestContext } from "@school-erp/api";
 import { errorResponse, jsonResponse } from "@school-erp/api";
 import type { CampusServiceDeps } from "./campuses.service";
-import { createCampusUseCase, deactivateCampusUseCase, getCampusUseCase, listCampusesUseCase, updateCampusUseCase } from "./use-cases";
+import { createCampusUseCase, deactivateCampusUseCase, getCampusUseCase, listCampusesUseCase, reactivateCampusUseCase, updateCampusUseCase } from "./use-cases";
 import { validateCampusListFilter } from "./campuses.validator";
 
 function toSettingsContext(context: RequestContext): RequestContext {
@@ -31,6 +31,11 @@ export function registerCampusRoutes(router: ApiRouter, deps: CampusServiceDeps 
 
   router.route("POST", "/campuses/:id/deactivate", async (context) => {
     const result = await deactivateCampusUseCase(toSettingsContext(context), context.params.id ?? "", deps);
+    return jsonResponse(result ? 200 : 404, result ?? { message: "campus not found" });
+  });
+
+  router.route("POST", "/campuses/:id/reactivate", async (context) => {
+    const result = await reactivateCampusUseCase(toSettingsContext(context), context.params.id ?? "", deps);
     return jsonResponse(result ? 200 : 404, result ?? { message: "campus not found" });
   });
 

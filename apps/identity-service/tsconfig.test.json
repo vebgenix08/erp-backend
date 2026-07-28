@@ -7,6 +7,6 @@
     "moduleResolution": "Node",
     "types": []
   },
-  "include": ["src/modules/session/**/*.ts"],
+  "include": ["src/modules/**/tests/**/*.ts"],
   "exclude": [".dist-tests", "node_modules"]
 }

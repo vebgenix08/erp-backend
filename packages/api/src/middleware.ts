@@ -1,4 +1,4 @@
-import { requireAuth, resolveAuthFromRequest } from "@school-erp/auth";
+import { requireAuth, resolveAuthFromRequestAsync } from "@school-erp/auth";
 import { requireTenant, resolveTenantFromRequest } from "@school-erp/tenancy";
 import { BadRequestError } from "@school-erp/errors";
 import type { ApiMiddleware, RequestContext } from "./types";
@@ -6,10 +6,11 @@ import { getHeaderValue } from "./request";
 
 export function authMiddleware(): ApiMiddleware {
   return async (context, next) => {
-    const authContext = resolveAuthFromRequest({
+    const authContext = await resolveAuthFromRequestAsync({
       requestId: context.requestId,
       headers: context.headers,
       tenantId: context.tenantContext?.tenantId,
+      authorization: getHeaderValue(context.headers, "authorization"),
     });
     context.authContext = requireAuth(authContext);
     return next();

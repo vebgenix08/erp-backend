@@ -1,9 +1,5 @@
-import { getPermission as getPermissionService, listPermissions as listPermissionsService } from "../permissions.service";
-
-export async function listPermissions(input: Record<string, unknown> = {}) {
-  return listPermissionsService(input);
-}
-
-export async function getPermission(id: string) {
-  return getPermissionService(id);
-}
+export { createPermissionUseCase } from "./create-permission.use-case";
+export { getPermissionUseCase } from "./get-permission.use-case";
+export { listPermissionsUseCase } from "./list-permissions.use-case";
+export { updatePermissionUseCase } from "./update-permission.use-case";
+export { deletePermissionUseCase } from "./delete-permission.use-case";

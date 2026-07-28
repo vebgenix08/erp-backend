@@ -1,6 +1,7 @@
 export const invitePermissions = {
-  list: "identity.invites.read",
-  get: "identity.invites.read",
+  read: "identity.invites.read",
   create: "identity.invites.create",
-  delete: "identity.invites.delete",
+  update: "identity.invites.update",
+  resend: "identity.invites.resend",
+  revoke: "identity.invites.revoke",
 } as const;

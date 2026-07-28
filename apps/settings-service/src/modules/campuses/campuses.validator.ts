@@ -17,19 +17,18 @@ export function validateCampusCreateInput(input: unknown): CampusCreateInput {
     throw new BadRequestError("campus payload is required");
   }
   const payload = input as Record<string, unknown>;
-  const code = normalizeOptional(payload.code);
   const name = normalizeOptional(payload.name);
   const campusType = normalizeOptional(payload.campusType) as CampusType | undefined;
-  if (!isNonEmptyString(code ?? "")) throw new BadRequestError("campus code is required");
   if (!isNonEmptyString(name ?? "")) throw new BadRequestError("campus name is required");
   if (!campusType || !CAMPUS_TYPES.includes(campusType)) {
     throw new BadRequestError("campus type is required");
   }
   return {
-    code: code as string,
     name: name as string,
     campusType,
     ...(normalizeOptional(payload.address) !== undefined ? { address: normalizeOptional(payload.address) } : {}),
+    ...(normalizeOptional(payload.contactEmail) !== undefined ? { contactEmail: normalizeOptional(payload.contactEmail) } : {}),
+    ...(normalizeOptional(payload.contactPhone) !== undefined ? { contactPhone: normalizeOptional(payload.contactPhone) } : {}),
   };
 }
 
@@ -39,11 +38,9 @@ export function validateCampusUpdateInput(input: unknown): CampusUpdateInput {
   }
   const payload = input as Record<string, unknown>;
   const result: CampusUpdateInput = {};
-  const code = normalizeOptional(payload.code);
   const name = normalizeOptional(payload.name);
   const campusType = normalizeOptional(payload.campusType) as CampusType | undefined;
   const status = normalizeOptional(payload.status) as CampusStatus | undefined;
-  if (code !== undefined) result.code = code;
   if (name !== undefined) result.name = name;
   if (campusType !== undefined) {
     if (!CAMPUS_TYPES.includes(campusType)) throw new BadRequestError("campus type is required");
@@ -55,6 +52,10 @@ export function validateCampusUpdateInput(input: unknown): CampusUpdateInput {
   }
   const address = normalizeOptional(payload.address);
   if (address !== undefined) result.address = address;
+  const contactEmail = normalizeOptional(payload.contactEmail);
+  if (contactEmail !== undefined) result.contactEmail = contactEmail;
+  const contactPhone = normalizeOptional(payload.contactPhone);
+  if (contactPhone !== undefined) result.contactPhone = contactPhone;
   return result;
 }
 
@@ -65,5 +66,8 @@ export function validateCampusListFilter(input?: unknown): CampusListFilter {
   if (status !== undefined && !CAMPUS_STATUS.includes(status)) {
     throw new BadRequestError("campus status is invalid");
   }
-  return status !== undefined ? { status } : {};
+  const campusType = normalizeOptional(payload.campusType) as CampusType | undefined;
+  if (campusType && !CAMPUS_TYPES.includes(campusType)) throw new BadRequestError("campus type is invalid");
+  const search = normalizeOptional(payload.search);
+  return { ...(status ? { status } : {}), ...(campusType ? { campusType } : {}), ...(search ? { search } : {}) };
 }

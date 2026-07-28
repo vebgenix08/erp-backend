@@ -2,6 +2,7 @@
   "name": "@school-erp/settings-service",
   "private": true,
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.1090.0",
     "@school-erp/api": "workspace:*",
     "@school-erp/auth": "workspace:*",
     "@school-erp/errors": "workspace:*",

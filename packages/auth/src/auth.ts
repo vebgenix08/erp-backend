@@ -1,5 +1,5 @@
 import { BadRequestError, ForbiddenError, UnauthorizedError } from "@school-erp/errors";
-import { buildAuthUser, buildTenantContext, ensurePermissionFormat, normalizeAuthClaims } from "./helpers";
+import { buildAuthUser, buildTenantContext, ensurePermissionFormat, getBearerToken, normalizeAuthClaims, verifyAuthToken } from "./helpers";
 import type { AuthContext, AuthContextOptions, AuthRequestLike, AuthResolutionSource, AuthUser, Permission } from "./types";
 
 function createContext(
@@ -19,6 +19,7 @@ export function resolveAuthFromRequest(
   options: AuthContextOptions = {},
 ): AuthContext {
   const claims = normalizeAuthClaims(request.jwtClaims ?? request.claims);
+  const bearerToken = getBearerToken(request);
   const user = buildAuthUser(request, claims);
   const tenant = buildTenantContext(request);
 
@@ -30,6 +31,10 @@ export function resolveAuthFromRequest(
       source: "jwt-claims",
       authenticatedAt: new Date(),
     });
+  }
+
+  if (bearerToken && options.cognito) {
+    throw new Error("async token verification must use resolveAuthFromRequestAsync");
   }
 
   if (request.userId || request.userEmail || request.userRole || request.userPermissions || request.headers) {
@@ -45,6 +50,69 @@ export function resolveAuthFromRequest(
   return createContext({
     user,
     tenant,
+    requestId: request.requestId,
+    source: options.defaultSource ?? "unknown",
+    authenticatedAt: new Date(),
+  });
+}
+
+export async function resolveAuthFromRequestAsync(
+  request: AuthRequestLike = {},
+  options: AuthContextOptions = {},
+): Promise<AuthContext> {
+  const claims = normalizeAuthClaims(request.jwtClaims ?? request.claims);
+  const bearerToken = getBearerToken(request);
+
+  if (claims) {
+    return createContext({
+      user: buildAuthUser(request, claims),
+      tenant: buildTenantContext(request),
+      requestId: request.requestId,
+      source: "jwt-claims",
+      authenticatedAt: new Date(),
+    });
+  }
+
+  if (bearerToken && options.cognito) {
+    const verifiedClaims = await verifyAuthToken(bearerToken, options.cognito, options.verifyJwt);
+    if (!verifiedClaims?.sub) {
+      throw new UnauthorizedError("invalid cognito token");
+    }
+    const user = buildAuthUser(
+      {
+        ...request,
+        userId: verifiedClaims.sub,
+        userEmail: verifiedClaims.email,
+        userRole: verifiedClaims.role,
+        userPermissions: verifiedClaims.permissions,
+      },
+      verifiedClaims,
+    );
+    return createContext({
+      user,
+      tenant: buildTenantContext({
+        ...request,
+        jwtClaims: verifiedClaims,
+      }),
+      requestId: request.requestId,
+      source: "jwt-claims",
+      authenticatedAt: new Date(),
+    });
+  }
+
+  if (request.userId || request.userEmail || request.userRole || request.userPermissions || request.headers) {
+    return createContext({
+      user: buildAuthUser(request, claims),
+      tenant: buildTenantContext(request),
+      requestId: request.requestId,
+      source: "headers",
+      authenticatedAt: new Date(),
+    });
+  }
+
+  return createContext({
+    user: buildAuthUser(request, claims),
+    tenant: buildTenantContext(request),
     requestId: request.requestId,
     source: options.defaultSource ?? "unknown",
     authenticatedAt: new Date(),
