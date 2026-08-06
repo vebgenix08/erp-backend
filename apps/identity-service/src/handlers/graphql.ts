@@ -2,15 +2,16 @@ import type { RequestContext } from "@school-erp/api";
 import { normalizePermissions, requirePermission } from "@school-erp/auth";
 import { ForbiddenError, NotFoundError, ValidationError, toGraphqlError } from "@school-erp/errors";
 import { accessPermissions } from "../modules/access/access.permissions";
-import { assignUserRole, bootstrapCurrentTenantAdmin, getAccessSnapshot, revokeUserRole, saveRolePermissions } from "../modules/access/access.service";
+import { assignUserRole, bootstrapCurrentTenantAdmin, getAccessSnapshot, getAssignmentPage, revokeUserRole, saveRolePermissions } from "../modules/access/access.service";
 import { rolePermissions } from "../modules/roles/roles.permissions";
-import { createRole, listRoles, updateRole } from "../modules/roles/roles.service";
+import { createRole, listRolePage, listRoles, updateRole } from "../modules/roles/roles.service";
 import { userPermissions } from "../modules/users/users.permissions";
-import { listUsers } from "../modules/users/users.service";
+import { listUserPage, listUsers } from "../modules/users/users.service";
 import { hydrateIdentityRuntimeConfig } from "./runtime-config";
 import { CognitoStaffIdentityGateway } from "./cognito-staff-identity";
+import { identityAuditRepository } from "../modules/access/identity-audit.repository";
 import { employeePermissions } from "../modules/employees/employees.permissions";
-import { createEmployee, endEmployment, getEmployee, listEmployeeInviteAttempts, listEmployees, resendEmployeeInvite, updateEmployee } from "../modules/employees/employees.service";
+import { createEmployee, deactivateEmployee, endEmployment, getEmployee, listEmployeeInviteAttempts, listEmployeeInviteDeliveryEvents, listEmployeePage, listEmployees, reactivateEmployee, resendEmployeeInvite, updateEmployee } from "../modules/employees/employees.service";
 
 interface AppSyncIdentity { sub?: string; claims?: Record<string, unknown>; }
 export interface IdentityGraphqlEvent { info: { fieldName: string }; arguments?: Record<string, unknown>; identity?: AppSyncIdentity | null; request?: { headers?: Record<string, string> }; }
@@ -50,18 +51,25 @@ export async function handleIdentityGraphql(event: IdentityGraphqlEvent): Promis
   const employeeDeps = userPoolId ? { identityGateway: new CognitoStaffIdentityGateway(userPoolId, runtime.AWS_REGION) } : {};
   switch (event.info.fieldName) {
     case "identityUsers": requirePermission(context.authContext, userPermissions.list); await bootstrapCurrentTenantAdmin(context); return listUsers(context.tenantContext);
+    case "identityUserPage": requirePermission(context.authContext,userPermissions.list);await bootstrapCurrentTenantAdmin(context);return listUserPage(context.tenantContext,(args.filter??{}) as never);
     case "identityRoles": requirePermission(context.authContext, rolePermissions.list); return listRoles(context.tenantContext);
+    case "identityRolePage": requirePermission(context.authContext,rolePermissions.list);return listRolePage(context.tenantContext,(args.filter??{}) as never);
     case "identityAccess": return getAccessSnapshot(context);
+    case "identityAssignmentPage": return getAssignmentPage((args.filter??{}) as never,context);
     case "employees": return listEmployees(context, employeeDeps, args.filter as never);
+    case "employeePage": return listEmployeePage(context, employeeDeps, args.filter as never);
     case "employee": return getEmployee(requiredId(args), context, employeeDeps);
     case "employeeInviteAttempts": return listEmployeeInviteAttempts(requiredId(args), context, employeeDeps);
+    case "employeeInviteDeliveryEvents": return listEmployeeInviteDeliveryEvents(requiredId(args), context, employeeDeps);
     case "createEmployee": { const payload=input(args);if(typeof payload.customFields==="string"){try{payload.customFields=JSON.parse(payload.customFields);}catch{throw new ValidationError([{field:"input.customFields",message:"customFields must be valid JSON"}]);}}return createEmployee(payload, context, employeeDeps); }
-    case "updateEmployee": return updateEmployee(requiredId(args), input(args), context, employeeDeps);
+    case "updateEmployee": { const payload=input(args);if(typeof payload.customFields==="string"){try{payload.customFields=JSON.parse(payload.customFields);}catch{throw new ValidationError([{field:"input.customFields",message:"customFields must be valid JSON"}]);}}return updateEmployee(requiredId(args), payload, context, employeeDeps); }
     case "resendEmployeeInvite": return resendEmployeeInvite(requiredId(args), context, employeeDeps);
     case "endEmployment": return endEmployment(requiredId(args), typeof args.reason === "string" ? args.reason : "", context, employeeDeps);
-    case "createIdentityRole": requirePermission(context.authContext, rolePermissions.create); return createRole(context.tenantContext, input(args));
-    case "updateIdentityRole": requirePermission(context.authContext, rolePermissions.update); return updateRole(context.tenantContext, requiredId(args), input(args));
-    case "deactivateIdentityRole": requirePermission(context.authContext, rolePermissions.deactivate); return updateRole(context.tenantContext, requiredId(args), { isActive: false });
+    case "deactivateEmployee": return deactivateEmployee(requiredId(args), context, employeeDeps);
+    case "reactivateEmployee": return reactivateEmployee(requiredId(args), context, employeeDeps);
+    case "createIdentityRole": {requirePermission(context.authContext,rolePermissions.create);const result=await createRole(context.tenantContext,input(args));if(!result)throw new NotFoundError("created role could not be loaded");await(await identityAuditRepository()).append({id:`identity_audit_${crypto.randomUUID()}`,tenantId:context.tenantContext!.tenantId!,actorId:context.authContext!.user!.id,action:"ROLE_CREATED",entityType:"ROLE",entityId:result.id,details:{code:result.code,name:result.name},createdAt:new Date()});return result;}
+    case "updateIdentityRole": {requirePermission(context.authContext,rolePermissions.update);const result=await updateRole(context.tenantContext,requiredId(args),input(args));if(!result)throw new NotFoundError("role not found");await(await identityAuditRepository()).append({id:`identity_audit_${crypto.randomUUID()}`,tenantId:context.tenantContext!.tenantId!,actorId:context.authContext!.user!.id,action:"ROLE_UPDATED",entityType:"ROLE",entityId:result.id,details:{name:result.name,isActive:result.isActive},createdAt:new Date()});return result;}
+    case "deactivateIdentityRole": {requirePermission(context.authContext,rolePermissions.deactivate);const result=await updateRole(context.tenantContext,requiredId(args),{isActive:false});if(!result)throw new NotFoundError("role not found");await(await identityAuditRepository()).append({id:`identity_audit_${crypto.randomUUID()}`,tenantId:context.tenantContext!.tenantId!,actorId:context.authContext!.user!.id,action:"ROLE_DEACTIVATED",entityType:"ROLE",entityId:result.id,createdAt:new Date()});return result;}
     case "assignIdentityUserRole": return assignUserRole(input(args), context);
     case "revokeIdentityUserRole": { const result = await revokeUserRole(requiredId(args), context); if (!result) throw new NotFoundError("role assignment not found"); return result; }
     case "saveIdentityRolePermissions": return saveRolePermissions(input(args), context);

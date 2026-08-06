@@ -1,6 +1,5 @@
 import { createRouter, jsonResponse, type ApiRouter, type RequestContext } from "@school-erp/api";
 import { registerCognitoSyncRoutes } from "../modules/cognito-sync/cognito-sync.routes";
-import { registerInviteRoutes } from "../modules/invites/invites.routes";
 import { registerPermissionsRoutes } from "../modules/permissions/permissions.routes";
 import { registerRolesRoutes } from "../modules/roles/roles.routes";
 import { getSessionUseCase, logoutUseCase, selectTenantUseCase } from "../modules/session/use-cases";
@@ -24,7 +23,6 @@ export function registerIdentityRoutes(router: ApiRouter): ApiRouter {
     return jsonResponse(200, result);
   });
 
-  registerInviteRoutes(router);
   registerCognitoSyncRoutes(router);
   registerUsersRoutes(router);
   registerRolesRoutes(router);

@@ -10,5 +10,6 @@ export function toFeeOrderView(record: FeeOrderRecord) {
     })),
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
+    closedAt: record.closedAt?.toISOString(),
   };
 }

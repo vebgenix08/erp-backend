@@ -2,9 +2,9 @@
   "name": "@school-erp/comms-service",
   "private": true,
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.744.0",
     "@school-erp/api": "workspace:*",
     "@school-erp/auth": "workspace:*",
-    "@school-erp/comms": "workspace:*",
     "@school-erp/errors": "workspace:*",
     "@school-erp/mongodb": "workspace:*",
     "@school-erp/logger": "workspace:*",

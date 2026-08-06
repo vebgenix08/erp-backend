@@ -7,7 +7,7 @@ import { createProgramContext } from "./fixtures";
 test("create program stores a tenant-scoped active record", async () => {
   const repository = new InMemoryProgramRepository();
   const result = await createProgramUseCase(
-    { campusId: "campus_1", code: "CLIENT-CODE-MUST-BE-IGNORED", name: "B.Sc Computer Science", description: "UG program" },
+    { campusId: "campus_1", academicUnitId: "unit_degree", code: "CLIENT-CODE-MUST-BE-IGNORED", name: "B.Sc Computer Science", description: "UG program" },
     createProgramContext(),
     { repository },
   );

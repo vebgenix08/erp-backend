@@ -17,7 +17,7 @@ test("program routes handle create and list requests", async () => {
     path: "/programs",
     headers: context.headers,
     query: { ...context.query, campusId: "campus_1" },
-    body: { campusId: "campus_1", code: "BCOM", name: "Bachelor of Commerce" },
+    body: { campusId: "campus_1", academicUnitId: "unit_degree", code: "BCOM", name: "Bachelor of Commerce" },
     tenantContext: context.tenantContext,
     authContext: context.authContext,
   });

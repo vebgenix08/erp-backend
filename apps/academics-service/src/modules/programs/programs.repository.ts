@@ -80,6 +80,7 @@ export class InMemoryProgramRepository implements ProgramRepository {
     return [...this.bucket(normalizeTenantId(tenantId)).values()]
       .filter((record) => {
         if (record.campusId !== filter.campusId) return false;
+        if (filter.academicUnitId && record.academicUnitId !== filter.academicUnitId) return false;
         if (filter.status && record.status !== filter.status) return false;
         return true;
       })
@@ -109,6 +110,7 @@ export class InMemoryProgramRepository implements ProgramRepository {
       id: makeId(),
       tenantId: normalizedTenantId,
       campusId: input.campusId,
+      academicUnitId: input.academicUnitId,
       code: normalizeCode(input.code),
       name: input.name.trim(),
       description: input.description?.trim() || undefined,
@@ -157,7 +159,7 @@ class MongoProgramRepository implements ProgramRepository {
   }
 
   async list(tenantId: string, filter: ProgramListFilter) {
-    const records = await this.collection.findMany({ tenantId: normalizeTenantId(tenantId), campusId: filter.campusId });
+    const records = await this.collection.findMany({ tenantId: normalizeTenantId(tenantId), campusId: filter.campusId, ...(filter.academicUnitId ? { academicUnitId: filter.academicUnitId } : {}) });
     return records
       .map((record) => fromDocument(record))
       .filter((record): record is ProgramRecord => record !== null)
@@ -187,6 +189,7 @@ class MongoProgramRepository implements ProgramRepository {
       id: makeId(),
       tenantId: normalizedTenantId,
       campusId: input.campusId,
+      academicUnitId: input.academicUnitId,
       code: normalizeCode(input.code),
       name: input.name.trim(),
       description: input.description?.trim() || undefined,

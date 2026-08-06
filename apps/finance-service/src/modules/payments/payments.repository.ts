@@ -361,6 +361,7 @@ class MongoPaymentRepository implements PaymentRepository {
             {
               tenantId: normalizedTenant,
               stream: "RECEIPT",
+              idempotencyKey: input.idempotencyKey,
               campusId: first.campusId,
               academicYearId: first.academicYearId,
               at,

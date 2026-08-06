@@ -1,0 +1,1 @@
+export const campusTransferPermissions={read:"academics.campus-transfer.read",create:"academics.campus-transfer.create",review:"academics.campus-transfer.approve",cancel:"academics.campus-transfer.cancel"}as const;

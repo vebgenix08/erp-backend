@@ -3,7 +3,7 @@ import { issueConfiguredNumber } from "@school-erp/numbering";
 import type { Collection } from "mongodb";
 import type { StudentDocumentFilter, StudentDocumentRecord, StudentDocumentType } from "./student-documents.model";
 export interface StudentDocumentRepository {
-  nextNumber(tenantId: string, type: StudentDocumentType, year: number, campusId?: string, academicYearId?: string): Promise<string>;
+  nextNumber(tenantId: string, type: StudentDocumentType, idempotencyKey: string, year: number, campusId?: string, academicYearId?: string): Promise<string>;
   create(record: StudentDocumentRecord): Promise<StudentDocumentRecord>;
   getById(tenantId: string, id: string): Promise<StudentDocumentRecord | null>;
   list(tenantId: string, filter: StudentDocumentFilter): Promise<StudentDocumentRecord[]>;
@@ -14,7 +14,7 @@ const clone = (value: StudentDocumentRecord): StudentDocumentRecord => ({ ...val
 const prefix = (type: StudentDocumentType) => ({ BONAFIDE_CERTIFICATE: "BON", STUDY_CERTIFICATE: "STU", TRANSFER_CERTIFICATE: "TC", STUDENT_ID_CARD: "IDC" })[type];
 export class InMemoryStudentDocumentRepository implements StudentDocumentRepository {
   private records = new Map<string, StudentDocumentRecord>(); private sequences = new Map<string, number>();
-  async nextNumber(tenantId: string, type: StudentDocumentType, year: number) { const key = `${tenantId}:${type}:${year}`; const next = (this.sequences.get(key) ?? 0) + 1; this.sequences.set(key, next); return `${prefix(type)}/${year}/${String(next).padStart(6, "0")}`; }
+  async nextNumber(tenantId: string, type: StudentDocumentType, idempotencyKey: string, year: number) { const key = `${tenantId}:${type}:${idempotencyKey}`;const existing=this.sequences.get(key);if(existing)return`${prefix(type)}/${year}/${String(existing).padStart(6,"0")}`;const scopeKey=`${tenantId}:${type}:${year}`,next=[...this.sequences.entries()].filter(([entry])=>entry.startsWith(`${tenantId}:${type}:`)).length+1;this.sequences.set(key,next);void scopeKey;return`${prefix(type)}/${year}/${String(next).padStart(6,"0")}`; }
   async create(record: StudentDocumentRecord) { this.records.set(record.id, clone(record)); return clone(record); }
   async getById(tenantId: string, id: string) { const value = this.records.get(id); return value?.tenantId === tenantId ? clone(value) : null; }
   async list(tenantId: string, filter: StudentDocumentFilter) { return [...this.records.values()].filter((r) => r.tenantId === tenantId && (!filter.studentId || r.studentId === filter.studentId) && (!filter.campusId || r.campusId === filter.campusId) && (!filter.academicYearId || r.academicYearId === filter.academicYearId) && (!filter.documentType || r.documentType === filter.documentType) && (!filter.status || r.status === filter.status)).sort((a,b)=>b.issuedAt.getTime()-a.issuedAt.getTime()).map(clone); }
@@ -22,7 +22,7 @@ export class InMemoryStudentDocumentRepository implements StudentDocumentReposit
 }
 class MongoStudentDocumentRepository implements StudentDocumentRepository {
   constructor(private collection: Collection<Document>, private counters: Collection<{_id:string;sequence:number}>){}
-  async nextNumber(tenantId:string,type:StudentDocumentType,year:number,campusId?:string,academicYearId?:string){void year;void this.counters;return issueConfiguredNumber({tenantId,stream:type,...(campusId?{campusId}:{}),...(academicYearId?{academicYearId}:{})});}
+  async nextNumber(tenantId:string,type:StudentDocumentType,idempotencyKey:string,year:number,campusId?:string,academicYearId?:string){void year;void this.counters;return issueConfiguredNumber({tenantId,stream:type,idempotencyKey,...(campusId?{campusId}:{}),...(academicYearId?{academicYearId}:{})});}
   async create(record:StudentDocumentRecord){await this.collection.insertOne({...record,_id:record.id});return clone(record);}
   async getById(tenantId:string,id:string){const value=await this.collection.findOne({_id:id,tenantId});return value?clone(value):null;}
   async list(tenantId:string,filter:StudentDocumentFilter){const query:Record<string,unknown>={tenantId};for(const field of ["studentId","campusId","academicYearId","documentType","status"] as const)if(filter[field])query[field]=filter[field];return(await this.collection.find(query).sort({issuedAt:-1}).toArray()).map(clone);}

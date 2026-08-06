@@ -1,6 +1,3 @@
-import type { TenantType } from "@school-erp/types";
-
-export type CampusType = TenantType;
 export type CampusStatus = "ACTIVE" | "INACTIVE";
 
 export interface CampusRecord {
@@ -8,7 +5,6 @@ export interface CampusRecord {
   tenantId: string;
   code: string;
   name: string;
-  campusType: CampusType;
   status: CampusStatus;
   address?: string | undefined;
   contactEmail?: string | undefined;
@@ -20,7 +16,6 @@ export interface CampusRecord {
 
 export interface CampusCreateInput {
   name: string;
-  campusType: CampusType;
   address?: string | undefined;
   contactEmail?: string | undefined;
   contactPhone?: string | undefined;
@@ -28,7 +23,6 @@ export interface CampusCreateInput {
 
 export interface CampusUpdateInput {
   name?: string;
-  campusType?: CampusType;
   status?: CampusStatus;
   address?: string | undefined;
   contactEmail?: string | undefined;
@@ -37,7 +31,6 @@ export interface CampusUpdateInput {
 
 export interface CampusListFilter {
   status?: CampusStatus | undefined;
-  campusType?: CampusType | undefined;
   search?: string | undefined;
 }
 

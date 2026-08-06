@@ -264,11 +264,10 @@ type Query {
   institutionProfile: InstitutionProfile
   campuses(
     status: CampusStatus
-    campusType: TenantType
     search: String
   ): [Campus!]!
+  campusAcademicUnits(filter: CampusAcademicUnitFilter): [CampusAcademicUnit!]!
   academicYears(status: AcademicYearStatus): [AcademicYear!]!
-  tenantReadiness: TenantReadiness!
   tenantAdminDashboard(input: TenantAdminDashboardInput!): TenantAdminDashboard!
   tenantTemplates(
     status: TemplateStatus
@@ -277,10 +276,45 @@ type Query {
   ): [TenantTemplate!]!
   numberingPolicies: [NumberingPolicy!]!
   notificationPolicy: NotificationPolicy!
+  curricula(filter: CurriculumFilter): [Curriculum!]!
+  academicOfferings(filter: AcademicOfferingFilter): [AcademicOffering!]!
   academicPrograms(filter: AcademicProgramFilter): [AcademicProgram!]!
   academicClasses(filter: AcademicClassFilter): [AcademicClass!]!
   academicSections(filter: AcademicSectionFilter): [AcademicSection!]!
   academicSubjects(filter: AcademicSubjectFilter): [AcademicSubject!]!
+  subjectCatalogue(filter: SubjectCatalogueFilter): [SubjectCatalogueItem!]!
+  subjectCatalogueItem(id: ID!): SubjectCatalogueItem!
+  curriculumSubjects(filter: CurriculumSubjectFilter): [CurriculumSubject!]!
+  subjectComponents(curriculumSubjectId: ID): [SubjectComponent!]!
+  academicYearSubjectPlans(filter: SubjectPlanFilter): [AcademicYearSubjectPlan!]!
+  sectionSubjectExceptions(filter: LearningDeliveryFilter): [SectionSubjectException!]!
+  subjectChoiceGroups(filter: LearningDeliveryFilter): [SubjectChoiceGroup!]!
+  studentSubjectChoices(filter: LearningDeliveryFilter): [StudentSubjectChoice!]!
+  teachingGroups(filter: LearningDeliveryFilter): [TeachingGroup!]!
+  teachingGroupMemberships(filter: LearningDeliveryFilter): [TeachingGroupMembership!]!
+  subjectBatches(filter: LearningDeliveryFilter): [SubjectBatch!]!
+  subjectBatchMemberships(filter: LearningDeliveryFilter): [SubjectBatchMembership!]!
+  subjectOfferings(filter: LearningDeliveryFilter): [SubjectOffering!]!
+  parallelTimetableBlocks(filter: LearningDeliveryFilter): [ParallelTimetableBlock!]!
+  employeeCampusAssignments(filter: FacultyPlanningFilter): [EmployeeCampusAssignment!]!
+  teacherSubjectEligibility(filter: FacultyPlanningFilter): [TeacherSubjectEligibility!]!
+  offeringTeacherAssignments(filter: FacultyPlanningFilter): [OfferingTeacherAssignment!]!
+  academicResponsibilities(filter: FacultyPlanningFilter): [AcademicResponsibility!]!
+  teacherAvailability(filter: FacultyPlanningFilter): [TeacherAvailability!]!
+  teacherWorkloadPolicies(filter: FacultyPlanningFilter): [TeacherWorkloadPolicy!]!
+  facultyWorkload(employeeId: ID!): FacultyWorkload!
+  teacherWorkloadWorkspace(input: TeacherWorkloadWorkspaceInput!): TeacherWorkloadWorkspace!
+  academicRooms(filter: TimetableFilter): [AcademicRoom!]!
+  campusTravelRules(filter: TimetableFilter): [CampusTravelRule!]!
+  timetablePeriodSets(filter: TimetableFilter): [TimetablePeriodSet!]!
+  timetablePeriodSlots(filter: TimetableFilter): [TimetablePeriodSlot!]!
+  timetableVersions(filter: TimetableFilter): [TimetableVersion!]!
+  timetableEntries(filter: TimetableFilter): [TimetableEntry!]!
+  timetableReadiness(campusId: ID!, academicYearId: ID!): TimetableReadiness!
+  timetableValidationRuns(filter: TimetableFilter): [TimetableValidationRun!]!
+  timetableConflicts(filter: TimetableFilter): [TimetableConflict!]!
+  timetableConstraints(filter: TimetableFilter): [TimetableConstraint!]!
+  classSetupWorkspace(input: ClassSetupContextInput!): ClassSetupWorkspace!
   teachingAssignments(filter: TeachingAssignmentFilter!): [TeachingAssignment!]!
   studentDocuments(filter: StudentDocumentFilter): [StudentDocument!]!
   studentNotes(id: ID!): [StudentNote!]!
@@ -289,12 +323,20 @@ type Query {
   studentPage(filter: StudentFilter): StudentPage!
   student(id: ID!): Student!
   studentByAdmissionApplicationId(id: ID!): Student!
+  campusTransfers(studentId: ID!): [CampusTransfer!]!
+  campusTransferPage(filter: CampusTransferPageFilter): CampusTransferPage!
+  campusTransfer(id: ID!): CampusTransfer!
   identityUsers: [IdentityUser!]!
+  identityUserPage(filter: IdentityUserPageFilter): IdentityUserPage!
   identityRoles: [IdentityRole!]!
+  identityRolePage(filter: IdentityRolePageFilter): IdentityRolePage!
   identityAccess: IdentityAccessSnapshot!
+  identityAssignmentPage(filter: IdentityAssignmentPageFilter): IdentityAssignmentPage!
   employees(filter: EmployeeFilter): [Employee!]!
+  employeePage(filter: EmployeeFilter): EmployeePage!
   employee(id: ID!): Employee!
   employeeInviteAttempts(id: ID!): [EmployeeInviteAttempt!]!
+  employeeInviteDeliveryEvents(id: ID!): [EmailDeliveryEvent!]!
   enquiries(filter: EnquiryFilter): [Enquiry!]!
   enquiryPage(filter: EnquiryFilter): EnquiryPage!
   enquiry(id: ID!): Enquiry!
@@ -349,6 +391,9 @@ type Mutation {
     input: UpdateInstitutionProfileInput!
   ): InstitutionProfile!
   createCampus(input: CreateCampusInput!): Campus!
+  createCampusSetup(input: CreateCampusSetupInput!): CampusSetupPayload!
+  createCampusAcademicUnit(campusId: ID!, input: CreateCampusAcademicUnitInput!): CampusAcademicUnit!
+  updateCampusAcademicUnit(id: ID!, input: UpdateCampusAcademicUnitInput!): CampusAcademicUnit!
   updateCampus(id: ID!, input: UpdateCampusInput!): Campus!
   deactivateCampus(id: ID!): Campus!
   reactivateCampus(id: ID!): Campus!
@@ -368,6 +413,12 @@ type Mutation {
   updateNotificationPolicy(
     input: UpdateNotificationPolicyInput!
   ): NotificationPolicy!
+  createCurriculum(input: CreateCurriculumInput!): Curriculum!
+  updateCurriculum(id: ID!, input: UpdateCurriculumInput!): Curriculum!
+  deactivateCurriculum(id: ID!): Curriculum!
+  createAcademicOffering(input: CreateAcademicOfferingInput!): AcademicOffering!
+  updateAcademicOffering(id: ID!, input: UpdateAcademicOfferingInput!): AcademicOffering!
+  deactivateAcademicOffering(id: ID!): AcademicOffering!
   createAcademicProgram(input: CreateAcademicProgramInput!): AcademicProgram!
   updateAcademicProgram(
     id: ID!
@@ -384,6 +435,49 @@ type Mutation {
   ): AcademicSection!
   deactivateAcademicSection(id: ID!): AcademicSection!
   createAcademicSubject(input: CreateAcademicSubjectInput!): AcademicSubject!
+  createSubjectCatalogueItem(input: CreateSubjectCatalogueItemInput!): SubjectCatalogueItem!
+  updateSubjectCatalogueItem(id: ID!, input: UpdateSubjectCatalogueItemInput!): SubjectCatalogueItem!
+  deactivateSubjectCatalogueItem(id: ID!, reason: String!): SubjectCatalogueItem!
+  createCurriculumSubject(input: CreateCurriculumSubjectInput!): CurriculumSubject!
+  updateCurriculumSubject(id: ID!, input: UpdateCurriculumSubjectInput!): CurriculumSubject!
+  deactivateCurriculumSubject(id: ID!, reason: String!): CurriculumSubject!
+  createSubjectComponent(input: CreateSubjectComponentInput!): SubjectComponent!
+  deactivateSubjectComponent(id: ID!, reason: String!): SubjectComponent!
+  createAcademicYearSubjectPlan(input: CreateAcademicYearSubjectPlanInput!): AcademicYearSubjectPlan!
+  activateAcademicYearSubjectPlan(id: ID!): AcademicYearSubjectPlan!
+  createSectionSubjectException(input: CreateSectionSubjectExceptionInput!): SectionSubjectException!
+  createSubjectChoiceGroup(input: CreateSubjectChoiceGroupInput!): SubjectChoiceGroup!
+  selectStudentSubject(input: SelectStudentSubjectInput!): StudentSubjectChoice!
+  createTeachingGroup(input: CreateTeachingGroupInput!): TeachingGroup!
+  addTeachingGroupMembership(input: AddTeachingGroupMembershipInput!): TeachingGroupMembership!
+  createSubjectBatch(input: CreateSubjectBatchInput!): SubjectBatch!
+  addSubjectBatchMembership(input: AddSubjectBatchMembershipInput!): SubjectBatchMembership!
+  createSubjectOffering(input: CreateSubjectOfferingInput!): SubjectOffering!
+  createParallelTimetableBlock(input: CreateParallelTimetableBlockInput!): ParallelTimetableBlock!
+  assignEmployeeCampus(input: AssignEmployeeCampusInput!): EmployeeCampusAssignment!
+  addTeacherEligibility(input: AddTeacherEligibilityInput!): TeacherSubjectEligibility!
+  assignOfferingTeacher(input: AssignOfferingTeacherInput!): OfferingTeacherAssignment!
+  addAcademicResponsibility(input: AddAcademicResponsibilityInput!): AcademicResponsibility!
+  setTeacherAvailability(input: SetTeacherAvailabilityInput!): TeacherAvailability!
+  saveTeacherWorkloadPolicy(input: SaveTeacherWorkloadPolicyInput!): TeacherWorkloadPolicy!
+  createAcademicRoom(input: CreateAcademicRoomInput!): AcademicRoom!
+  createCampusTravelRule(input: CreateCampusTravelRuleInput!): CampusTravelRule!
+  createTimetablePeriodSet(input: CreateTimetablePeriodSetInput!): TimetablePeriodSet!
+  createTimetablePeriodSlot(input: CreateTimetablePeriodSlotInput!): TimetablePeriodSlot!
+  createTimetableVersion(input: CreateTimetableVersionInput!): TimetableVersion!
+  addTimetableEntry(input: AddTimetableEntryInput!): TimetableEntry!
+  updateTimetableEntry(id: ID!, input: AddTimetableEntryInput!): TimetableEntry!
+  deactivateTimetableEntry(id: ID!): TimetableEntry!
+  createTimetableRevision(id: ID!): TimetableVersion!
+  generateTimetable(id: ID!): TimetableGenerationResult!
+  validateTimetable(id: ID!): TimetableValidationResult!
+  publishTimetable(id: ID!, validationRunId: ID!): TimetableVersion!
+  createTimetableConstraint(input: CreateTimetableConstraintInput!): TimetableConstraint!
+  resolveTimetableConflict(id: ID!, overrideReason: String): TimetableConflict!
+  generateClassTimetable(input: ClassSetupContextInput!): ClassTimetableGenerationResult!
+  updateClassSetupSubject(input: UpdateClassSetupSubjectInput!): ClassSetupWorkspace!
+  removeClassSetupSubject(input: RemoveClassSetupSubjectInput!): ClassSetupWorkspace!
+  saveClassSetupTiming(input: SaveClassSetupTimingInput!): ClassSetupWorkspace!
   updateAcademicSubject(
     id: ID!
     input: UpdateAcademicSubjectInput!
@@ -394,6 +488,12 @@ type Mutation {
   issueStudentDocument(input: IssueStudentDocumentInput!): StudentDocument!
   revokeStudentDocument(id: ID!, reason: String!): StudentDocument!
   changeStudentEnrollment(id: ID!, input: ChangeStudentEnrollmentInput!): Student!
+  generateClassRegistrationNumbers(input: ClassRegistrationNumberingInput!): StudentNumberingBatchResult!
+  generateSectionRollNumbers(input: SectionRollNumberingInput!): StudentNumberingBatchResult!
+  createCampusTransfer(input: CreateCampusTransferInput!): CampusTransfer!
+  approveCampusTransfer(id: ID!): CampusTransfer!
+  retryCampusTransfer(id: ID!): CampusTransfer!
+  cancelCampusTransfer(id: ID!, reason: String!): CampusTransfer!
   createStudentNote(id: ID!, input: StudentNoteInput!): StudentNote!
   updateStudentNote(id: ID!, input: StudentNoteInput!): StudentNote!
   createIdentityRole(input: CreateIdentityRoleInput!): IdentityRole!
@@ -408,6 +508,8 @@ type Mutation {
   ): [RolePermissionBinding!]!
   createEmployee(input: CreateEmployeeInput!): Employee!
   updateEmployee(id: ID!, input: UpdateEmployeeInput!): Employee!
+  deactivateEmployee(id: ID!): Employee!
+  reactivateEmployee(id: ID!): Employee!
   resendEmployeeInvite(id: ID!): Employee!
   endEmployment(id: ID!, reason: String!): Employee!
   createEnquiry(input: CreateEnquiryInput!): Enquiry!

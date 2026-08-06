@@ -10,21 +10,41 @@ export interface EmployeeRecord {
   primaryCampusId: string; campusIds: string[]; joiningDate: Date; status: EmployeeStatus; loginStatus: EmployeeLoginStatus;
   userId?: string | undefined; cognitoUsername?: string | undefined; inviteAttempts: number; inviteError?: string | undefined; lastInviteAttemptAt?: Date | undefined; invitedAt?: Date | undefined;
   pendingRoleIds?: string[] | undefined; pendingScopeType?: "TENANT" | "CAMPUS" | undefined;
-  externalHrCode?: string | undefined; templateId?: string | undefined; templateVersion?: number | undefined; customFields?: Record<string, unknown> | undefined;
+  externalHrCode?: string | undefined; profilePhotoFileId?: string | undefined; templateId?: string | undefined; templateVersion?: number | undefined; customFields?: Record<string, unknown> | undefined;
   createdBy: string; updatedBy: string; createdAt: Date; updatedAt: Date; endedAt?: Date | undefined; endReason?: string | undefined;
 }
 
 export interface EmployeeCreateInput {
   fullName: string; email?: string | undefined; phone?: string | undefined; staffCategory: StaffCategory; staffType: StaffType; employmentType: EmploymentType;
   designation?: string | undefined; department?: string | undefined; primaryCampusId: string; campusIds: string[]; joiningDate: Date; loginEnabled: boolean;
-  roleIds: string[]; scopeType: "TENANT" | "CAMPUS"; externalHrCode?: string | undefined; templateId?: string | undefined; templateVersion?: number | undefined; customFields?: Record<string, unknown> | undefined;
+  roleIds: string[]; scopeType: "TENANT" | "CAMPUS"; externalHrCode?: string | undefined; profilePhotoFileId?: string | undefined; templateId?: string | undefined; templateVersion?: number | undefined; customFields?: Record<string, unknown> | undefined;
 }
-export interface EmployeeListFilter { search?: string | undefined; status?: EmployeeStatus | undefined; staffCategory?: StaffCategory | undefined; campusId?: string | undefined; loginStatus?: EmployeeLoginStatus | undefined; }
+export interface EmployeeUpdateInput {
+  fullName?: string;
+  phone?: string | undefined;
+  staffCategory?: StaffCategory;
+  staffType?: StaffType;
+  employmentType?: EmploymentType;
+  designation?: string | undefined;
+  department?: string | undefined;
+  primaryCampusId?: string;
+  campusIds?: string[];
+  joiningDate?: Date;
+  externalHrCode?: string | undefined;
+  profilePhotoFileId?: string | undefined;
+  customFields?: Record<string, unknown> | undefined;
+}
+export type EmployeeSortField = "fullName" | "employeeCode" | "joiningDate" | "createdAt";
+export type EmployeeSortDirection = "ASC" | "DESC";
+export interface EmployeeListFilter { search?: string | undefined; status?: EmployeeStatus | undefined; staffCategory?: StaffCategory | undefined; campusId?: string | undefined; loginStatus?: EmployeeLoginStatus | undefined; page?: number | undefined; pageSize?: number | undefined; sortBy?: EmployeeSortField | undefined; sortDirection?: EmployeeSortDirection | undefined; }
+export interface EmployeePageSummary { total:number;active:number;teaching:number;nonTeaching:number;loginReady:number;inviteIssues:number; }
+export interface EmployeePage { items:EmployeeRecord[];page:number;pageSize:number;total:number;totalPages:number;sortBy:EmployeeSortField;sortDirection:EmployeeSortDirection;summary:EmployeePageSummary; }
 export interface StaffIdentityGateway {
   invite(input: { email: string; fullName: string; tenantId: string; roleCode: string }): Promise<{ username: string; subject?: string | undefined }>;
   resend(email: string): Promise<void>;
   get(email: string): Promise<{ username: string; subject?: string | undefined; tenantId?: string | undefined; roleCode?: string | undefined }>;
   disable(email: string): Promise<void>;
+  enable?(email: string): Promise<void>;
 }
 
 export type EmployeeInviteAttemptStatus="SENT"|"FAILED";

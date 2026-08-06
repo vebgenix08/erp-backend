@@ -6,7 +6,7 @@ import { createProgramContext } from "./fixtures";
 
 test("get program returns the existing tenant record", async () => {
   const repository = new InMemoryProgramRepository();
-  const created = await createProgramUseCase({ campusId: "campus_1", code: "MBA", name: "Master of Business Administration" }, createProgramContext(), { repository });
+  const created = await createProgramUseCase({ campusId: "campus_1", academicUnitId: "unit_degree", code: "MBA", name: "Master of Business Administration" }, createProgramContext(), { repository });
 
   const result = await getProgramUseCase(created.id, createProgramContext({ method: "GET", path: `/programs/${created.id}` }), { repository });
 

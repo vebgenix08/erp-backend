@@ -28,3 +28,5 @@ export interface UserUpdateInput {
   status?: UserStatus | undefined;
   deactivatedAt?: Date | undefined;
 }
+export interface UserPageFilter { search?:string;status?:UserStatus;page?:number;pageSize?:number }
+export interface UserPage { items:UserRecord[];page:number;pageSize:number;total:number;totalPages:number }

@@ -31,6 +31,14 @@ export async function getAdminDashboard(
   const result = await readAdminDashboard(tenant.tenantId, { campusId, academicYearId, from, to });
   return {
     ...result,
+    recentApplications: result.recentApplications.map((item) => ({
+      ...item,
+      updatedAt: item.updatedAt.toISOString(),
+    })),
+    recentSecurityChanges: result.recentSecurityChanges.map((item) => ({
+      ...item,
+      occurredAt: item.occurredAt.toISOString(),
+    })),
     recentActivity: result.recentActivity.map((item) => ({ ...item, occurredAt: item.occurredAt.toISOString() })),
     generatedAt: result.generatedAt.toISOString(),
   };

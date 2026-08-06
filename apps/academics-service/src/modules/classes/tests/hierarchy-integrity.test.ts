@@ -9,7 +9,7 @@ import { createClassContext } from "./fixtures";
 test("class rejects a program owned by another campus", async () => {
   const repository = new InMemoryClassRepository();
   const programRepository = new InMemoryProgramRepository();
-  const program = await programRepository.create("tenant_1", { campusId: "campus_2", code: "PROG-001", name: "College Program" });
+  const program = await programRepository.create("tenant_1", { campusId: "campus_2", academicUnitId: "unit_college", code: "PROG-001", name: "College Program" });
 
   await assert.rejects(
     createClassUseCase(

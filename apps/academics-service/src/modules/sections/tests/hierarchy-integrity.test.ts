@@ -11,8 +11,8 @@ test("section rejects a class from a different program", async () => {
   const repository = new InMemorySectionRepository();
   const programRepository = new InMemoryProgramRepository();
   const classRepository = new InMemoryClassRepository();
-  const selectedProgram = await programRepository.create("tenant_1", { campusId: "campus_1", code: "PROG-001", name: "Primary" });
-  const otherProgram = await programRepository.create("tenant_1", { campusId: "campus_1", code: "PROG-002", name: "Secondary" });
+  const selectedProgram = await programRepository.create("tenant_1", { campusId: "campus_1", academicUnitId: "unit_school", code: "PROG-001", name: "Primary" });
+  const otherProgram = await programRepository.create("tenant_1", { campusId: "campus_1", academicUnitId: "unit_school", code: "PROG-002", name: "Secondary" });
   const academicClass = await classRepository.create("tenant_1", { campusId: "campus_1", programId: otherProgram.id, code: "CLASS-001", name: "Grade 6" });
 
   await assert.rejects(

@@ -10,6 +10,7 @@ export function toProgramView(record: ProgramRecord | null): ProgramView | null 
     id: record.id,
     tenantId: record.tenantId,
     campusId: record.campusId,
+    academicUnitId: record.academicUnitId,
     code: record.code,
     name: record.name,
     description: record.description,

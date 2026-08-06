@@ -20,6 +20,7 @@ export async function listUsers(context: TenantContext | undefined, deps?: UserS
   const repository = await resolveRepository(deps);
   return (await repository.list(resolveTenantId(context))).map((user) => toUserView(user));
 }
+export async function listUserPage(context:TenantContext|undefined,filter:import("./users.model").UserPageFilter={},deps?:UserServiceDeps){const repository=await resolveRepository(deps);const page=await repository.listPage(resolveTenantId(context),filter);return{...page,items:page.items.map(user=>toUserView(user))}}
 
 export async function getUser(context: TenantContext | undefined, id: string, deps?: UserServiceDeps) {
   const repository = await resolveRepository(deps);

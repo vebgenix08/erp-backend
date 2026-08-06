@@ -4,6 +4,7 @@ import {
 } from "../modules/delivery-events/delivery-events.service";
 import { createLogger } from "@school-erp/logger";
 import { hydrateCommsRuntimeConfig } from "./runtime-config";
+import { applyInviteEmailProviderEvent } from "../modules/invite-email/invite-email.service";
 
 interface SqsRecord {
   messageId: string;
@@ -18,9 +19,10 @@ export async function handler(event: SqsEvent) {
   const failures: Array<{ itemIdentifier: string }> = [];
   for (const record of event.Records ?? []) {
     try {
-      await recordSesDeliveryEvent(
+      const deliveryEvent = await recordSesDeliveryEvent(
         JSON.parse(record.body) as SesEventBridgeEvent,
       );
+      await applyInviteEmailProviderEvent(deliveryEvent.messageId, deliveryEvent.eventType);
       logger.info("SES delivery event recorded", { requestId: record.messageId });
     } catch (error) {
       logger.error("SES delivery event processing failed", {

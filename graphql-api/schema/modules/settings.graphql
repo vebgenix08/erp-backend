@@ -1,6 +1,6 @@
 enum CampusStatus { ACTIVE INACTIVE }
+enum AcademicUnitType { SCHOOL PU DEGREE }
 enum AcademicYearStatus { DRAFT ACTIVE CLOSED }
-enum ReadinessStatus { READY ACTION_REQUIRED OPTIONAL }
 enum TemplateStatus { DRAFT PUBLISHED ARCHIVED }
 enum TemplateType { FORM EMAIL PRINT }
 
@@ -23,11 +23,23 @@ type Campus {
   tenantId: ID!
   code: String!
   name: String!
-  campusType: TenantType!
   status: CampusStatus!
   address: String
   contactEmail: AWSEmail
   contactPhone: String
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+  deactivatedAt: AWSDateTime
+}
+type CampusAcademicUnit {
+  id: ID!
+  tenantId: ID!
+  campusId: ID!
+  code: String!
+  name: String!
+  type: AcademicUnitType!
+  curriculumOrAffiliationId: ID!
+  status: CampusStatus!
   createdAt: AWSDateTime!
   updatedAt: AWSDateTime!
   deactivatedAt: AWSDateTime
@@ -50,24 +62,6 @@ type AcademicYear {
   lifecycleReason: String
 }
 
-type ReadinessItem {
-  key: String!
-  label: String!
-  status: ReadinessStatus!
-  blocking: Boolean!
-  route: String!
-  detail: String!
-}
-
-type TenantReadiness {
-  ready: Boolean!
-  completedRequired: Int!
-  totalRequired: Int!
-  percentage: Int!
-  items: [ReadinessItem!]!
-  evaluatedAt: AWSDateTime!
-}
-
 input TenantAdminDashboardInput {
   campusId: ID!
   academicYearId: ID!
@@ -85,6 +79,48 @@ type TenantAdminDashboardActivity {
   status: String!
 }
 
+type TenantAdminDashboardDistribution {
+  key: String!
+  label: String!
+  count: Int!
+}
+
+type TenantAdminDashboardTrendPoint {
+  period: String!
+  label: String!
+  value: Int!
+}
+
+type TenantAdminDashboardApplication {
+  id: ID!
+  applicationNumber: String
+  studentName: String!
+  phone: String
+  status: String!
+  updatedAt: AWSDateTime!
+}
+
+type TenantAdminDashboardPaymentMethod {
+  method: String!
+  paymentCount: Int!
+  amountMinor: Int!
+}
+
+type TenantAdminDashboardOutstandingClass {
+  classId: ID!
+  className: String!
+  studentCount: Int!
+  outstandingMinor: Int!
+}
+
+type TenantAdminDashboardSecurityChange {
+  id: ID!
+  change: String!
+  subject: String!
+  occurredAt: AWSDateTime!
+  status: String!
+}
+
 type TenantAdminDashboard {
   activeStudents: Int!
   activeStaff: Int!
@@ -95,6 +131,23 @@ type TenantAdminDashboard {
   openWorkItems: Int!
   studentsMissingSections: Int!
   studentsMissingFeeOrders: Int!
+  enquiriesToday: Int!
+  pendingEnquiryFollowUps: Int!
+  applicationsSubmittedToday: Int!
+  paymentsToday: Int!
+  unpaidStudents: Int!
+  failedStaffInvites: Int!
+  failedFinanceEvents: Int!
+  failedAdmissionEvents: Int!
+  applicationCount: Int!
+  applicationStatusDistribution: [TenantAdminDashboardDistribution!]!
+  studentClassDistribution: [TenantAdminDashboardDistribution!]!
+  admissionsTrend: [TenantAdminDashboardTrendPoint!]!
+  collectionTrend: [TenantAdminDashboardTrendPoint!]!
+  collectionByPaymentMethod: [TenantAdminDashboardPaymentMethod!]!
+  topOutstandingClasses: [TenantAdminDashboardOutstandingClass!]!
+  recentSecurityChanges: [TenantAdminDashboardSecurityChange!]!
+  recentApplications: [TenantAdminDashboardApplication!]!
   recentActivity: [TenantAdminDashboardActivity!]!
   generatedAt: AWSDateTime!
 }
@@ -122,14 +175,19 @@ type TenantTemplate {
 }
 
 input UpdateInstitutionProfileInput { name: String shortName: String contactEmail: AWSEmail contactPhone: String address: String logoUrl: AWSURL logoFileId: ID }
-input CreateCampusInput { name: String! campusType: TenantType! address: String contactEmail: AWSEmail contactPhone: String }
-input UpdateCampusInput { name: String campusType: TenantType address: String contactEmail: AWSEmail contactPhone: String }
+input CreateCampusInput { name: String! address: String contactEmail: AWSEmail contactPhone: String }
+input UpdateCampusInput { name: String address: String contactEmail: AWSEmail contactPhone: String }
+input CampusAcademicUnitFilter { campusId: ID type: AcademicUnitType status: CampusStatus }
+input CreateCampusAcademicUnitInput { name: String! type: AcademicUnitType! curriculumOrAffiliationId: ID! }
+input UpdateCampusAcademicUnitInput { name: String curriculumOrAffiliationId: ID status: CampusStatus }
+input CreateCampusSetupInput { name: String! address: String contactEmail: AWSEmail contactPhone: String academicUnits: [CreateCampusAcademicUnitInput!]! }
+type CampusSetupPayload { campus: Campus! academicUnits: [CampusAcademicUnit!]! }
 input CreateAcademicYearInput { name: String! startDate: AWSDateTime! endDate: AWSDateTime! }
 input UpdateAcademicYearInput { name: String startDate: AWSDateTime endDate: AWSDateTime }
 input CreateTenantTemplateInput { name: String! templateType: TemplateType! description: String subject: String body: String layout: String sections: AWSJSON fields: AWSJSON requiredSystemKeys: [String!] }
 input UpdateTenantTemplateInput { name: String templateType: TemplateType description: String subject: String body: String layout: String sections: AWSJSON fields: AWSJSON requiredSystemKeys: [String!] }
 
-enum NumberingStream { ENQUIRY APPLICATION ADMISSION STUDENT_REGISTRATION ROLL_NUMBER EMPLOYEE FEE_ORDER INVOICE PAYMENT RECEIPT BONAFIDE_CERTIFICATE STUDY_CERTIFICATE TRANSFER_CERTIFICATE STUDENT_ID_CARD }
+enum NumberingStream { ENQUIRY APPLICATION ADMISSION STUDENT_REGISTRATION CLASS_REGISTER ROLL_NUMBER EMPLOYEE FEE_ORDER INVOICE PAYMENT RECEIPT BONAFIDE_CERTIFICATE STUDY_CERTIFICATE TRANSFER_CERTIFICATE STUDENT_ID_CARD }
 enum NumberingScope { TENANT CAMPUS ACADEMIC_YEAR PROGRAM CLASS SECTION }
 enum NumberingReset { NEVER ACADEMIC_YEAR CALENDAR_YEAR MONTHLY }
 type NumberingPolicy { id: ID! tenantId: ID! stream: NumberingStream! name: String! format: String! prefix: String! separator: String! padding: Int! scope: NumberingScope! reset: NumberingReset! nextNumber: Int! active: Boolean! issuedCount: Int! sample: String! createdAt: AWSDateTime! updatedAt: AWSDateTime! }

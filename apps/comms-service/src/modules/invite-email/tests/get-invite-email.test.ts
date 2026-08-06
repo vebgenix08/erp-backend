@@ -18,7 +18,7 @@ test("get invite email returns the stored record", async () => {
       html: "<p>html</p>",
     },
     createInviteEmailContext(),
-    { repository },
+    { repository, provider: { send: async () => ({ messageId: "ses-message-get" }) } },
   );
 
   const result = await getInviteEmailUseCase(created.id, createInviteEmailContext(), { repository });

@@ -1,4 +1,4 @@
-export type FeeOrderStatus = "OPEN" | "PARTIALLY_PAID" | "PAID" | "CANCELLED";
+export type FeeOrderStatus = "OPEN" | "PARTIALLY_PAID" | "PAID" | "CLOSED" | "CANCELLED";
 export type FeeOrderSourceType = "ANNUAL" | "GENERAL" | "TRANSFER_ADJUSTMENT";
 
 export interface FeeOrderCharge {
@@ -11,6 +11,7 @@ export interface FeeOrderCharge {
   amountMinor: number;
   paidMinor: number;
   balanceMinor: number;
+  creditMinor?: number;
 }
 
 export interface FeeOrderRecord {
@@ -43,6 +44,12 @@ export interface FeeOrderRecord {
   totalMinor: number;
   paidMinor: number;
   balanceMinor: number;
+  transferId?: string;
+  transferCreditMinor?: number;
+  residualTransferCreditMinor?: number;
+  closedBalanceMinor?: number;
+  closureReason?: "CAMPUS_TRANSFER";
+  closedAt?: Date;
   status: FeeOrderStatus;
   createdBy: string;
   createdAt: Date;
@@ -70,6 +77,7 @@ export interface FeeOrderPage {
 }
 
 export interface GenerateFeeOrderInput {
+  transferId?: string;
   admissionApplicationId: string;
   studentId: string;
   studentName: string;

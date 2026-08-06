@@ -68,8 +68,22 @@ export interface ChangeStudentEnrollmentInput {
   academicYearId: string;
   classId: string;
   sectionId?: string;
-  rollNumber?: string;
   reason: string;
+}
+export interface ClassRegistrationNumberingInput {
+  campusId: string;
+  academicYearId: string;
+  classId: string;
+  clientRequestId: string;
+}
+export interface SectionRollNumberingInput extends ClassRegistrationNumberingInput {
+  sectionId: string;
+  regenerate: boolean;
+}
+export interface StudentNumberingBatchResult {
+  updated: number;
+  skipped: number;
+  students: StudentWithEnrollment[];
 }
 export interface StudentListFilter {
   campusId?: string;

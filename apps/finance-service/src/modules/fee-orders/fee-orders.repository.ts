@@ -5,16 +5,13 @@ import {
   type CollectionAdapter,
   type MongoEnvLike,
 } from "@school-erp/mongodb";
+import { issueConfiguredNumber } from "@school-erp/numbering";
 import type { FeeOrderFilter, FeeOrderPage, FeeOrderRecord } from "./fee-orders.model";
 
 interface FeeOrderDocument extends Record<string, unknown> {
   _id: string;
   tenantId: string;
   record: FeeOrderRecord;
-}
-interface SequenceDocument extends Record<string, unknown> {
-  _id: string;
-  value: number;
 }
 export type FeeOrderCreateInput = Omit<
   FeeOrderRecord,
@@ -57,7 +54,7 @@ function tenant(value: string) {
   return normalized;
 }
 function clone(record: FeeOrderRecord): FeeOrderRecord {
-  return {
+  const copy: FeeOrderRecord = {
     ...record,
     sourceType: record.sourceType ?? "ANNUAL",
     sourceId: record.sourceId ?? record.enrollmentId,
@@ -65,6 +62,8 @@ function clone(record: FeeOrderRecord): FeeOrderRecord {
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt),
   };
+  if (record.closedAt) copy.closedAt = new Date(record.closedAt);
+  return copy;
 }
 function matches(record: FeeOrderRecord, filter: FeeOrderFilter) {
   if (filter.campusId && record.campusId !== filter.campusId) return false;
@@ -171,7 +170,7 @@ export class InMemoryFeeOrderRepository implements FeeOrderRepository {
 class MongoFeeOrderRepository implements FeeOrderRepository {
   constructor(
     private readonly orders: CollectionAdapter<FeeOrderDocument>,
-    private readonly sequences: CollectionAdapter<SequenceDocument>,
+    private readonly env: MongoEnvLike,
   ) {}
   async create(
     tenantId: string,
@@ -185,21 +184,24 @@ class MongoFeeOrderRepository implements FeeOrderRepository {
       input.studentId,
     );
     if (existing) return existing;
-    const result = await this.sequences.findOneAndUpdate(
-      { _id: `fee-order:${normalizedTenant}:${input.academicYearId}` },
-      { $inc: { value: 1 } },
-      { upsert: true, returnDocument: "after" },
-    );
+    const id = `fee_order_${crypto.randomUUID()}`;
+    const orderNumber = await issueConfiguredNumber({
+      tenantId: normalizedTenant,
+      stream: "FEE_ORDER",
+      idempotencyKey: id,
+      campusId: input.campusId,
+      academicYearId: input.academicYearId,
+      programId: input.programId,
+      classId: input.classId,
+      ...(input.sectionId ? { sectionId: input.sectionId } : {}),
+    }, this.env);
     const record: FeeOrderRecord = {
       ...input,
       sourceType: input.sourceType ?? "ANNUAL",
       sourceId: input.sourceId ?? input.enrollmentId,
-      id: `fee_order_${crypto.randomUUID()}`,
+      id,
       tenantId: normalizedTenant,
-      orderNumber: `FEE-${input.academicYearId
-        .replace(/[^A-Za-z0-9]/g, "")
-        .slice(-8)
-        .toUpperCase()}-${String(result?.value ?? 1).padStart(6, "0")}`,
+      orderNumber,
     };
     try {
       await this.orders.insertOne({
@@ -321,10 +323,6 @@ export async function createFeeOrderRepository(
     "finance_fee_orders",
     env,
   );
-  const sequences = await getCollection<SequenceDocument>(
-    "finance_sequences",
-    env,
-  );
   await orders.createIndex(
     { tenantId: 1, "record.enrollmentId": 1 },
     { unique: true },
@@ -339,7 +337,8 @@ export async function createFeeOrderRepository(
     tenantId: 1,
     "record.studentId": 1,
     "record.academicYearId": 1,
-  }, { unique: true, name: "uq_student_annual_fee_order", partialFilterExpression: { "record.sourceType": "ANNUAL" } });
+    "record.createdAt": -1,
+  }, { name: "student_annual_fee_order_history", partialFilterExpression: { "record.sourceType": "ANNUAL" } });
   await orders.createIndex(
     { tenantId: 1, "record.sourceType": 1, "record.sourceId": 1, "record.studentId": 1 },
     { unique: true, name: "uq_fee_order_source_student", partialFilterExpression: { "record.sourceType": { $exists: true } } },
@@ -351,7 +350,7 @@ export async function createFeeOrderRepository(
   });
   return new MongoFeeOrderRepository(
     createMongoCollectionAdapter(orders),
-    createMongoCollectionAdapter(sequences),
+    env,
   );
 }
 let singleton: Promise<FeeOrderRepository> | undefined;

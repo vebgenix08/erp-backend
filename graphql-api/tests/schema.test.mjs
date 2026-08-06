@@ -5,6 +5,7 @@ import test from "node:test";
 const root = new URL("../schema/root.graphql", import.meta.url);
 const platform = new URL("../schema/modules/platform.graphql", import.meta.url);
 const settings = new URL("../schema/modules/settings.graphql", import.meta.url);
+const academics = new URL("../schema/modules/academics.graphql", import.meta.url);
 const admissions = new URL(
   "../schema/modules/admissions.graphql",
   import.meta.url,
@@ -64,7 +65,6 @@ test("tenant settings operations are exposed through the canonical root contract
     "institutionProfile",
     "campuses",
     "academicYears",
-    "tenantReadiness",
     "tenantTemplates",
     "tenantCapabilityCatalog",
     "updateInstitutionProfile",
@@ -130,4 +130,43 @@ test("admission application exposes the canonical lifecycle through AppSync", as
     schema,
     /confirmApplication\s*\(\s*id:\s*ID!\s*,?\s*input:\s*AdmissionConfirmationInput!\s*\):\s*AdmissionApplication!/,
   );
+});
+
+test("tenant admin dashboard exposes one complete aggregate contract", async () => {
+  const schema = `${await readFile(platform, "utf8")}\n${await readFile(settings, "utf8")}`;
+  assert.match(
+    schema,
+    /tenantAdminDashboard\(input: TenantAdminDashboardInput!\): TenantAdminDashboard!/,
+  );
+  const dashboard =
+    schema.match(/type TenantAdminDashboard \{([\s\S]*?)\n\}/)?.[1] ?? "";
+  for (const field of [
+    "applicationStatusDistribution",
+    "studentClassDistribution",
+    "collectionTrend",
+    "collectionByPaymentMethod",
+    "topOutstandingClasses",
+    "recentSecurityChanges",
+    "recentApplications",
+    "recentActivity",
+  ]) {
+    assert.match(dashboard, new RegExp(`\\b${field}:`), `missing dashboard field ${field}`);
+  }
+});
+
+test("timetable editing mutations remain in the canonical contract", async () => {
+  const schema = await readFile(platform, "utf8");
+  for (const operation of ["addTimetableEntry", "updateTimetableEntry", "deactivateTimetableEntry", "createTimetableRevision"]) {
+    assert.match(schema, new RegExp(`\\b${operation}\\b`), `${operation} is missing from the canonical schema`);
+  }
+});
+
+test("Class Setup exposes one canonical aggregate and page-owned mutations", async () => {
+  const schema = `${await readFile(platform, "utf8")}\n${await readFile(academics, "utf8")}`;
+  assert.match(schema, /classSetupWorkspace\(input: ClassSetupContextInput!\): ClassSetupWorkspace!/);
+  assert.match(schema, /generateClassTimetable\(input: ClassSetupContextInput!\): ClassTimetableGenerationResult!/);
+  assert.match(schema, /updateClassSetupSubject\(input: UpdateClassSetupSubjectInput!\): ClassSetupWorkspace!/);
+  assert.match(schema, /removeClassSetupSubject\(input: RemoveClassSetupSubjectInput!\): ClassSetupWorkspace!/);
+  assert.match(schema, /saveClassSetupTiming\(input: SaveClassSetupTimingInput!\): ClassSetupWorkspace!/);
+  assert.doesNotMatch(schema, /academicScheduleWorkspace|prepareAndGenerateAcademicSchedule|AcademicScheduleContextInput/);
 });

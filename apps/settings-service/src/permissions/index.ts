@@ -9,6 +9,11 @@ export const settingsPermissions = {
     update: "settings.campuses.update",
     deactivate: "settings.campuses.deactivate",
   },
+  academicUnits: {
+    read: "settings.academic-units.read",
+    create: "settings.academic-units.create",
+    update: "settings.academic-units.update",
+  },
   academicYears: {
     read: "settings.academicYears.read",
     create: "settings.academicYears.create",
@@ -29,6 +34,7 @@ export const settingsPermissions = {
 export type SettingsPermission =
   (typeof settingsPermissions.institution)[keyof typeof settingsPermissions.institution]
   | (typeof settingsPermissions.campuses)[keyof typeof settingsPermissions.campuses]
+  | (typeof settingsPermissions.academicUnits)[keyof typeof settingsPermissions.academicUnits]
   | (typeof settingsPermissions.academicYears)[keyof typeof settingsPermissions.academicYears]
   | (typeof settingsPermissions.templates)[keyof typeof settingsPermissions.templates]
   | (typeof settingsPermissions.numbering)[keyof typeof settingsPermissions.numbering]

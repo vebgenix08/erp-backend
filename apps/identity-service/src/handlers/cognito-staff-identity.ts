@@ -63,4 +63,11 @@ export class CognitoStaffIdentityGateway implements StaffIdentityGateway {
       Username: email,
     }));
   }
+  async enable(email: string) {
+    const { AdminEnableUserCommand } = await import("@aws-sdk/client-cognito-identity-provider");
+    await (await this.client()).send(new AdminEnableUserCommand({
+      UserPoolId: this.userPoolId,
+      Username: email,
+    }));
+  }
 }

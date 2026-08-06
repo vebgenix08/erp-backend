@@ -111,8 +111,17 @@ function buildCharges(
   });
 }
 
+function applyTransferCredit(charges: FeeOrderCharge[], creditMinor: number): FeeOrderCharge[] {
+  let remaining = creditMinor;
+  return [...charges].sort((left, right) => left.sequence - right.sequence).map((charge) => {
+    const applied = Math.min(remaining, charge.amountMinor);
+    remaining -= applied;
+    return { ...charge, creditMinor: applied, balanceMinor: charge.amountMinor - applied };
+  });
+}
+
 export async function generateFeeOrderFromEnrollment(
-  input: StudentEnrolledEventData,
+  input: StudentEnrolledEventData & { transferId?: string },
   tenantId: string,
   deps?: FeeOrderDependencies,
 ) {
@@ -143,26 +152,14 @@ export async function generateFeeOrderFromEnrollment(
       (order) =>
         order.campusId === annualOrder.campusId &&
         (order.sourceType ?? "ANNUAL") !== "ANNUAL" &&
-        order.status !== "CANCELLED",
+        !["CANCELLED", "CLOSED", "PAID"].includes(order.status) &&
+        order.balanceMinor > 0,
     );
     if (additionalLiabilities.length > 0) {
       throw new ConflictError(
         "campus transfer requires finance review because additional fee liabilities exist in the previous campus",
       );
     }
-  }
-  if (annualOrder && annualOrder.status !== "CANCELLED") {
-    if (annualOrder.paidMinor > 0)
-      throw new ConflictError(
-        "campus transfer requires finance review because the existing annual fee order has payments",
-      );
-    const cancelled = await orderRepository.replace(tenantId, {
-      ...annualOrder,
-      status: "CANCELLED",
-      updatedAt: deps?.now?.() ?? new Date(),
-    });
-    if (!cancelled)
-      throw new ConflictError("existing annual fee order could not be cancelled");
   }
   const configRepository = await configuration(deps);
   const snapshot = await configRepository.snapshot(tenantId, {
@@ -178,6 +175,13 @@ export async function generateFeeOrderFromEnrollment(
   );
   if (!structure || !schedule)
     throw new ConflictError("fee mapping references inactive configuration");
+  let transferCreditMinor = 0;
+  if (annualOrder && annualOrder.status !== "CANCELLED" && annualOrder.status !== "CLOSED") {
+    transferCreditMinor = annualOrder.paidMinor;
+    const closedAt = deps?.now?.() ?? new Date();
+    const closed = await orderRepository.replace(tenantId, { ...annualOrder, status: "CLOSED", ...(payload.transferId ? { transferId: payload.transferId } : {}), closureReason: "CAMPUS_TRANSFER", closedBalanceMinor: annualOrder.balanceMinor, balanceMinor: 0, closedAt, updatedAt: closedAt });
+    if (!closed) throw new ConflictError("existing annual fee order could not be closed for campus transfer");
+  }
   const heads = new Map(
     snapshot.feeHeads
       .filter((item) => item.status === "ACTIVE")
@@ -186,7 +190,10 @@ export async function generateFeeOrderFromEnrollment(
         { code: item.code, name: item.name, refundable: item.refundable },
       ]),
   );
-  const charges = buildCharges(structure, schedule, heads);
+  const baseCharges = buildCharges(structure, schedule, heads);
+  const appliedTransferCreditMinor = Math.min(transferCreditMinor, structure.totalAmountMinor);
+  const residualTransferCreditMinor = Math.max(0, transferCreditMinor - structure.totalAmountMinor);
+  const charges = applyTransferCredit(baseCharges, appliedTransferCreditMinor);
   const at = deps?.now?.() ?? new Date();
   const record = await orderRepository.create(tenantId, {
     ...payload,
@@ -204,8 +211,11 @@ export async function generateFeeOrderFromEnrollment(
     charges,
     totalMinor: structure.totalAmountMinor,
     paidMinor: 0,
-    balanceMinor: structure.totalAmountMinor,
-    status: "OPEN",
+    balanceMinor: structure.totalAmountMinor - appliedTransferCreditMinor,
+    transferCreditMinor: appliedTransferCreditMinor,
+    residualTransferCreditMinor,
+    ...(payload.transferId ? { transferId: payload.transferId } : {}),
+    status: structure.totalAmountMinor === appliedTransferCreditMinor ? "PAID" : "OPEN",
     createdAt: at,
     updatedAt: at,
   });

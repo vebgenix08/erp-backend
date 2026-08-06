@@ -13,20 +13,20 @@ function context() {
 
 test("normalized campus names are unique within a tenant", async () => {
   const repository = new InMemoryCampusRepository();
-  await createCampus(context(), { name: "Main Campus", campusType: "SCHOOL" }, { repository });
-  await assert.rejects(() => createCampus(context(), { name: "  main   campus ", campusType: "COLLEGE" }, { repository }), /campus name must be unique/);
+  await createCampus(context(), { name: "Main Campus" }, { repository });
+  await assert.rejects(() => createCampus(context(), { name: "  main   campus " }, { repository }), /campus name must be unique/);
 });
 
 test("the only active campus cannot be deactivated", async () => {
   const repository = new InMemoryCampusRepository();
-  const campus = await createCampus(context(), { name: "Main Campus", campusType: "SCHOOL" }, { repository });
+  const campus = await createCampus(context(), { name: "Main Campus" }, { repository });
   await assert.rejects(() => deactivateCampus(context(), campus.id, { repository }), /only active campus/);
 });
 
 test("an inactive campus can be reactivated", async () => {
   const repository = new InMemoryCampusRepository();
-  const first = await createCampus(context(), { name: "Main Campus", campusType: "SCHOOL" }, { repository });
-  await createCampus(context(), { name: "North Campus", campusType: "SCHOOL" }, { repository });
+  const first = await createCampus(context(), { name: "Main Campus" }, { repository });
+  await createCampus(context(), { name: "North Campus" }, { repository });
   await deactivateCampus(context(), first.id, { repository });
   const restored = await reactivateCampus(context(), first.id, { repository });
   assert.equal(restored?.status, "ACTIVE");

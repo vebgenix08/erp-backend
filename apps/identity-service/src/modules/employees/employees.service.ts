@@ -1,17 +1,19 @@
 import type { RequestContext } from "@school-erp/api";
 import { requireAuth, requirePermission } from "@school-erp/auth";
 import { ConflictError, NotFoundError, ValidationError } from "@school-erp/errors";
+import { issueConfiguredNumber, type NumberingContext } from "@school-erp/numbering";
 import { requireTenantId } from "@school-erp/tenancy";
 import { accessRepository, type AccessRepository } from "../access/access.repository";
 import type { AccessScope } from "../access/access.model";
 import { listRoles } from "../roles/roles.service";
 import { userRepository, type UserRepository } from "../users/users.repository";
 import { employeeInviteAttemptRepository, type EmployeeInviteAttemptRepository } from "./employee-invite-attempts.repository";
+import { employeeDeliveryEventRepository, type EmployeeDeliveryEventRepository } from "./employee-delivery-events.repository";
 import { toEmployeeView } from "./employees.mapper";
 import type { EmployeeListFilter, EmployeeRecord, StaffIdentityGateway } from "./employees.model";
 import { employeePermissions } from "./employees.permissions";
 import { employeeRepository, type EmployeeRepository } from "./employees.repository";
-import { validateEmployeeCreate, validateEmployeeFilter } from "./employees.validator";
+import { validateEmployeeCreate, validateEmployeeFilter, validateEmployeeUpdate } from "./employees.validator";
 
 export interface EmployeeServiceDeps {
   repository?: EmployeeRepository;
@@ -22,6 +24,8 @@ export interface EmployeeServiceDeps {
   now?: () => Date;
   inviteRetryLimit?: number;
   inviteRetryCooldownMs?: number;
+  numberIssuer?: (context: NumberingContext) => Promise<string>;
+  deliveryEventRepository?: EmployeeDeliveryEventRepository | Promise<EmployeeDeliveryEventRepository>;
 }
 
 type RoleView = NonNullable<Awaited<ReturnType<typeof listRoles>>[number]>;
@@ -149,6 +153,11 @@ export async function listEmployees(context: RequestContext, deps: EmployeeServi
   requirePermission(context.authContext, employeePermissions.read);
   return (await (deps.repository ?? employeeRepository).list(tenant(context), validateEmployeeFilter(filter))).map(toEmployeeView);
 }
+export async function listEmployeePage(context: RequestContext, deps: EmployeeServiceDeps = {}, filter?: EmployeeListFilter) {
+  requirePermission(context.authContext, employeePermissions.read);
+  const page = await (deps.repository ?? employeeRepository).listPage(tenant(context), validateEmployeeFilter(filter));
+  return { ...page, items: page.items.map(toEmployeeView) };
+}
 
 export async function getEmployee(employeeId: string, context: RequestContext, deps: EmployeeServiceDeps = {}) {
   requirePermission(context.authContext, employeePermissions.read);
@@ -166,6 +175,14 @@ export async function listEmployeeInviteAttempts(employeeId: string, context: Re
     ...value,
     createdAt: value.createdAt.toISOString(),
   }));
+}
+export async function listEmployeeInviteDeliveryEvents(employeeId:string,context:RequestContext,deps:EmployeeServiceDeps={}){
+  requirePermission(context.authContext,employeePermissions.read);
+  const tenantId=tenant(context),employee=await(deps.repository??employeeRepository).get(tenantId,employeeId);
+  if(!employee)throw new NotFoundError("employee not found");
+  if(!employee.email)return[];
+  const repository=await(deps.deliveryEventRepository??employeeDeliveryEventRepository());
+  return(await repository.listByRecipient(employee.email,50)).map(item=>({id:item.id,messageId:item.messageId,eventType:item.eventType,occurredAt:item.occurredAt.toISOString(),recipients:item.recipients}));
 }
 
 export async function createEmployee(input: unknown, context: RequestContext, deps: EmployeeServiceDeps = {}) {
@@ -185,10 +202,16 @@ export async function createEmployee(input: unknown, context: RequestContext, de
     selectedRoles = await resolveRoles(context, payload.roleIds);
   }
 
+  const id = makeEmployeeId();
+  const employeeCode = deps.numberIssuer
+    ? await deps.numberIssuer({ tenantId, stream: "EMPLOYEE", idempotencyKey: id })
+    : deps.repository
+      ? await repository.nextCode(tenantId)
+      : await issueConfiguredNumber({ tenantId, stream: "EMPLOYEE", idempotencyKey: id });
   const record: EmployeeRecord = {
-    id: makeEmployeeId(),
+    id,
     tenantId,
-    employeeCode: await repository.nextCode(tenantId),
+    employeeCode,
     fullName: payload.fullName,
     ...(payload.email ? { email: payload.email.toLowerCase() } : {}),
     ...(payload.phone ? { phone: payload.phone } : {}),
@@ -205,6 +228,7 @@ export async function createEmployee(input: unknown, context: RequestContext, de
     inviteAttempts: 0,
     ...(payload.loginEnabled ? { pendingRoleIds: payload.roleIds, pendingScopeType: payload.scopeType } : {}),
     ...(payload.externalHrCode ? { externalHrCode: payload.externalHrCode } : {}),
+    ...(payload.profilePhotoFileId ? { profilePhotoFileId: payload.profilePhotoFileId } : {}),
     ...(payload.templateId ? { templateId: payload.templateId } : {}),
     ...(payload.templateVersion ? { templateVersion: payload.templateVersion } : {}),
     ...(payload.customFields ? { customFields: payload.customFields } : {}),
@@ -299,24 +323,37 @@ export async function resendEmployeeInvite(employeeId: string, context: RequestC
 
 export async function updateEmployee(employeeId: string, input: unknown, context: RequestContext, deps: EmployeeServiceDeps = {}) {
   requirePermission(context.authContext, employeePermissions.update);
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    throw new ValidationError([{ field: "input", message: "input is required" }]);
+  const tenantId = tenant(context);
+  const repository = deps.repository ?? employeeRepository;
+  const current = await repository.get(tenantId, employeeId);
+  if (!current) throw new NotFoundError("employee not found");
+  const update = validateEmployeeUpdate(input);
+  const nextCategory = update.staffCategory ?? current.staffCategory;
+  const nextType = update.staffType ?? current.staffType;
+  const teachingTypes = new Set(["PRINCIPAL", "VICE_PRINCIPAL", "DEAN", "HOD", "TEACHER", "LECTURER", "LAB_FACULTY", "OTHER"]);
+  const nonTeachingTypes = new Set(["ADMIN_STAFF", "SUPPORT_STAFF", "OTHER"]);
+  if ((nextCategory === "TEACHING" && !teachingTypes.has(nextType)) || (nextCategory === "NON_TEACHING" && !nonTeachingTypes.has(nextType))) {
+    throw new ValidationError([{ field: "staffType", message: "staff type is not valid for the selected staff category" }]);
   }
-  const value = input as Record<string, unknown>;
-  const allowed: Partial<EmployeeRecord> = { updatedBy: actor(context) };
-  for (const key of ["fullName", "phone", "designation", "department", "externalHrCode"] as const) {
-    if (typeof value[key] === "string") allowed[key] = value[key].trim() as never;
+  const campusIds = update.campusIds ?? current.campusIds;
+  const primaryCampusId = update.primaryCampusId ?? current.primaryCampusId;
+  if (!campusIds.includes(primaryCampusId)) {
+    throw new ValidationError([{ field: "primaryCampusId", message: "primary campus must be included in campus access" }]);
   }
-  if (Array.isArray(value.campusIds)) {
-    const campusIds = [...new Set(value.campusIds.map(String).filter(Boolean))];
-    if (!campusIds.length) throw new ValidationError([{ field: "campusIds", message: "at least one campus is required" }]);
-    allowed.campusIds = campusIds;
-    if (typeof value.primaryCampusId === "string" && campusIds.includes(value.primaryCampusId)) {
-      allowed.primaryCampusId = value.primaryCampusId;
+  const result = await repository.update(tenantId, employeeId, { ...update, updatedBy: actor(context) });
+  if (!result) throw new NotFoundError("employee not found");
+  if (current.userId && update.campusIds) {
+    const assignments = deps.accessRepository ?? accessRepository;
+    const activeCampusAssignments = (await assignments.listAssignments(tenantId)).filter(
+      (item) => item.userId === current.userId && item.isActive && item.scope.scopeType === "CAMPUS",
+    );
+    for (const assignment of activeCampusAssignments) {
+      await assignments.updateAssignmentScope(tenantId, assignment.id, { scopeType: "CAMPUS", campusIds });
     }
   }
-  const result = await (deps.repository ?? employeeRepository).update(tenant(context), employeeId, allowed);
-  if (!result) throw new NotFoundError("employee not found");
+  if (current.userId && update.fullName) {
+    await (await (deps.userRepository ?? userRepository)).update(tenantId, current.userId, { name: update.fullName });
+  }
   return toEmployeeView(result);
 }
 
@@ -339,6 +376,50 @@ export async function endEmployment(employeeId: string, reason: string, context:
     loginStatus: employee.loginStatus === "NONE" ? "NONE" : "DISABLED",
     updatedBy: actor(context),
   }))!);
+}
+
+export async function deactivateEmployee(employeeId: string, context: RequestContext, deps: EmployeeServiceDeps = {}) {
+  requirePermission(context.authContext, employeePermissions.update);
+  const repository = deps.repository ?? employeeRepository;
+  const tenantId = tenant(context);
+  const employee = await repository.get(tenantId, employeeId);
+  if (!employee) throw new NotFoundError("employee not found");
+  if (employee.status === "ENDED") throw new ConflictError("ended employment cannot be deactivated");
+  if (employee.status === "INACTIVE") return toEmployeeView(employee);
+  if (employee.email && employee.loginStatus !== "NONE") {
+    if (!deps.identityGateway) throw new Error("staff identity gateway is required to disable employee login");
+    await deps.identityGateway.disable(employee.email);
+  }
+  if (employee.userId) await (await (deps.userRepository ?? userRepository)).update(tenantId, employee.userId, { status: "INACTIVE" });
+  const updated = await repository.update(tenantId, employee.id, {
+    status: "INACTIVE",
+    loginStatus: employee.loginStatus === "NONE" ? "NONE" : "DISABLED",
+    updatedBy: actor(context),
+  });
+  if (!updated) throw new NotFoundError("employee not found");
+  return toEmployeeView(updated);
+}
+
+export async function reactivateEmployee(employeeId: string, context: RequestContext, deps: EmployeeServiceDeps = {}) {
+  requirePermission(context.authContext, employeePermissions.update);
+  const repository = deps.repository ?? employeeRepository;
+  const tenantId = tenant(context);
+  const employee = await repository.get(tenantId, employeeId);
+  if (!employee) throw new NotFoundError("employee not found");
+  if (employee.status === "ENDED") throw new ConflictError("ended employment cannot be reactivated");
+  if (employee.status === "ACTIVE") return toEmployeeView(employee);
+  if (employee.email && employee.loginStatus === "DISABLED") {
+    if (!deps.identityGateway?.enable) throw new Error("staff identity gateway is required to enable employee login");
+    await deps.identityGateway.enable(employee.email);
+  }
+  if (employee.userId) await (await (deps.userRepository ?? userRepository)).update(tenantId, employee.userId, { status: "ACTIVE" });
+  const updated = await repository.update(tenantId, employee.id, {
+    status: "ACTIVE",
+    loginStatus: employee.loginStatus === "DISABLED" ? "ACTIVE" : employee.loginStatus,
+    updatedBy: actor(context),
+  });
+  if (!updated) throw new NotFoundError("employee not found");
+  return toEmployeeView(updated);
 }
 
 export async function activateEmployeeLogin(tenantId: string, email: string, deps: EmployeeServiceDeps = {}) {

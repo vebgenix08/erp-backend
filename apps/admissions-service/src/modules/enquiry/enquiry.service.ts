@@ -2,6 +2,7 @@ import { BadRequestError, ConflictError } from "@school-erp/errors";
 import { requireAuth, requirePermission } from "@school-erp/auth";
 import { requireTenantId } from "@school-erp/tenancy";
 import type { StructuredLogger } from "@school-erp/logger";
+import { issueConfiguredNumber, type NumberingContext } from "@school-erp/numbering";
 import { enquiryPermissions } from "./enquiry.permissions";
 import { toEnquiryView } from "./enquiry.mapper";
 import { enquiryRepository as defaultRepository, type EnquiryRepository } from "./enquiry.repository";
@@ -11,6 +12,7 @@ import type { EnquiryListFilter, EnquiryServiceContext, EnquiryView } from "./en
 export interface AdmissionsServiceDeps {
   repository?: EnquiryRepository | undefined;
   logger?: StructuredLogger | undefined;
+  numberIssuer?: ((context: NumberingContext) => Promise<string>) | undefined;
 }
 
 function resolveRepository(deps?: AdmissionsServiceDeps): EnquiryRepository {
@@ -48,8 +50,25 @@ function log(deps: AdmissionsServiceDeps | undefined, message: string, context: 
   }).info(message);
 }
 
-function formatEnquiryNumber(sequence: number): string {
-  return `ENQ-${String(sequence).padStart(4, "0")}`;
+async function enquiryNumber(
+  tenantId: string,
+  id: string,
+  academicYearId: string | undefined,
+  deps: AdmissionsServiceDeps | undefined,
+) {
+  if (deps?.numberIssuer) return deps.numberIssuer({
+    tenantId,
+    stream: "ENQUIRY",
+    idempotencyKey: id,
+    ...(academicYearId ? { academicYearId } : {}),
+  });
+  if (!deps?.repository) return issueConfiguredNumber({
+    tenantId,
+    stream: "ENQUIRY",
+    idempotencyKey: id,
+    ...(academicYearId ? { academicYearId } : {}),
+  });
+  return `ENQ-${String(await deps.repository.nextEnquirySequence(tenantId)).padStart(4, "0")}`;
 }
 
 export async function createEnquiry(
@@ -61,13 +80,14 @@ export async function createEnquiry(
   const repository = resolveRepository(deps);
   const tenantId = getTenantId(context);
   const payload = validateEnquiryCreateInput(input);
-  const sequence = await repository.nextEnquirySequence(tenantId);
-  const enquiryNumber = formatEnquiryNumber(sequence);
+  const id = `enquiry_${crypto.randomUUID()}`;
+  const generatedNumber = await enquiryNumber(tenantId, id, payload.academicYearId, deps);
   const now = new Date();
   const createdBy = getActorId(context);
   const record = await repository.create(tenantId, {
     ...payload,
-    enquiryNumber,
+    id,
+    enquiryNumber: generatedNumber,
     createdBy,
     status: "NEW",
     createdAt: now,

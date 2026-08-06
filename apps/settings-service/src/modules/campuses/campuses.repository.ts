@@ -46,7 +46,6 @@ export class InMemoryCampusRepository implements CampusRepository {
     const records = [...this.getBucket(tenantId).records.values()];
     return records
       .filter((record) => !filter?.status || record.status === filter.status)
-      .filter((record) => !filter?.campusType || record.campusType === filter.campusType)
       .filter((record) => !filter?.search || [record.name, record.address, record.contactEmail, record.contactPhone].some((value) => value?.toLowerCase().includes(filter.search!.toLowerCase())))
       .sort((left, right) => left.name.localeCompare(right.name))
       .map(clone);
@@ -71,7 +70,6 @@ export class InMemoryCampusRepository implements CampusRepository {
       tenantId,
       code: input.code,
       name: input.name,
-      campusType: input.campusType,
       status: "ACTIVE",
       address: input.address,
       createdAt: timestamp,
@@ -107,7 +105,7 @@ export class MongoCampusRepository implements CampusRepository {
   constructor(private readonly collection:CollectionAdapter<CampusDocument>,private readonly sequence:Awaited<ReturnType<typeof getCollection<SequenceDocument>>>){}
   private from(row:CampusDocument|null){if(!row)return null;const{_id:_id,normalizedCode:_code,normalizedName:_name,...record}=row;return clone(record);}
   private doc(record:CampusRecord):CampusDocument{return{_id:record.id,...record,normalizedCode:record.code.toLowerCase(),normalizedName:record.name.trim().toLowerCase().replace(/\s+/g," ")};}
-  async list(tenantId:string,filter?:CampusListFilter){const rows=await this.collection.findMany({tenantId,...(filter?.status?{status:filter.status}:{}),...(filter?.campusType?{campusType:filter.campusType}:{})},{sort:{name:1}});return rows.map((row)=>this.from(row) as CampusRecord).filter((record)=>!filter?.search||[record.name,record.address,record.contactEmail,record.contactPhone].some((value)=>value?.toLowerCase().includes(filter.search!.toLowerCase())));}
+  async list(tenantId:string,filter?:CampusListFilter){const rows=await this.collection.findMany({tenantId,...(filter?.status?{status:filter.status}:{})},{sort:{name:1}});return rows.map((row)=>this.from(row) as CampusRecord).filter((record)=>!filter?.search||[record.name,record.address,record.contactEmail,record.contactPhone].some((value)=>value?.toLowerCase().includes(filter.search!.toLowerCase())));}
   async getById(tenantId:string,id:string){return this.from(await this.collection.findOne({_id:id,tenantId}));}
   async getByCode(tenantId:string,code:string){return this.from(await this.collection.findOne({tenantId,normalizedCode:code.toLowerCase()}));}
   async reserveNextCode(tenantId:string){const result=await this.sequence.findOneAndUpdate({_id:`campus:${tenantId}`},{$inc:{value:1}}, {upsert:true,returnDocument:"after"});return `CAMP-${String(result?.value??1).padStart(3,"0")}`;}

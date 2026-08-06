@@ -47,6 +47,7 @@ export async function listRoles(context: TenantContext | undefined, deps?: RoleS
   await ensureSystemRoles(tenantId, repository);
   return (await repository.list(tenantId)).map((role) => toRoleView(role));
 }
+export async function listRolePage(context:TenantContext|undefined,filter:import("./roles.model").RolePageFilter={},deps?:RoleServiceDeps){const repository=await resolveRepository(deps),tenantId=resolveTenantId(context);await ensureSystemRoles(tenantId,repository);const page=await repository.listPage(tenantId,filter);return{...page,items:page.items.map(role=>toRoleView(role))}}
 
 export async function getRole(context: TenantContext | undefined, id: string, deps?: RoleServiceDeps) {
   const repository = await resolveRepository(deps);

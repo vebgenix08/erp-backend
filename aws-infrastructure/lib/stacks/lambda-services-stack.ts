@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { CfnOutput, Duration, Stack, StackProps, aws_cloudwatch as cloudwatch, aws_events as events, aws_events_targets as eventTargets, aws_iam as iam, aws_lambda as lambda, aws_logs as logs, aws_secretsmanager as secretsmanager, aws_sqs as sqs, aws_lambda_event_sources as eventSources } from 'aws-cdk-lib';
+import { CfnOutput, Duration, Stack, StackProps, aws_cloudwatch as cloudwatch, aws_events as events, aws_events_targets as eventTargets, aws_iam as iam, aws_lambda as lambda, aws_logs as logs, aws_secretsmanager as secretsmanager, aws_sqs as sqs, aws_lambda_event_sources as eventSources, aws_stepfunctions as sfn, aws_stepfunctions_tasks as tasks } from 'aws-cdk-lib';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
 import type { EnvironmentConfig } from '../config';
@@ -174,8 +174,15 @@ export class LambdaServicesStack extends Stack {
       depsLockFilePath: path.resolve(process.cwd(), '..', '..', 'pnpm-lock.yaml'),
       memorySize: props.config.lambdaMemorySize,
       timeout: props.config.lambdaTimeout,
-      bundling: { externalModules: ['@aws-sdk/client-secrets-manager', '@aws-sdk/client-eventbridge'] },
-      environment: { environment: props.config.environment, SERVICE_NAME: 'academics-service', MONGODB_SECRET_NAME: props.secretNames.mongodb, EVENT_BUS_NAME: props.eventBusName },
+      bundling: { externalModules: ['@aws-sdk/client-secrets-manager', '@aws-sdk/client-eventbridge', '@aws-sdk/client-sfn'] },
+      environment: {
+        environment: props.config.environment,
+        SERVICE_NAME: 'academics-service',
+        MONGODB_SECRET_NAME: props.secretNames.mongodb,
+        IDENTITY_MONGODB_DB_NAME: `identity-service_${props.config.environment}`,
+        SETTINGS_MONGODB_DB_NAME: `settings-service_${props.config.environment}`,
+        EVENT_BUS_NAME: props.eventBusName,
+      },
     });
     this.admissionsGraphqlFunction = new NodejsFunction(this, 'AdmissionsGraphqlFunction', {
       functionName: `admissions-service-graphql-${props.config.environment}`,
@@ -239,10 +246,11 @@ export class LambdaServicesStack extends Stack {
       depsLockFilePath: path.resolve(process.cwd(), '..', '..', 'pnpm-lock.yaml'),
       memorySize: props.config.lambdaMemorySize,
       timeout: props.config.lambdaTimeout,
-      bundling: { externalModules: ['@aws-sdk/client-secrets-manager'] },
-      environment: { environment: props.config.environment, SERVICE_NAME: 'comms-service', MONGODB_SECRET_NAME: props.secretNames.mongodb },
+      bundling: { externalModules: ['@aws-sdk/client-secrets-manager', '@aws-sdk/client-sesv2'] },
+      environment: { environment: props.config.environment, SERVICE_NAME: 'comms-service', MONGODB_SECRET_NAME: props.secretNames.mongodb, SES_FROM_EMAIL: props.config.sesFromEmail, SES_CONFIGURATION_SET_NAME: props.config.sesConfigurationSetName },
     });
     secretsmanager.Secret.fromSecretCompleteArn(this, 'CommsGraphqlMongoSecretReference', props.mongodbSecretArn).grantRead(this.commsGraphqlFunction);
+    this.commsGraphqlFunction.addToRolePolicy(new iam.PolicyStatement({ actions: ['ses:SendEmail'], resources: ['*'] }));
     new logs.LogRetention(this, 'CommsGraphqlLogRetention', { logGroupName: `/aws/lambda/${this.commsGraphqlFunction.functionName}`, retention: props.config.logRetentionDays });
 
     const interactiveFunctions = [
@@ -271,7 +279,7 @@ export class LambdaServicesStack extends Stack {
     secretsmanager.Secret.fromSecretCompleteArn(this, 'IdentityGraphqlMongoSecretReference', props.mongodbSecretArn)
       .grantRead(this.identityGraphqlFunction);
     this.identityGraphqlFunction.addToRolePolicy(new iam.PolicyStatement({
-      actions: ['cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser', 'cognito-idp:AdminDisableUser'],
+      actions: ['cognito-idp:AdminCreateUser', 'cognito-idp:AdminGetUser', 'cognito-idp:AdminDisableUser', 'cognito-idp:AdminEnableUser'],
       resources: [`arn:aws:cognito-idp:${props.config.region}:${props.config.accountId}:userpool/${props.cognitoUserPoolId}`],
     }));
     secretsmanager.Secret.fromSecretCompleteArn(this, 'AcademicsGraphqlMongoSecretReference', props.mongodbSecretArn)
@@ -399,9 +407,9 @@ export class LambdaServicesStack extends Stack {
     const admissionConfirmedDeadLetterQueue = new sqs.Queue(this, 'AdmissionConfirmedDeadLetterQueue', {
       queueName: `admission-confirmed-dlq-${props.config.environment}`,
     });
-    new events.Rule(this, 'AdmissionConfirmedRule', {
+    new events.Rule(this, 'AdmissionConfirmedEventRule', {
       eventBus,
-      ruleName: `admission-confirmed-${props.config.environment}`,
+      ruleName: `admission-confirmed-events-${props.config.environment}`,
       eventPattern: {
         source: ['erp.admissions'],
         detailType: ['admissions.admission.confirmed.v1'],
@@ -438,15 +446,102 @@ export class LambdaServicesStack extends Stack {
     const studentEnrolledDeadLetterQueue = new sqs.Queue(this, 'StudentEnrolledDeadLetterQueue', {
       queueName: `student-enrolled-dlq-${props.config.environment}`,
     });
-    new events.Rule(this, 'StudentEnrolledRule', {
+    new events.Rule(this, 'StudentEnrolledEventRule', {
       eventBus,
-      ruleName: `student-enrolled-${props.config.environment}`,
+      ruleName: `student-enrolled-events-${props.config.environment}`,
       eventPattern: {
         source: ['erp.academics'],
         detailType: ['academics.student.enrolled.v1', 'academics.student.enrollment-changed.v1'],
       },
       targets: [new eventTargets.LambdaFunction(studentEnrolledFunction, { retryAttempts: 2, deadLetterQueue: studentEnrolledDeadLetterQueue })],
     });
+
+    const academicsCampusTransferTask = new NodejsFunction(this, 'AcademicsCampusTransferTask', {
+      functionName: `academics-campus-transfer-${props.config.environment}`,
+      runtime: lambda.Runtime.NODEJS_20_X,
+      entry: path.resolve(process.cwd(), '..', 'apps', 'academics-service', 'src', 'handlers', 'campus-transfer-task.ts'),
+      handler: 'handler',
+      depsLockFilePath: path.resolve(process.cwd(), '..', '..', 'pnpm-lock.yaml'),
+      memorySize: props.config.lambdaMemorySize,
+      timeout: props.config.lambdaTimeout,
+      bundling: { externalModules: ['@aws-sdk/client-secrets-manager'] },
+      environment: { environment: props.config.environment, SERVICE_NAME: 'academics-service', MONGODB_SECRET_NAME: props.secretNames.mongodb },
+    });
+    const financeCampusTransferTask = new NodejsFunction(this, 'FinanceCampusTransferTask', {
+      functionName: `finance-campus-transfer-${props.config.environment}`,
+      runtime: lambda.Runtime.NODEJS_20_X,
+      entry: path.resolve(process.cwd(), '..', 'apps', 'finance-service', 'src', 'handlers', 'campus-transfer-task.ts'),
+      handler: 'handler',
+      depsLockFilePath: path.resolve(process.cwd(), '..', '..', 'pnpm-lock.yaml'),
+      memorySize: Math.max(props.config.lambdaMemorySize, 512),
+      timeout: props.config.lambdaTimeout,
+      bundling: { externalModules: ['@aws-sdk/client-secrets-manager'] },
+      environment: { environment: props.config.environment, SERVICE_NAME: 'finance-service', MONGODB_SECRET_NAME: props.secretNames.mongodb },
+    });
+    const mongoReference = secretsmanager.Secret.fromSecretCompleteArn(this, 'CampusTransferMongoSecretReference', props.mongodbSecretArn);
+    mongoReference.grantRead(academicsCampusTransferTask);
+    mongoReference.grantRead(financeCampusTransferTask);
+    for (const [id, fn] of [['AcademicsCampusTransfer', academicsCampusTransferTask], ['FinanceCampusTransfer', financeCampusTransferTask]] as const) {
+      new logs.LogRetention(this, `${id}LogRetention`, { logGroupName: `/aws/lambda/${fn.functionName}`, retention: props.config.logRetentionDays });
+      this.addFunctionAlarms(id, fn, props.config);
+    }
+
+    const getTransferContext = new tasks.LambdaInvoke(this, 'GetCampusTransferContext', {
+      lambdaFunction: academicsCampusTransferTask,
+      payloadResponseOnly: true,
+      resultPath: '$.transfer',
+      payload: sfn.TaskInput.fromObject({ operation: 'GET_CONTEXT', 'tenantId.$': '$.tenantId', 'transferId.$': '$.transferId', 'financeApproved.$': '$.financeApproved' }),
+    });
+    const assessAndApplyFinance = new tasks.LambdaInvoke(this, 'AssessAndApplyCampusTransferFinance', {
+      lambdaFunction: financeCampusTransferTask,
+      payloadResponseOnly: true,
+      resultPath: '$.finance',
+      payload: sfn.TaskInput.fromObject({ operation: 'ASSESS_AND_APPLY', 'id.$': '$.transfer.id', 'tenantId.$': '$.transfer.tenantId', 'studentId.$': '$.transfer.studentId', 'studentName.$': '$.transfer.studentName', 'admissionApplicationId.$': '$.transfer.admissionApplicationId', 'registrationNumber.$': '$.transfer.targetRegistrationNumber', 'source.$': '$.transfer.source', 'target.$': '$.transfer.target', 'requestedBy.$': '$.transfer.requestedBy', 'financeApproved.$': '$.transfer.financeApproved' }),
+    });
+    const commitAcademicTransfer = new tasks.LambdaInvoke(this, 'CommitCampusTransferEnrollment', {
+      lambdaFunction: academicsCampusTransferTask,
+      payloadResponseOnly: true,
+      payload: sfn.TaskInput.fromObject({ operation: 'COMMIT', 'tenantId.$': '$.transfer.tenantId', 'transferId.$': '$.transfer.id', 'financeAssessment.$': '$.finance.assessment' }),
+    });
+    const markFinanceReview = new tasks.LambdaInvoke(this, 'MarkCampusTransferUnderReview', {
+      lambdaFunction: academicsCampusTransferTask,
+      payloadResponseOnly: true,
+      payload: sfn.TaskInput.fromObject({ operation: 'UNDER_REVIEW', 'tenantId.$': '$.transfer.tenantId', 'transferId.$': '$.transfer.id', 'financeAssessment.$': '$.finance.assessment', 'warning.$': '$.finance.warning' }),
+    });
+    const compensateFinance = new tasks.LambdaInvoke(this, 'CompensateCampusTransferFinance', {
+      lambdaFunction: financeCampusTransferTask,
+      payloadResponseOnly: true,
+      resultPath: '$.compensation',
+      payload: sfn.TaskInput.fromObject({ operation: 'COMPENSATE', 'id.$': '$.transfer.id', 'tenantId.$': '$.transfer.tenantId', 'studentId.$': '$.transfer.studentId', 'studentName.$': '$.transfer.studentName', 'admissionApplicationId.$': '$.transfer.admissionApplicationId', 'registrationNumber.$': '$.transfer.registrationNumber', 'source.$': '$.transfer.source', 'target.$': '$.transfer.target', 'requestedBy.$': '$.transfer.requestedBy' }),
+    });
+    const markTransferFailed = new tasks.LambdaInvoke(this, 'MarkCampusTransferFailed', {
+      lambdaFunction: academicsCampusTransferTask,
+      payloadResponseOnly: true,
+      payload: sfn.TaskInput.fromObject({ operation: 'FAILED', 'tenantId.$': '$.transfer.tenantId', 'transferId.$': '$.transfer.id', failureReason: 'Campus transfer failed after finance processing; compensation was applied.' }),
+    });
+    const markTransferContextFailed = new tasks.LambdaInvoke(this, 'MarkCampusTransferContextFailed', {
+      lambdaFunction: academicsCampusTransferTask,
+      payloadResponseOnly: true,
+      payload: sfn.TaskInput.fromObject({ operation: 'FAILED', 'tenantId.$': '$.tenantId', 'transferId.$': '$.transferId', failureReason: 'Campus transfer context could not be loaded.' }),
+    });
+    const failureChain = compensateFinance.next(markTransferFailed);
+    getTransferContext.addCatch(markTransferContextFailed, { resultPath: '$.error' });
+    assessAndApplyFinance.addCatch(markTransferFailed, { resultPath: '$.error' });
+    compensateFinance.addCatch(markTransferFailed, { resultPath: '$.compensationError' });
+    commitAcademicTransfer.addCatch(failureChain, { resultPath: '$.error' });
+    const transferDefinition = getTransferContext.next(assessAndApplyFinance).next(new sfn.Choice(this, 'CampusTransferNeedsFinanceReview')
+      .when(sfn.Condition.booleanEquals('$.finance.requiresReview', true), markFinanceReview)
+      .otherwise(commitAcademicTransfer));
+    const campusTransferStateMachine = new sfn.StateMachine(this, 'CampusTransferStateMachine', {
+      stateMachineName: `campus-transfer-${props.config.environment}`,
+      definitionBody: sfn.DefinitionBody.fromChainable(transferDefinition),
+      timeout: Duration.minutes(10),
+      logs: { destination: new logs.LogGroup(this, 'CampusTransferWorkflowLogs', { logGroupName: `/aws/vendedlogs/states/campus-transfer-${props.config.environment}`, retention: props.config.logRetentionDays }), level: sfn.LogLevel.ALL, includeExecutionData: true },
+      tracingEnabled: true,
+    });
+    this.academicsGraphqlFunction.addEnvironment('CAMPUS_TRANSFER_STATE_MACHINE_ARN', campusTransferStateMachine.stateMachineArn);
+    campusTransferStateMachine.grantStartExecution(this.academicsGraphqlFunction);
+    new CfnOutput(this, 'CampusTransferStateMachineArn', { value: campusTransferStateMachine.stateMachineArn });
 
     new cloudwatch.Alarm(this, 'AccountConcurrencyAlarm', {
       alarmName: `lambda-account-concurrency-${props.config.environment}`,

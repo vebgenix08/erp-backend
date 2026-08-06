@@ -10,6 +10,7 @@ import type {
   EventPublisher,
 } from "@school-erp/events";
 import type { StructuredLogger } from "@school-erp/logger";
+import { issueConfiguredNumber, type NumberingContext, type NumberingStream } from "@school-erp/numbering";
 import { requireTenantId } from "@school-erp/tenancy";
 import { toApplicationView } from "./application.mapper";
 import type {
@@ -49,6 +50,7 @@ export interface ApplicationServiceDeps {
   logger?: StructuredLogger | undefined;
   now?: (() => Date) | undefined;
   eventPublisher?: EventPublisher | undefined;
+  numberIssuer?: ((context: NumberingContext) => Promise<string>) | undefined;
 }
 function repo(deps?: ApplicationServiceDeps) {
   return deps?.repository ?? applicationRepository;
@@ -67,6 +69,27 @@ function actorId(context: ApplicationServiceContext) {
 }
 function permission(context: ApplicationServiceContext, value: string) {
   requirePermission(context.authContext, value);
+}
+async function configuredNumber(
+  stream: Extract<NumberingStream, "APPLICATION" | "ADMISSION">,
+  record: ApplicationRecord,
+  tenant: string,
+  deps?: ApplicationServiceDeps,
+) {
+  const context: NumberingContext = {
+    tenantId: tenant,
+    stream,
+    idempotencyKey: record.id,
+    academicYearId: record.academicYearId,
+    ...(record.campusId ? { campusId: record.campusId } : {}),
+  };
+  if (deps?.numberIssuer) return deps.numberIssuer(context);
+  if (!deps?.repository) return issueConfiguredNumber(context);
+  const code = await resolveAcademicYearCode(record, deps);
+  const sequence = stream === "APPLICATION"
+    ? await deps.repository.nextApplicationSequence(tenant, record.academicYearId)
+    : await deps.repository.nextAdmissionSequence(tenant, record.academicYearId);
+  return `${stream === "APPLICATION" ? "APP" : "ADM"}/${code}/${String(sequence).padStart(4, "0")}`;
 }
 function log(
   deps: ApplicationServiceDeps | undefined,
@@ -227,16 +250,13 @@ export async function submitApplication(
   if (existing.status !== "DRAFT")
     throw new ConflictError("only draft applications can be submitted");
   const academicYearCode = await resolveAcademicYearCode(existing, deps),
-    sequence = await repository.nextApplicationSequence(
-      tenant,
-      existing.academicYearId,
-    ),
+    generatedApplicationNumber = await configuredNumber("APPLICATION", existing, tenant, deps),
     at = now(deps),
     submitted = stage(
       {
         ...existing,
         academicYearCode,
-        applicationNumber: `APP/${academicYearCode}/${String(sequence).padStart(4, "0")}`,
+        applicationNumber: generatedApplicationNumber,
         submittedAt: at,
       },
       "SUBMITTED",
@@ -430,12 +450,7 @@ export async function confirmApplication(
 
   if (existing.status === "APPROVED") {
     const at = now(deps);
-    const academicYearCode = await resolveAcademicYearCode(existing, deps);
-    const sequence = await repository.nextAdmissionSequence(
-      tenant,
-      existing.academicYearId,
-    );
-    const admissionNumber = `ADM/${academicYearCode}/${String(sequence).padStart(4, "0")}`;
+    const admissionNumber = await configuredNumber("ADMISSION", existing, tenant, deps);
     const data: AdmissionConfirmedEventData = {
       admissionApplicationId: existing.id,
       admissionNumber,

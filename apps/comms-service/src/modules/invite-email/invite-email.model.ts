@@ -1,7 +1,15 @@
 import type { AuthContext } from "@school-erp/auth";
 import type { TenantContext } from "@school-erp/tenancy";
 
-export type InviteEmailStatus = "QUEUED" | "SENT" | "FAILED";
+export type InviteEmailStatus =
+  | "QUEUED"
+  | "SENT"
+  | "DELIVERED"
+  | "DELAYED"
+  | "BOUNCED"
+  | "COMPLAINED"
+  | "REJECTED"
+  | "FAILED";
 
 export interface InviteEmailRecord {
   id: string;
@@ -14,7 +22,7 @@ export interface InviteEmailRecord {
   text: string;
   html: string;
   status: InviteEmailStatus;
-  messageId: string;
+  messageId?: string | undefined;
   createdBy?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
@@ -33,7 +41,7 @@ export interface InviteEmailView {
   text: string;
   html: string;
   status: InviteEmailStatus;
-  messageId: string;
+  messageId?: string | undefined;
   createdBy?: string | undefined;
   createdAt: string;
   updatedAt: string;

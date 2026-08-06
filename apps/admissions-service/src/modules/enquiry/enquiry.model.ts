@@ -80,6 +80,7 @@ export interface EnquiryUpdateInput {
 }
 
 export interface EnquiryCreateStoredInput extends EnquiryCreateInput {
+  id: string;
   enquiryNumber: string;
   createdBy: string;
   status: EnquiryStatus;

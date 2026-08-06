@@ -25,3 +25,5 @@ export interface RoleUpdateInput {
   isSystemRole?: boolean | undefined;
   isActive?: boolean | undefined;
 }
+export interface RolePageFilter { search?:string;isActive?:boolean;page?:number;pageSize?:number }
+export interface RolePage { items:RoleRecord[];page:number;pageSize:number;total:number;totalPages:number }

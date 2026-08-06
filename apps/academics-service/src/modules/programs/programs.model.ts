@@ -6,6 +6,7 @@ export interface ProgramRecord {
   id: string;
   tenantId: string;
   campusId: string;
+  academicUnitId: string;
   code: string;
   name: string;
   description?: string | undefined;
@@ -17,6 +18,7 @@ export interface ProgramRecord {
 
 export interface ProgramCreateInput {
   campusId: string;
+  academicUnitId: string;
   name: string;
   description?: string | undefined;
 }
@@ -29,6 +31,7 @@ export interface ProgramUpdateInput {
 
 export interface ProgramListFilter {
   campusId: string;
+  academicUnitId?: string | undefined;
   status?: ProgramStatus | undefined;
 }
 
@@ -36,6 +39,7 @@ export interface ProgramView {
   id: string;
   tenantId: string;
   campusId: string;
+  academicUnitId: string;
   code: string;
   name: string;
   description?: string | undefined;

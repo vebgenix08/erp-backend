@@ -1,7 +1,7 @@
 import type { AuthContext } from "@school-erp/auth";
 import type { TenantContext } from "@school-erp/tenancy";
 
-export type NumberingStream = "ENQUIRY" | "APPLICATION" | "ADMISSION" | "STUDENT_REGISTRATION" | "ROLL_NUMBER" | "EMPLOYEE" | "FEE_ORDER" | "INVOICE" | "PAYMENT" | "RECEIPT" | "BONAFIDE_CERTIFICATE" | "STUDY_CERTIFICATE" | "TRANSFER_CERTIFICATE" | "STUDENT_ID_CARD";
+export type NumberingStream = "ENQUIRY" | "APPLICATION" | "ADMISSION" | "STUDENT_REGISTRATION" | "CLASS_REGISTER" | "ROLL_NUMBER" | "EMPLOYEE" | "FEE_ORDER" | "INVOICE" | "PAYMENT" | "RECEIPT" | "BONAFIDE_CERTIFICATE" | "STUDY_CERTIFICATE" | "TRANSFER_CERTIFICATE" | "STUDENT_ID_CARD";
 export type NumberingScope = "TENANT" | "CAMPUS" | "ACADEMIC_YEAR" | "PROGRAM" | "CLASS" | "SECTION";
 export type NumberingReset = "NEVER" | "ACADEMIC_YEAR" | "CALENDAR_YEAR" | "MONTHLY";
 
@@ -15,13 +15,14 @@ export interface NumberingPolicyView extends Omit<NumberingPolicyRecord, "create
 export interface NumberingServiceContext { tenantContext: TenantContext; authContext: AuthContext; requestId: string; }
 
 export const DEFAULT_NUMBERING_POLICIES: NumberingPolicyInput[] = [
-  { stream:"ENQUIRY",name:"Enquiry number",format:"ENQ/{YEAR}/{SEQUENCE}",prefix:"ENQ",separator:"/",padding:6,scope:"TENANT",reset:"ACADEMIC_YEAR",active:true },
-  { stream:"APPLICATION",name:"Application number",format:"APP/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"APP",separator:"/",padding:6,scope:"TENANT",reset:"ACADEMIC_YEAR",active:true },
-  { stream:"ADMISSION",name:"Admission number",format:"ADM/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"ADM",separator:"/",padding:6,scope:"TENANT",reset:"ACADEMIC_YEAR",active:true },
-  { stream:"STUDENT_REGISTRATION",name:"Student registration number",format:"REG/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"REG",separator:"/",padding:6,scope:"CLASS",reset:"ACADEMIC_YEAR",active:true },
+  { stream:"ENQUIRY",name:"Enquiry number",format:"ENQ/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"ENQ",separator:"/",padding:6,scope:"ACADEMIC_YEAR",reset:"ACADEMIC_YEAR",active:true },
+  { stream:"APPLICATION",name:"Application number",format:"APP/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"APP",separator:"/",padding:6,scope:"ACADEMIC_YEAR",reset:"ACADEMIC_YEAR",active:true },
+  { stream:"ADMISSION",name:"Admission number",format:"ADM/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"ADM",separator:"/",padding:6,scope:"ACADEMIC_YEAR",reset:"ACADEMIC_YEAR",active:true },
+  { stream:"STUDENT_REGISTRATION",name:"Student registration number",format:"REG/{ACADEMIC_YEAR}/{CLASS_CODE}/{SEQUENCE}",prefix:"REG",separator:"/",padding:6,scope:"CLASS",reset:"ACADEMIC_YEAR",active:true },
+  { stream:"CLASS_REGISTER",name:"Annual class register number",format:"REG/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"REG",separator:"/",padding:3,scope:"CLASS",reset:"ACADEMIC_YEAR",active:false },
   { stream:"ROLL_NUMBER",name:"Section roll number",format:"{SEQUENCE}",prefix:"",separator:"",padding:2,scope:"SECTION",reset:"ACADEMIC_YEAR",active:true },
   { stream:"EMPLOYEE",name:"Employee number",format:"EMP/{SEQUENCE}",prefix:"EMP",separator:"/",padding:6,scope:"TENANT",reset:"NEVER",active:true },
-  { stream:"FEE_ORDER",name:"Fee order number",format:"FEE/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"FEE",separator:"/",padding:6,scope:"TENANT",reset:"ACADEMIC_YEAR",active:true },
+  { stream:"FEE_ORDER",name:"Fee order number",format:"FEE/{CAMPUS_CODE}/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"FEE",separator:"/",padding:6,scope:"CAMPUS",reset:"ACADEMIC_YEAR",active:true },
   { stream:"INVOICE",name:"Invoice number",format:"INV/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"INV",separator:"/",padding:6,scope:"TENANT",reset:"ACADEMIC_YEAR",active:true },
   { stream:"PAYMENT",name:"Payment reference",format:"PAY/{YEAR}/{SEQUENCE}",prefix:"PAY",separator:"/",padding:6,scope:"TENANT",reset:"CALENDAR_YEAR",active:true },
   { stream:"RECEIPT",name:"Receipt number",format:"RCP/{ACADEMIC_YEAR}/{SEQUENCE}",prefix:"RCP",separator:"/",padding:6,scope:"CAMPUS",reset:"ACADEMIC_YEAR",active:true },

@@ -12,10 +12,12 @@
     "@school-erp/test-utils": "workspace:*",
     "@school-erp/types": "workspace:*",
     "@school-erp/validation": "workspace:*"
+    ,"mongodb": "^6.19.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.test.json && node scripts/run-tests.mjs"
+    "test": "node scripts/clean-tests.mjs && tsc -p tsconfig.test.json && node scripts/run-tests.mjs",
+    "migrate:campus-academic-units": "node scripts/migrations/002-campus-academic-units.mjs"
   }
 }

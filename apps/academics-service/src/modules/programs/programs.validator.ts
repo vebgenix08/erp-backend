@@ -13,12 +13,15 @@ export function validateProgramCreateInput(input: unknown): ProgramCreateInput {
   }
   const value = input as Record<string, unknown>;
   const campusId = asString(value.campusId);
+  const academicUnitId = asString(value.academicUnitId);
   const name = asString(value.name);
   const description = asString(value.description);
   if (!campusId) throw new BadRequestError("campusId is required");
+  if (!academicUnitId) throw new BadRequestError("academicUnitId is required");
   if (!name) throw new BadRequestError("name is required");
   return {
     campusId,
+    academicUnitId,
     name,
     description: description || undefined,
   };
@@ -56,6 +59,8 @@ export function validateProgramListFilter(input: unknown): ProgramListFilter {
   const campusId = asString(value.campusId);
   if (!campusId) throw new BadRequestError("campusId is required");
   const filter: ProgramListFilter = { campusId };
+  const academicUnitId = asString(value.academicUnitId);
+  if (academicUnitId) filter.academicUnitId = academicUnitId;
   const status = asString(value.status).toUpperCase();
   if (status) {
     if (!allowedStatuses.includes(status as ProgramStatus)) {

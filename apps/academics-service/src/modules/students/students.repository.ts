@@ -27,10 +27,16 @@ interface SequenceDocument {
   _id: string;
   value: number;
 }
+export interface CreateStudentPersistenceInput extends CreateStudentFromAdmissionInput {
+  studentId?: string;
+  enrollmentId?: string;
+  registrationNumber?: string;
+  rollNumber?: string;
+}
 export interface StudentRepository {
   createFromAdmission(
     tenantId: string,
-    input: CreateStudentFromAdmissionInput,
+    input: CreateStudentPersistenceInput,
     programId: string,
   ): Promise<StudentWithEnrollment>;
   getById(tenantId: string, id: string): Promise<StudentWithEnrollment | null>;
@@ -46,8 +52,12 @@ export interface StudentRepository {
   changeEnrollment(
     tenantId: string,
     studentId: string,
-    input: { campusId: string; academicYearId: string; programId: string; classId: string; sectionId?: string; rollNumber?: string; changedBy: string },
+    input: { enrollmentId?: string; campusId: string; academicYearId: string; programId: string; classId: string; sectionId?: string; rollNumber?: string; registrationNumber?: string; changedBy: string },
   ): Promise<{ current: StudentWithEnrollment; previousEnrollmentId: string }>;
+  registrationNumberExists(tenantId: string, registrationNumber: string, excludeStudentId?: string): Promise<boolean>;
+  rollNumberExists(tenantId: string, academicYearId: string, sectionId: string, rollNumber: string, excludeEnrollmentId?: string): Promise<boolean>;
+  setRegistrationNumber(tenantId: string, studentId: string, registrationNumber: string): Promise<void>;
+  setEnrollmentRollNumber(tenantId: string, enrollmentId: string, rollNumber: string): Promise<void>;
 }
 const tenant = (value: string) => {
   const normalized = value.trim();
@@ -94,7 +104,7 @@ export class InMemoryStudentRepository implements StudentRepository {
   }
   async createFromAdmission(
     tenantId: string,
-    input: CreateStudentFromAdmissionInput,
+    input: CreateStudentPersistenceInput,
     programId: string,
   ) {
     const tid = tenant(tenantId),
@@ -114,11 +124,11 @@ export class InMemoryStudentRepository implements StudentRepository {
     const at = new Date(input.confirmedAt),
       now = new Date();
     const student: StudentRecord = {
-      id: `student_${crypto.randomUUID()}`,
+      id: input.studentId ?? `student_${crypto.randomUUID()}`,
       tenantId: tid,
       admissionApplicationId: input.admissionApplicationId,
       admissionNumber: input.admissionNumber,
-      registrationNumber: this.next(tid, input.academicYearId),
+      registrationNumber: input.registrationNumber ?? this.next(tid, input.academicYearId),
       name: input.studentName,
       phone: input.phone,
       guardian: { name: input.parentName },
@@ -134,7 +144,7 @@ export class InMemoryStudentRepository implements StudentRepository {
     if (input.parentPhone) student.guardian.phone = input.parentPhone;
     if (input.parentRelation) student.guardian.relation = input.parentRelation;
     const enrollment: EnrollmentRecord = {
-      id: `enrollment_${crypto.randomUUID()}`,
+      id: input.enrollmentId ?? `enrollment_${crypto.randomUUID()}`,
       tenantId: tid,
       studentId: student.id,
       campusId: input.campusId,
@@ -148,6 +158,7 @@ export class InMemoryStudentRepository implements StudentRepository {
       updatedAt: now,
     };
     if (input.sectionId) enrollment.sectionId = input.sectionId;
+    if (input.rollNumber) enrollment.rollNumber = input.rollNumber;
     this.students.set(student.id, cloneStudent(student));
     this.enrollments.set(enrollment.id, cloneEnrollment(enrollment));
     return pair(student, enrollment);
@@ -247,17 +258,50 @@ export class InMemoryStudentRepository implements StudentRepository {
       sortDirection,
     };
   }
-  async changeEnrollment(tenantId: string, studentId: string, input: { campusId: string; academicYearId: string; programId: string; classId: string; sectionId?: string; rollNumber?: string; changedBy: string }) {
+  async changeEnrollment(tenantId: string, studentId: string, input: { enrollmentId?: string; campusId: string; academicYearId: string; programId: string; classId: string; sectionId?: string; rollNumber?: string; registrationNumber?: string; changedBy: string }) {
     const tid = tenant(tenantId), existing = await this.getById(tid, studentId);
     if (!existing) throw new NotFoundError("student was not found");
+    if (input.registrationNumber && await this.registrationNumberExists(tid, input.registrationNumber, studentId)) throw new ConflictError("registration number already belongs to a student");
+    if (input.rollNumber && input.sectionId && await this.rollNumberExists(tid, input.academicYearId, input.sectionId, input.rollNumber, input.enrollmentId)) throw new ConflictError("roll number already belongs to this section");
     const previous = this.enrollments.get(existing.enrollment.id)!;
     previous.status = "COMPLETED"; previous.updatedAt = new Date();
     this.enrollments.set(previous.id, cloneEnrollment(previous));
-    const now = new Date(), enrollment: EnrollmentRecord = { id: `enrollment_${crypto.randomUUID()}`, tenantId: tid, studentId, campusId: input.campusId, academicYearId: input.academicYearId, programId: input.programId, classId: input.classId, status: "ACTIVE", enrolledAt: now, createdBy: input.changedBy, createdAt: now, updatedAt: now };
+    const now = new Date(), enrollment: EnrollmentRecord = { id: input.enrollmentId ?? `enrollment_${crypto.randomUUID()}`, tenantId: tid, studentId, campusId: input.campusId, academicYearId: input.academicYearId, programId: input.programId, classId: input.classId, status: "ACTIVE", enrolledAt: now, createdBy: input.changedBy, createdAt: now, updatedAt: now };
     if (input.sectionId) enrollment.sectionId = input.sectionId;
     if (input.rollNumber) enrollment.rollNumber = input.rollNumber;
     this.enrollments.set(enrollment.id, cloneEnrollment(enrollment));
-    return { current: pair(existing.student, enrollment), previousEnrollmentId: previous.id };
+    const updatedStudent = input.registrationNumber ? { ...existing.student, registrationNumber: input.registrationNumber, updatedAt: now } : existing.student;
+    if (input.registrationNumber) this.students.set(studentId, cloneStudent(updatedStudent));
+    return { current: pair(updatedStudent, enrollment), previousEnrollmentId: previous.id };
+  }
+  async registrationNumberExists(tenantId: string, registrationNumber: string, excludeStudentId?: string) {
+    const tid = tenant(tenantId);
+    return [...this.students.values()].some((item) => item.tenantId === tid && item.id !== excludeStudentId && item.registrationNumber === registrationNumber);
+  }
+  async rollNumberExists(tenantId: string, academicYearId: string, sectionId: string, rollNumber: string, excludeEnrollmentId?: string) {
+    const tid = tenant(tenantId);
+    return [...this.enrollments.values()].some((item) => item.tenantId === tid && item.id !== excludeEnrollmentId && item.status === "ACTIVE" && item.academicYearId === academicYearId && item.sectionId === sectionId && item.rollNumber === rollNumber);
+  }
+  async setRegistrationNumber(tenantId: string, studentId: string, registrationNumber: string) {
+    const tid = tenant(tenantId);
+    const student = this.students.get(studentId);
+    if (!student || student.tenantId !== tid) throw new NotFoundError("student was not found");
+    if ([...this.students.values()].some((item) => item.tenantId === tid && item.id !== studentId && item.registrationNumber === registrationNumber))
+      throw new ConflictError("registration number already belongs to a student");
+    student.registrationNumber = registrationNumber;
+    student.updatedAt = new Date();
+    this.students.set(student.id, cloneStudent(student));
+  }
+  async setEnrollmentRollNumber(tenantId: string, enrollmentId: string, rollNumber: string) {
+    const tid = tenant(tenantId);
+    const enrollment = this.enrollments.get(enrollmentId);
+    if (!enrollment || enrollment.tenantId !== tid || enrollment.status !== "ACTIVE")
+      throw new NotFoundError("active enrollment was not found");
+    if ([...this.enrollments.values()].some((item) => item.tenantId === tid && item.id !== enrollmentId && item.status === "ACTIVE" && item.academicYearId === enrollment.academicYearId && item.sectionId === enrollment.sectionId && item.rollNumber === rollNumber))
+      throw new ConflictError("roll number already belongs to this section");
+    enrollment.rollNumber = rollNumber;
+    enrollment.updatedAt = new Date();
+    this.enrollments.set(enrollment.id, cloneEnrollment(enrollment));
   }
 }
 class MongoStudentRepository implements StudentRepository {
@@ -279,7 +323,7 @@ class MongoStudentRepository implements StudentRepository {
   }
   async createFromAdmission(
     tenantId: string,
-    input: CreateStudentFromAdmissionInput,
+    input: CreateStudentPersistenceInput,
     programId: string,
   ) {
     const tid = tenant(tenantId),
@@ -322,11 +366,11 @@ class MongoStudentRepository implements StudentRepository {
         );
         const now = new Date(),
           student: StudentRecord = {
-            id: `student_${crypto.randomUUID()}`,
+            id: input.studentId ?? `student_${crypto.randomUUID()}`,
             tenantId: tid,
             admissionApplicationId: input.admissionApplicationId,
             admissionNumber: input.admissionNumber,
-            registrationNumber: `REG-${input.academicYearId
+            registrationNumber: input.registrationNumber ?? `REG-${input.academicYearId
               .replace(/[^A-Za-z0-9]/g, "")
               .slice(-8)
               .toUpperCase()}-${String(sequence?.value ?? 1).padStart(5, "0")}`,
@@ -347,7 +391,7 @@ class MongoStudentRepository implements StudentRepository {
         if (input.parentRelation)
           student.guardian.relation = input.parentRelation;
         const enrollment: EnrollmentRecord = {
-          id: `enrollment_${crypto.randomUUID()}`,
+          id: input.enrollmentId ?? `enrollment_${crypto.randomUUID()}`,
           tenantId: tid,
           studentId: student.id,
           campusId: input.campusId,
@@ -361,6 +405,7 @@ class MongoStudentRepository implements StudentRepository {
           updatedAt: now,
         };
         if (input.sectionId) enrollment.sectionId = input.sectionId;
+        if (input.rollNumber) enrollment.rollNumber = input.rollNumber;
         await this.students.insertOne(
           { ...student, _id: student.id },
           session ? { session } : {},
@@ -435,7 +480,7 @@ class MongoStudentRepository implements StudentRepository {
       sortDirection,
     };
   }
-  async changeEnrollment(tenantId: string, studentId: string, input: { campusId: string; academicYearId: string; programId: string; classId: string; sectionId?: string; rollNumber?: string; changedBy: string }) {
+  async changeEnrollment(tenantId: string, studentId: string, input: { enrollmentId?: string; campusId: string; academicYearId: string; programId: string; classId: string; sectionId?: string; rollNumber?: string; registrationNumber?: string; changedBy: string }) {
     const tid = tenant(tenantId);
     return withTransaction(async (session) => {
       const student = await this.students.findOne({ tenantId: tid, _id: studentId }, session ? { session } : {});
@@ -443,13 +488,42 @@ class MongoStudentRepository implements StudentRepository {
       const previous = await this.enrollment(tid, studentId, session ?? undefined);
       if (!previous) throw new NotFoundError("active enrollment was not found");
       const now = new Date();
+      if (input.registrationNumber) {
+        await this.students.updateOne({ tenantId: tid, _id: studentId }, { $set: { registrationNumber: input.registrationNumber, updatedAt: now } }, session ? { session } : {});
+      }
       await this.enrollments.updateOne({ tenantId: tid, _id: previous.id, status: "ACTIVE" }, { $set: { status: "COMPLETED", updatedAt: now } }, session ? { session } : {});
-      const enrollment: EnrollmentRecord = { id: `enrollment_${crypto.randomUUID()}`, tenantId: tid, studentId, campusId: input.campusId, academicYearId: input.academicYearId, programId: input.programId, classId: input.classId, status: "ACTIVE", enrolledAt: now, createdBy: input.changedBy, createdAt: now, updatedAt: now };
+      const enrollment: EnrollmentRecord = { id: input.enrollmentId ?? `enrollment_${crypto.randomUUID()}`, tenantId: tid, studentId, campusId: input.campusId, academicYearId: input.academicYearId, programId: input.programId, classId: input.classId, status: "ACTIVE", enrolledAt: now, createdBy: input.changedBy, createdAt: now, updatedAt: now };
       if (input.sectionId) enrollment.sectionId = input.sectionId;
       if (input.rollNumber) enrollment.rollNumber = input.rollNumber;
       await this.enrollments.insertOne({ ...enrollment, _id: enrollment.id }, session ? { session } : {});
-      return { current: pair(student, enrollment), previousEnrollmentId: previous.id };
+      return { current: pair(input.registrationNumber ? { ...student, registrationNumber: input.registrationNumber, updatedAt: now } : student, enrollment), previousEnrollmentId: previous.id };
     }, { env: this.env, context: { tenantId: tid, userId: input.changedBy } });
+  }
+  async registrationNumberExists(tenantId: string, registrationNumber: string, excludeStudentId?: string) {
+    const filter: Record<string, unknown> = { tenantId: tenant(tenantId), registrationNumber };
+    if (excludeStudentId) filter._id = { $ne: excludeStudentId };
+    return Boolean(await this.students.findOne(filter));
+  }
+  async rollNumberExists(tenantId: string, academicYearId: string, sectionId: string, rollNumber: string, excludeEnrollmentId?: string) {
+    const filter: Record<string, unknown> = { tenantId: tenant(tenantId), academicYearId, sectionId, rollNumber, status: "ACTIVE" };
+    if (excludeEnrollmentId) filter._id = { $ne: excludeEnrollmentId };
+    return Boolean(await this.enrollments.findOne(filter));
+  }
+  async setRegistrationNumber(tenantId: string, studentId: string, registrationNumber: string) {
+    const tid = tenant(tenantId);
+    const result = await this.students.updateOne(
+      { tenantId: tid, _id: studentId },
+      { $set: { registrationNumber, updatedAt: new Date() } },
+    );
+    if (!result.matchedCount) throw new NotFoundError("student was not found");
+  }
+  async setEnrollmentRollNumber(tenantId: string, enrollmentId: string, rollNumber: string) {
+    const tid = tenant(tenantId);
+    const result = await this.enrollments.updateOne(
+      { tenantId: tid, _id: enrollmentId, status: "ACTIVE" },
+      { $set: { rollNumber, updatedAt: new Date() } },
+    );
+    if (!result.matchedCount) throw new NotFoundError("active enrollment was not found");
   }
 }
 function runtimeEnv(): MongoEnvLike {
@@ -493,6 +567,14 @@ export async function createStudentRepository(
     { unique: true, partialFilterExpression: { status: "ACTIVE" }, name: "uq_active_student_enrollment" },
   );
   await enrollments.createIndex({ tenantId: 1, studentId: 1, academicYearId: 1 });
+  await enrollments.createIndex(
+    { tenantId: 1, academicYearId: 1, sectionId: 1, rollNumber: 1 },
+    {
+      unique: true,
+      name: "uq_active_section_roll_number",
+      partialFilterExpression: { status: "ACTIVE", rollNumber: { $type: "string" } },
+    },
+  );
   await enrollments.createIndex({
     tenantId: 1,
     campusId: 1,

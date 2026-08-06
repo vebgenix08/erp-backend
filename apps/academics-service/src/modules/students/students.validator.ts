@@ -7,6 +7,8 @@ import type {
   StudentSortField,
   SortDirection,
   ChangeStudentEnrollmentInput,
+  ClassRegistrationNumberingInput,
+  SectionRollNumberingInput,
 } from "./students.model";
 const required = (value: unknown, field: string) => {
   if (typeof value !== "string" || !value.trim())
@@ -68,13 +70,34 @@ export function validateCreateStudentFromAdmission(
   if (gender) result.gender = gender;
   return result;
 }
+export function validateClassRegistrationNumbering(input: unknown): ClassRegistrationNumberingInput {
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    throw new ValidationError([{ field: "input", message: "input is required" }]);
+  const value = input as Record<string, unknown>;
+  return {
+    campusId: required(value.campusId, "campusId"),
+    academicYearId: required(value.academicYearId, "academicYearId"),
+    classId: required(value.classId, "classId"),
+    clientRequestId: required(value.clientRequestId, "clientRequestId"),
+  };
+}
+export function validateSectionRollNumbering(input: unknown): SectionRollNumberingInput {
+  const base = validateClassRegistrationNumbering(input);
+  const value = input as Record<string, unknown>;
+  if (typeof value.regenerate !== "boolean")
+    throw new ValidationError([{ field: "regenerate", message: "regenerate must be a boolean" }]);
+  return {
+    ...base,
+    sectionId: required(value.sectionId, "sectionId"),
+    regenerate: value.regenerate,
+  };
+}
 export function validateChangeStudentEnrollment(input: unknown): ChangeStudentEnrollmentInput {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new ValidationError([{ field: "input", message: "input is required" }]);
   const value = input as Record<string, unknown>;
   const result: ChangeStudentEnrollmentInput = { campusId: required(value.campusId, "campusId"), academicYearId: required(value.academicYearId, "academicYearId"), classId: required(value.classId, "classId"), reason: required(value.reason, "reason") };
-  const sectionId = optional(value.sectionId), rollNumber = optional(value.rollNumber);
+  const sectionId = optional(value.sectionId);
   if (sectionId) result.sectionId = sectionId;
-  if (rollNumber) result.rollNumber = rollNumber;
   return result;
 }
 export function validateStudentFilter(input: unknown): StudentListFilter {

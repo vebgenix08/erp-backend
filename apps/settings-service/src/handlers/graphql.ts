@@ -5,10 +5,9 @@ import { academicYearPermissions } from "../modules/academic-years/academic-year
 import { activateAcademicYear, closeAcademicYear, createAcademicYear, listAcademicYears, reopenAcademicYear, updateAcademicYear } from "../modules/academic-years/academic-years.service";
 import { campusPermissions } from "../modules/campuses/campuses.permissions";
 import { createCampus, deactivateCampus, listCampuses, reactivateCampus, updateCampus } from "../modules/campuses/campuses.service";
+import { campusAcademicUnitPermissions, createCampusAcademicUnit, listCampusAcademicUnits, updateCampusAcademicUnit } from "../modules/campus-academic-units/campus-academic-units.service";
 import { institutionPermissions } from "../modules/institution/institution.permissions";
 import { getInstitutionProfile, updateInstitutionProfile } from "../modules/institution/institution.service";
-import { readinessPermissions } from "../modules/readiness/readiness.permissions";
-import { getTenantReadiness } from "../modules/readiness/readiness.service";
 import { templatePermissions } from "../modules/templates/templates.permissions";
 import { archiveTemplate, createTemplate, listTemplates, publishTemplate, updateTemplate } from "../modules/templates/templates.service";
 import { numberingPermissions } from "../modules/numbering/numbering.permissions";
@@ -18,6 +17,7 @@ import { getNotificationPolicy, updateNotificationPolicy } from "../modules/noti
 import { hydrateSettingsRuntimeConfig } from "./runtime-config";
 import { adminDashboardPermissions } from "../modules/admin-dashboard/admin-dashboard.permissions";
 import { getAdminDashboard } from "../modules/admin-dashboard/admin-dashboard.service";
+import { createCampusSetup } from "../modules/campus-setup/campus-setup.service";
 
 interface AppSyncIdentity { sub?: string; claims?: Record<string, unknown>; }
 export interface SettingsGraphqlEvent {
@@ -30,8 +30,8 @@ export interface SettingsGraphqlEvent {
 const TENANT_ADMIN_SETUP_PERMISSIONS = [
   ...Object.values(institutionPermissions),
   ...Object.values(campusPermissions),
+  ...Object.values(campusAcademicUnitPermissions),
   ...Object.values(academicYearPermissions),
-  ...Object.values(readinessPermissions),
   ...Object.values(templatePermissions),
   ...Object.values(numberingPermissions),
   ...Object.values(notificationPolicyPermissions),
@@ -82,9 +82,12 @@ function input(args: Record<string, unknown>): Record<string, unknown> {
   return args.input as Record<string, unknown>;
 }
 
-function requiredId(args: Record<string, unknown>): string {
-  if (typeof args.id !== "string" || !args.id.trim()) throw new ValidationError([{ field: "id", message: "id is required" }]);
-  return args.id.trim();
+function requiredId(args: Record<string, unknown>, field = "id"): string {
+  if (typeof args[field] !== "string" || !args[field].trim()) throw new ValidationError([{ field, message: `${field} is required` }]);
+  return args[field].trim();
+}
+function filter(args: Record<string, unknown>) {
+  return args.filter && typeof args.filter === "object" && !Array.isArray(args.filter) ? args.filter : undefined;
 }
 
 function templateInput(args: Record<string, unknown>): Record<string, unknown> {
@@ -104,15 +107,22 @@ export async function handleSettingsGraphql(event: SettingsGraphqlEvent): Promis
   const args = event.arguments ?? {};
   switch (event.info.fieldName) {
     case "institutionProfile": return getInstitutionProfile(context);
-    case "campuses": return listCampuses(context, undefined, { ...(typeof args.status === "string" ? { status: args.status as "ACTIVE" | "INACTIVE" } : {}), ...(typeof args.campusType === "string" ? { campusType: args.campusType as "SCHOOL" | "COLLEGE" | "DEGREE_COLLEGE" } : {}), ...(typeof args.search === "string" ? { search: args.search } : {}) });
+    case "campuses": return listCampuses(context, undefined, { ...(typeof args.status === "string" ? { status: args.status as "ACTIVE" | "INACTIVE" } : {}), ...(typeof args.search === "string" ? { search: args.search } : {}) });
+    case "campusAcademicUnits": return listCampusAcademicUnits(context, filter(args));
     case "academicYears": return listAcademicYears(context, undefined, typeof args.status === "string" ? { status: args.status as "DRAFT" | "ACTIVE" | "CLOSED" } : undefined);
-    case "tenantReadiness": return getTenantReadiness(context);
     case "tenantAdminDashboard": return getAdminDashboard(input(args), context);
     case "tenantTemplates": return listTemplates(context, undefined, { ...(typeof args.status === "string" ? { status: args.status } : {}), ...(typeof args.templateType === "string" ? { templateType: args.templateType } : {}), ...(typeof args.search === "string" ? { search: args.search } : {}) });
     case "numberingPolicies": return listNumberingPolicies(context);
     case "notificationPolicy": return getNotificationPolicy(context);
     case "updateInstitutionProfile": return updateInstitutionProfile(input(args), context);
     case "createCampus": return createCampus(context, input(args));
+    case "createCampusSetup": return createCampusSetup(context, input(args));
+    case "createCampusAcademicUnit": return createCampusAcademicUnit(context, requiredId(args, "campusId"), input(args));
+    case "updateCampusAcademicUnit": {
+      const result = await updateCampusAcademicUnit(context, requiredId(args), input(args));
+      if (!result) throw new NotFoundError("academic unit not found");
+      return result;
+    }
     case "updateCampus": {
       const result = await updateCampus(context, requiredId(args), input(args));
       if (!result) throw new NotFoundError("campus not found");
@@ -156,6 +166,12 @@ export async function handler(event: SettingsGraphqlEvent): Promise<unknown> {
     await hydrateSettingsRuntimeConfig();
     return await handleSettingsGraphql(event);
   } catch (error) {
+    console.error("Settings GraphQL request failed", {
+      fieldName: event.info.fieldName,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
     throw toGraphqlError(error, event.request?.headers?.["x-amzn-trace-id"]);
   }
 }

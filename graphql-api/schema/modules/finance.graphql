@@ -109,6 +109,7 @@ enum FeeOrderStatus {
   OPEN
   PARTIALLY_PAID
   PAID
+  CLOSED
   CANCELLED
 }
 enum FeeOrderSourceType {
@@ -126,6 +127,7 @@ type FeeOrderCharge {
   amountMinor: Int!
   paidMinor: Int!
   balanceMinor: Int!
+  creditMinor: Int
 }
 type FeeOrder {
   id: ID!
@@ -155,6 +157,12 @@ type FeeOrder {
   totalMinor: Int!
   paidMinor: Int!
   balanceMinor: Int!
+  transferId: ID
+  transferCreditMinor: Int
+  residualTransferCreditMinor: Int
+  closedBalanceMinor: Int
+  closureReason: String
+  closedAt: AWSDateTime
   status: FeeOrderStatus!
   createdAt: AWSDateTime!
   updatedAt: AWSDateTime!

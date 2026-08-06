@@ -1,16 +1,204 @@
 enum AcademicEntityStatus { ACTIVE INACTIVE }
 enum SubjectType { THEORY PRACTICAL MIXED }
+enum CurriculumType { STATE_BOARD CBSE ICSE PU_BOARD UNIVERSITY AUTONOMOUS OTHER }
+enum SubjectCatalogueStatus { ACTIVE INACTIVE }
 
-type AcademicProgram { id: ID! tenantId: ID! campusId: ID! code: String! name: String! description: String status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
+type SubjectCatalogueItem {
+  id: ID!
+  tenantId: ID!
+  code: String!
+  name: String!
+  shortName: String
+  description: String
+  departmentId: ID
+  subjectDomain: String
+  status: SubjectCatalogueStatus!
+  createdAt: AWSDateTime!
+  createdBy: ID!
+  updatedAt: AWSDateTime!
+  updatedBy: ID!
+  version: Int!
+  deactivatedAt: AWSDateTime
+  deactivatedBy: ID
+  deactivationReason: String
+}
+input SubjectCatalogueFilter { search: String status: SubjectCatalogueStatus departmentId: ID subjectDomain: String }
+input CreateSubjectCatalogueItemInput { name: String! shortName: String description: String departmentId: ID subjectDomain: String }
+input UpdateSubjectCatalogueItemInput { name: String shortName: String description: String departmentId: ID subjectDomain: String expectedVersion: Int! }
+
+enum CurriculumSubjectCategory { CORE LANGUAGE ELECTIVE OPTIONAL ACTIVITY }
+type CurriculumSubject {
+  id: ID! tenantId: ID! academicUnitId: ID! curriculumId: ID! programId: ID! academicLevelId: ID!
+  subjectCatalogueId: ID! localSubjectCode: String subjectCategory: CurriculumSubjectCategory!
+  gradingSchemeId: ID examinationSchemeId: ID credits: Float isMandatory: Boolean! status: AcademicEntityStatus!
+  createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int!
+  deactivatedAt: AWSDateTime deactivatedBy: ID deactivationReason: String
+}
+input CurriculumSubjectFilter { academicUnitId: ID curriculumId: ID programId: ID academicLevelId: ID subjectCatalogueId: ID subjectCategory: CurriculumSubjectCategory status: AcademicEntityStatus }
+input CreateCurriculumSubjectInput { academicUnitId: ID! curriculumId: ID! programId: ID! academicLevelId: ID! subjectCatalogueId: ID! localSubjectCode: String subjectCategory: CurriculumSubjectCategory! gradingSchemeId: ID examinationSchemeId: ID credits: Float isMandatory: Boolean }
+input UpdateCurriculumSubjectInput { localSubjectCode: String subjectCategory: CurriculumSubjectCategory gradingSchemeId: ID examinationSchemeId: ID credits: Float isMandatory: Boolean expectedVersion: Int! }
+
+enum SubjectComponentType { THEORY LECTURE PRACTICAL LAB TUTORIAL PROJECT SEMINAR ACTIVITY }
+type SubjectComponent {
+  id: ID! tenantId: ID! curriculumSubjectId: ID! componentType: SubjectComponentType!
+  baselinePeriodsPerWeek: Float baselineContactHours: Float creditContribution: Float workloadMultiplier: Float!
+  preferredSessionLength: Int! requiresConsecutivePeriods: Boolean! maximumPeriodsPerDay: Int
+  preferredRoomTypeId: ID maximumGroupSize: Int status: AcademicEntityStatus!
+  createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int!
+  deactivatedAt: AWSDateTime deactivatedBy: ID deactivationReason: String
+}
+input CreateSubjectComponentInput { curriculumSubjectId: ID! componentType: SubjectComponentType! baselinePeriodsPerWeek: Float baselineContactHours: Float creditContribution: Float workloadMultiplier: Float preferredSessionLength: Int requiresConsecutivePeriods: Boolean maximumPeriodsPerDay: Int preferredRoomTypeId: ID maximumGroupSize: Int }
+
+enum SubjectPlanStatus { DRAFT ACTIVE CLOSED }
+type SubjectPlanComponent { subjectComponentId: ID! plannedPeriodsPerWeek: Float! plannedContactHours: Float preferredSessionLength: Int! maximumPeriodsPerDay: Int preferredRoomTypeId: ID isOverride: Boolean! overrideReason: String }
+input SubjectPlanComponentInput { subjectComponentId: ID! plannedPeriodsPerWeek: Float! plannedContactHours: Float preferredSessionLength: Int! maximumPeriodsPerDay: Int preferredRoomTypeId: ID isOverride: Boolean = false overrideReason: String }
+type AcademicYearSubjectPlan {
+  id: ID! tenantId: ID! campusId: ID! academicYearId: ID! academicUnitId: ID! curriculumId: ID!
+  programId: ID! academicLevelId: ID! curriculumSubjectId: ID! appliesToAllSections: Boolean!
+  componentPlans: [SubjectPlanComponent!]! status: SubjectPlanStatus!
+  createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int!
+  activatedAt: AWSDateTime activatedBy: ID closedAt: AWSDateTime closedBy: ID
+}
+input SubjectPlanFilter { campusId: ID academicYearId: ID academicUnitId: ID curriculumId: ID programId: ID academicLevelId: ID curriculumSubjectId: ID status: SubjectPlanStatus }
+input CreateAcademicYearSubjectPlanInput { campusId: ID! academicYearId: ID! academicUnitId: ID! curriculumId: ID! programId: ID! academicLevelId: ID! curriculumSubjectId: ID! appliesToAllSections: Boolean = true componentPlans: [SubjectPlanComponentInput!]! }
+
+enum SectionSubjectExceptionAction { ADD EXCLUDE OVERRIDE_PERIODS REPLACE_WITH_TEACHING_GROUP }
+type SectionSubjectException { id: ID! tenantId: ID! academicYearId: ID! subjectPlanId: ID! sectionId: ID! action: SectionSubjectExceptionAction! reason: String! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateSectionSubjectExceptionInput { academicYearId: ID! subjectPlanId: ID! sectionId: ID! action: SectionSubjectExceptionAction! reason: String! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime }
+type SubjectChoiceGroup { id: ID! tenantId: ID! campusId: ID! academicYearId: ID! academicUnitId: ID! curriculumId: ID! programId: ID! academicLevelId: ID! name: String! code: String! minimumSelections: Int! maximumSelections: Int! optionCurriculumSubjectIds: [ID!]! status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateSubjectChoiceGroupInput { campusId: ID! academicYearId: ID! academicUnitId: ID! curriculumId: ID! programId: ID! academicLevelId: ID! name: String! code: String! minimumSelections: Int! maximumSelections: Int! optionCurriculumSubjectIds: [ID!]! }
+enum StudentSubjectChoiceStatus { ACTIVE CHANGED CANCELLED }
+type StudentSubjectChoice { id: ID! tenantId: ID! academicYearId: ID! studentId: ID! enrollmentId: ID! choiceGroupId: ID! curriculumSubjectId: ID! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime status: StudentSubjectChoiceStatus! selectedBy: ID! approvedBy: ID changeReason: String createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input SelectStudentSubjectInput { academicYearId: ID! studentId: ID! enrollmentId: ID! choiceGroupId: ID! curriculumSubjectId: ID! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime }
+enum TeachingGroupType { SECTION COMBINED_SECTIONS LANGUAGE_GROUP ELECTIVE_GROUP PRACTICAL_BATCH TUTORIAL_BATCH PROJECT_GROUP }
+type TeachingGroup { id: ID! tenantId: ID! campusId: ID! academicYearId: ID! academicUnitId: ID! curriculumId: ID! programId: ID! academicLevelId: ID! type: TeachingGroupType! name: String! code: String! homeSectionId: ID sourceSectionIds: [ID!] capacity: Int maximumGroupSize: Int effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateTeachingGroupInput { campusId: ID! academicYearId: ID! academicUnitId: ID! curriculumId: ID! programId: ID! academicLevelId: ID! type: TeachingGroupType! name: String! code: String! homeSectionId: ID sourceSectionIds: [ID!] capacity: Int maximumGroupSize: Int effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime }
+enum MembershipSource { SECTION SUBJECT_CHOICE AUTO_BALANCE MANUAL IMPORT }
+type TeachingGroupMembership { id: ID! tenantId: ID! teachingGroupId: ID! studentId: ID! enrollmentId: ID! membershipSource: MembershipSource! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime status: String! reason: String createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input AddTeachingGroupMembershipInput { teachingGroupId: ID! studentId: ID! enrollmentId: ID! membershipSource: MembershipSource! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime reason: String }
+enum OfferingReadinessStatus { INCOMPLETE READY BLOCKED }
+enum SubjectOfferingTargetType { SECTION SUBJECT_BATCH }
+enum SubjectBatchType { LANGUAGE ELECTIVE PRACTICAL TUTORIAL COMBINED_SECTION PROJECT }
+type SubjectBatch { id: ID! tenantId: ID! campusId: ID! academicYearId: ID! academicUnitId: ID! curriculumId: ID! programId: ID! academicLevelId: ID! curriculumSubjectId: ID! subjectComponentId: ID name: String! code: String! batchType: SubjectBatchType! sourceSectionIds: [ID!]! capacity: Int maximumStrength: Int effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateSubjectBatchInput { campusId: ID! academicYearId: ID! academicUnitId: ID! curriculumId: ID! programId: ID! academicLevelId: ID! curriculumSubjectId: ID! subjectComponentId: ID name: String! code: String! batchType: SubjectBatchType! sourceSectionIds: [ID!]! capacity: Int maximumStrength: Int effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime }
+type SubjectBatchMembership { id: ID! tenantId: ID! subjectBatchId: ID! studentId: ID! enrollmentId: ID! membershipSource: MembershipSource! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime status: String! reason: String createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input AddSubjectBatchMembershipInput { subjectBatchId: ID! studentId: ID! enrollmentId: ID! membershipSource: MembershipSource! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime reason: String }
+type SubjectOffering { id: ID! tenantId: ID! campusId: ID! academicYearId: ID! subjectPlanId: ID! curriculumSubjectId: ID! subjectComponentId: ID! subjectName: String! targetType: SubjectOfferingTargetType sectionId: ID subjectBatchId: ID teachingGroupId: ID requiredPeriodsPerWeek: Int! requiredConsecutiveSlots: Int preferredSessionLength: Int! requiresConsecutivePeriods: Boolean! maximumPeriodsPerDay: Int preferredRoomTypeId: ID preferredRoomIds: [ID!] parallelBlockId: ID effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime readinessStatus: OfferingReadinessStatus! status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateSubjectOfferingInput { campusId: ID! academicYearId: ID! subjectPlanId: ID! curriculumSubjectId: ID! subjectComponentId: ID! targetType: SubjectOfferingTargetType! sectionId: ID subjectBatchId: ID requiredPeriodsPerWeek: Int! requiredConsecutiveSlots: Int preferredSessionLength: Int requiresConsecutivePeriods: Boolean maximumPeriodsPerDay: Int preferredRoomTypeId: ID effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime }
+enum ParallelBlockType { SUBJECT_CHOICE LANGUAGE ELECTIVE ROTATION }
+type ParallelTimetableBlock { id: ID! tenantId: ID! campusId: ID! academicYearId: ID! academicUnitId: ID! programId: ID! academicLevelId: ID! name: String! code: String! type: ParallelBlockType! sourceSectionIds: [ID!]! requiredOfferingIds: [ID!]! mustRunSimultaneously: Boolean! status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateParallelTimetableBlockInput { campusId: ID! academicYearId: ID! academicUnitId: ID! programId: ID! academicLevelId: ID! name: String! code: String! type: ParallelBlockType! sourceSectionIds: [ID!]! requiredOfferingIds: [ID!]! mustRunSimultaneously: Boolean = true }
+input LearningDeliveryFilter { campusId: ID academicYearId: ID academicUnitId: ID programId: ID academicLevelId: ID sectionId: ID studentId: ID teachingGroupId: ID status: String }
+
+enum EmployeeCampusAssignmentType { PRIMARY TEACHING SHARED_FACULTY VISITING TEMPORARY }
+type EmployeeCampusAssignment { id: ID! tenantId: ID! employeeId: ID! campusId: ID! assignmentType: EmployeeCampusAssignmentType! availableForTeaching: Boolean! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime approvedBy: ID! status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input AssignEmployeeCampusInput { employeeId: ID! campusId: ID! assignmentType: EmployeeCampusAssignmentType! availableForTeaching: Boolean! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime }
+type TeacherSubjectEligibility { id: ID! tenantId: ID! employeeId: ID! subjectCatalogueId: ID! curriculumId: ID programId: ID academicLevelIds: [ID!] componentTypes: [SubjectComponentType!] qualificationReference: String proficiencyLevel: String effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input AddTeacherEligibilityInput { employeeId: ID! subjectCatalogueId: ID! curriculumId: ID programId: ID academicLevelIds: [ID!] componentTypes: [SubjectComponentType!] qualificationReference: String proficiencyLevel: String effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime }
+enum OfferingAssignmentRole { PRIMARY CO_TEACHER ASSISTANT PRACTICAL_INSTRUCTOR TUTOR PROJECT_GUIDE TEMPORARY_COVER }
+enum EligibilityStatus { VERIFIED OVERRIDDEN NOT_REQUIRED }
+enum OfferingAssignmentStatus { ACTIVE ENDED CANCELLED }
+type OfferingTeacherAssignment { id: ID! tenantId: ID! subjectOfferingId: ID! employeeId: ID! assignmentRole: OfferingAssignmentRole! workloadSharePercentage: Float effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime eligibilityStatus: EligibilityStatus! eligibilityOverrideReason: String eligibilityOverriddenBy: ID status: OfferingAssignmentStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input AssignOfferingTeacherInput { subjectOfferingId: ID! employeeId: ID! assignmentRole: OfferingAssignmentRole! workloadSharePercentage: Float effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime eligibilityOverrideReason: String replaceExistingPrimary: Boolean }
+enum AcademicResponsibilityType { CLASS_TEACHER SECTION_INCHARGE MENTOR HOD PROGRAM_COORDINATOR TIMETABLE_COORDINATOR }
+type AcademicResponsibility { id: ID! tenantId: ID! employeeId: ID! academicYearId: ID! campusId: ID! responsibilityType: AcademicResponsibilityType! academicUnitId: ID programId: ID academicLevelId: ID sectionId: ID effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime status: String! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input AddAcademicResponsibilityInput { employeeId: ID! academicYearId: ID! campusId: ID! responsibilityType: AcademicResponsibilityType! academicUnitId: ID programId: ID academicLevelId: ID sectionId: ID effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime replaceExisting: Boolean }
+enum AvailabilityType { BLOCKED PREFERRED }
+type TeacherAvailability { id: ID! tenantId: ID! employeeId: ID! campusId: ID academicYearId: ID! dayOfWeek: String! startTime: String! endTime: String! availabilityType: AvailabilityType! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime reason: String status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input SetTeacherAvailabilityInput { id: ID employeeId: ID! campusId: ID academicYearId: ID! dayOfWeek: String! startTime: String! endTime: String! availabilityType: AvailabilityType! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime reason: String }
+input ComponentMultiplierInput { componentType: SubjectComponentType! multiplier: Float! }
+type ComponentMultiplier { componentType: SubjectComponentType! multiplier: Float! }
+enum TeacherWorkloadPolicyScope { DEFAULT STAFF_TYPE DESIGNATION EMPLOYEE }
+type TeacherWorkloadPolicy { id: ID! tenantId: ID! scopeType: TeacherWorkloadPolicyScope employeeId: ID academicUnitId: ID staffType: String designationId: ID maximumContactPeriodsPerWeek: Float maximumWeightedUnitsPerWeek: Float maximumPeriodsPerDay: Int maximumConsecutivePeriods: Int effectiveFrom: AWSDateTime effectiveUntil: AWSDateTime reason: String componentMultipliers: [ComponentMultiplier!]! status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input SaveTeacherWorkloadPolicyInput { scopeType: TeacherWorkloadPolicyScope employeeId: ID academicUnitId: ID staffType: String designationId: ID maximumContactPeriodsPerWeek: Float maximumWeightedUnitsPerWeek: Float maximumPeriodsPerDay: Int maximumConsecutivePeriods: Int effectiveFrom: AWSDateTime effectiveUntil: AWSDateTime reason: String componentMultipliers: [ComponentMultiplierInput!]! }
+type CampusWorkload { campusId: ID! contactPeriods: Float! weightedUnits: Float! }
+type FacultyWorkload { employeeId: ID! contactPeriods: Float! weightedUnits: Float! campusBreakdown: [CampusWorkload!]! exceedsContactLimit: Boolean! exceedsWeightedLimit: Boolean! }
+input FacultyPlanningFilter { employeeId: ID campusId: ID academicYearId: ID academicLevelId: ID sectionId: ID subjectOfferingId: ID responsibilityType: AcademicResponsibilityType status: String }
+
+enum TeacherWorkloadViewMode { PUBLISHED LATEST_DRAFT }
+input TeacherWorkloadWorkspaceInput { teacherId: ID! academicYearId: ID! viewMode: TeacherWorkloadViewMode timetableVersionId: ID weekStartDate: AWSDateTime }
+type TeacherWorkloadTeacher { id: ID! employeeCode: String! fullName: String! department: String designation: String staffType: String! primaryCampusId: ID! campusIds: [ID!]! }
+type TeacherWorkloadAcademicYear { id: ID! name: String! startDate: AWSDateTime endDate: AWSDateTime }
+type TeacherWorkloadSelectedVersion { id: ID! name: String! status: TimetableVersionStatus! campusId: ID! }
+type TeacherWorkloadEffectivePolicy { id: ID scopeType: TeacherWorkloadPolicyScope! inheritedFrom: String! isOverride: Boolean! maximumWeeklyPeriods: Float! maximumDailyPeriods: Int! maximumConsecutivePeriods: Int! effectiveFrom: AWSDateTime effectiveUntil: AWSDateTime reason: String }
+type TeacherWorkloadSummary { requiredPeriods: Float! scheduledPeriods: Float! unscheduledPeriods: Float! permanentPeriods: Float! actualWeeklyPeriods: Float! teachingSessions: Int! substitutionPeriods: Float! cancelledPeriods: Float! maximumWeeklyPeriods: Float! remainingCapacity: Float! overloadPeriods: Float! maximumConsecutivePeriods: Int! weightedUnits: Float! }
+type TeacherWorkloadCampusBreakdown { campusId: ID! campusName: String! requiredPeriods: Float! scheduledPeriods: Float! actualPeriods: Float! }
+type TeacherWorkloadComponentBreakdown { componentType: String! requiredPeriods: Float! scheduledPeriods: Float! weightedUnits: Float! }
+type TeacherWorkloadDailyBreakdown { dayOfWeek: String! scheduledPeriods: Float! actualPeriods: Float! maximumConsecutivePeriods: Int! }
+type TeacherWorkloadAssignment { id: ID! campusId: ID! campusName: String! programId: ID programName: String classId: ID className: String sectionId: ID sectionName: String subjectBatchId: ID subjectBatchName: String subjectOfferingId: ID! subjectComponentId: ID! subjectName: String! componentType: String! assignmentRole: String! requiredPeriods: Float! scheduledPeriods: Float! unscheduledPeriods: Float! status: String! classSetupPath: String }
+enum TeacherWorkloadLessonState { PERMANENT SUBSTITUTION CANCELLED }
+type TeacherWorkloadLesson { id: ID! dayOfWeek: String! startTime: String! endTime: String! periodCount: Int! teachingSessionCount: Int! campusId: ID! campusName: String! programName: String className: String sectionName: String subjectBatchName: String subjectName: String! componentType: String! state: TeacherWorkloadLessonState! timetableVersionId: ID! timetableVersionStatus: TimetableVersionStatus! classSetupPath: String }
+type TeacherAvailabilityException { id: ID! campusId: ID dayOfWeek: String! startTime: String! endTime: String! type: AvailabilityType! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime reason: String }
+type TeacherAcademicResponsibilityView { id: ID! responsibilityType: String! campusId: ID! campusName: String! classId: ID className: String sectionId: ID sectionName: String effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime }
+enum TeacherWorkloadIssueSeverity { ERROR WARNING }
+type TeacherWorkloadIssue { code: String! severity: TeacherWorkloadIssueSeverity! dayOfWeek: String startTime: String endTime: String classSection: String subjectName: String conflictingAssignment: String reason: String! recommendedAction: String! actionPath: String }
+type TeacherWorkloadWorkspace { teacher: TeacherWorkloadTeacher! academicYear: TeacherWorkloadAcademicYear! viewMode: TeacherWorkloadViewMode! weekStartDate: AWSDateTime! selectedVersions: [TeacherWorkloadSelectedVersion!]! policy: TeacherWorkloadEffectivePolicy! summary: TeacherWorkloadSummary! campusBreakdown: [TeacherWorkloadCampusBreakdown!]! componentBreakdown: [TeacherWorkloadComponentBreakdown!]! dailyBreakdown: [TeacherWorkloadDailyBreakdown!]! assignments: [TeacherWorkloadAssignment!]! timetableEntries: [TeacherWorkloadLesson!]! availabilityExceptions: [TeacherAvailabilityException!]! responsibilities: [TeacherAcademicResponsibilityView!]! issues: [TeacherWorkloadIssue!]! }
+
+enum RoomType { CLASSROOM LAB COMPUTER_LAB AUDITORIUM SEMINAR_HALL PLAYGROUND OTHER }
+type AcademicRoom { id: ID! tenantId: ID! campusId: ID! buildingId: ID code: String! name: String! roomType: RoomType! capacity: Int! features: [String!] status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateAcademicRoomInput { campusId: ID! buildingId: ID code: String! name: String! roomType: RoomType! capacity: Int! features: [String!] }
+type CampusTravelRule { id: ID! tenantId: ID! sourceCampusId: ID! targetCampusId: ID! minimumTravelMinutes: Int! status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateCampusTravelRuleInput { sourceCampusId: ID! targetCampusId: ID! minimumTravelMinutes: Int! }
+enum PeriodSetStatus { DRAFT ACTIVE ARCHIVED }
+type TimetablePeriodSet { id: ID! tenantId: ID! campusId: ID! academicYearId: ID! academicUnitId: ID name: String! description: String instructionType: String preferences: AWSJSON applicableDays: [String!]! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime status: PeriodSetStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateTimetablePeriodSetInput { campusId: ID! academicYearId: ID! academicUnitId: ID name: String! description: String instructionType: String preferences: AWSJSON applicableDays: [String!]! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime }
+enum PeriodSlotType { TEACHING BREAK LUNCH ASSEMBLY ACTIVITY }
+type TimetablePeriodSlot { id: ID! tenantId: ID! periodSetId: ID! sequence: Int! label: String! startTime: String! endTime: String! slotType: PeriodSlotType! countsForTeachingWorkload: Boolean! status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateTimetablePeriodSlotInput { periodSetId: ID! sequence: Int! label: String! startTime: String! endTime: String! slotType: PeriodSlotType! countsForTeachingWorkload: Boolean! }
+enum TimetableVersionStatus { DRAFT VALIDATED PUBLISHED ARCHIVED }
+enum TimetableScopeType { ACADEMIC_UNIT PROGRAM ACADEMIC_LEVEL SECTION }
+enum TimetableGenerationMode { MANUAL AUTOMATIC HYBRID }
+type TimetableVersion { id: ID! tenantId: ID! campusId: ID! academicYearId: ID! academicUnitId: ID! name: String! versionNumber: Int! scopeType: TimetableScopeType! programId: ID academicLevelId: ID sectionId: ID periodSetId: ID! status: TimetableVersionStatus! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime generatedBy: TimetableGenerationMode! publishedAt: AWSDateTime publishedBy: ID createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateTimetableVersionInput { campusId: ID! academicYearId: ID! academicUnitId: ID! name: String! scopeType: TimetableScopeType! programId: ID academicLevelId: ID sectionId: ID periodSetId: ID! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime generatedBy: TimetableGenerationMode! }
+enum TimetableEntryType { REGULAR PRACTICAL ELECTIVE SUBSTITUTION ACTIVITY }
+type TimetableEntry { id: ID! tenantId: ID! timetableVersionId: ID! dayOfWeek: String! periodSlotIds: [ID!]! subjectOfferingId: ID! sectionId: ID subjectBatchId: ID teachingGroupId: ID teachingAssignmentIds: [ID!]! roomId: ID parallelBlockId: ID entryType: TimetableEntryType! status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input AddTimetableEntryInput { timetableVersionId: ID! dayOfWeek: String! periodSlotIds: [ID!]! subjectOfferingId: ID! teachingGroupId: ID teachingAssignmentIds: [ID!]! roomId: ID parallelBlockId: ID entryType: TimetableEntryType! }
+type TimetableUnscheduledLesson { subjectOfferingId: ID! remainingPeriods: Int! reason: String! }
+type TimetableGenerationRun { id: ID! timetableVersionId: ID! status: String! requiredLessons: Int! placedLessons: Int! unscheduledLessons: [TimetableUnscheduledLesson!]! generatedAt: AWSDateTime! }
+type TimetableGenerationResult { run: TimetableGenerationRun! entries: [TimetableEntry!]! requiredLessons: Int! placedLessons: Int! unscheduledLessons: [TimetableUnscheduledLesson!]! success: Boolean! }
+type TimetableReadinessIssue { subjectOfferingId: ID! message: String! }
+type TimetableReadiness { campusId: ID! academicYearId: ID! totalOfferings: Int! readyOfferings: Int! issues: [TimetableReadinessIssue!]! ready: Boolean! }
+enum ValidationRunStatus { RUNNING PASSED FAILED }
+type TimetableValidationRun { id: ID! tenantId: ID! timetableVersionId: ID! status: ValidationRunStatus! startedAt: AWSDateTime! completedAt: AWSDateTime hardConflictCount: Int! warningCount: Int! }
+enum ConflictSeverity { HARD SOFT }
+enum ConflictResolutionStatus { OPEN RESOLVED OVERRIDDEN }
+type TimetableConflict { id: ID! tenantId: ID! validationRunId: ID! conflictType: String! severity: ConflictSeverity! employeeId: ID teachingGroupId: ID subjectOfferingId: ID roomId: ID timetableEntryIds: [ID!] message: String! resolutionStatus: ConflictResolutionStatus! resolvedBy: ID resolvedAt: AWSDateTime overrideReason: String }
+type TimetableValidationResult { run: TimetableValidationRun! conflicts: [TimetableConflict!]! }
+enum TimetableConstraintScope { TEACHER TEACHING_GROUP SUBJECT_OFFERING ROOM CAMPUS PARALLEL_BLOCK }
+enum TimetableConstraintType { UNAVAILABLE_TIME PREFERRED_TIME REQUIRED_ROOM_TYPE MAX_PERIODS_PER_DAY MAX_CONSECUTIVE_PERIODS MINIMUM_GAP MUST_RUN_SIMULTANEOUSLY REQUIRES_CONSECUTIVE_PERIODS CAMPUS_TRAVEL_TIME }
+type TimetableConstraint { id: ID! tenantId: ID! academicYearId: ID! timetableVersionId: ID scopeType: TimetableConstraintScope! scopeId: ID! constraintType: TimetableConstraintType! severity: ConflictSeverity! parameters: AWSJSON! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime status: AcademicEntityStatus! createdAt: AWSDateTime! createdBy: ID! updatedAt: AWSDateTime! updatedBy: ID! version: Int! }
+input CreateTimetableConstraintInput { academicYearId: ID! timetableVersionId: ID scopeType: TimetableConstraintScope! scopeId: ID! constraintType: TimetableConstraintType! severity: ConflictSeverity! parameters: AWSJSON! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime }
+input TimetableFilter { campusId: ID academicYearId: ID academicUnitId: ID timetableVersionId: ID periodSetId: ID status: String }
+
+input ClassSetupContextInput { campusId: ID! academicYearId: ID! classId: ID! }
+input ClassSetupSubjectComponentInput { subjectComponentId: ID! plannedPeriodsPerWeek: Int! }
+input UpdateClassSetupSubjectInput { campusId: ID! academicYearId: ID! classId: ID! subjectPlanId: ID! componentPlans: [ClassSetupSubjectComponentInput!]! }
+input RemoveClassSetupSubjectInput { campusId: ID! academicYearId: ID! classId: ID! subjectPlanId: ID! reason: String! }
+input ClassSetupTimingSlotInput { label: String! startTime: String! endTime: String! slotType: PeriodSlotType! }
+input SaveClassSetupTimingInput { campusId: ID! academicYearId: ID! classId: ID! name: String! applicableDays: [String!]! effectiveFrom: AWSDateTime! effectiveUntil: AWSDateTime slots: [ClassSetupTimingSlotInput!]! }
+type ClassSetupSubjectRow { subjectPlanId: ID! curriculumSubjectId: ID! subjectName: String! subjectCategory: CurriculumSubjectCategory! isMandatory: Boolean! periodsPerWeek: Int! offeringCount: Int! sectionCount: Int! primaryTeacherIds: [ID!]! status: String! }
+type ClassSetupWorkspace { academicClass: AcademicClass! sections: [AcademicSection!]! subjects: [ClassSetupSubjectRow!]! periodSets: [TimetablePeriodSet!]! versions: [TimetableVersion!]! currentVersion: TimetableVersion entries: [TimetableEntry!]! slots: [TimetablePeriodSlot!]! offerings: [SubjectOffering!]! assignments: [OfferingTeacherAssignment!]! }
+type ClassTimetableGeneration { success: Boolean! requiredLessons: Int! placedLessons: Int! remainingLessons: Int! issues: [String!]! }
+type ClassTimetableGenerationResult { academicClass: AcademicClass! sections: [AcademicSection!]! subjects: [ClassSetupSubjectRow!]! periodSets: [TimetablePeriodSet!]! versions: [TimetableVersion!]! currentVersion: TimetableVersion entries: [TimetableEntry!]! slots: [TimetablePeriodSlot!]! offerings: [SubjectOffering!]! assignments: [OfferingTeacherAssignment!]! generation: ClassTimetableGeneration! validation: TimetableValidationResult }
+
+type Curriculum { id: ID! tenantId: ID! code: String! name: String! type: CurriculumType! authorityName: String status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
+type AcademicOffering { id: ID! tenantId: ID! campusId: ID! academicYearId: ID! curriculumId: ID! programId: ID! classId: ID! sectionId: ID medium: String capacity: Int status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
+type AcademicProgram { id: ID! tenantId: ID! campusId: ID! academicUnitId: ID! code: String! name: String! description: String status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
 type AcademicClass { id: ID! tenantId: ID! campusId: ID! programId: ID! code: String! name: String! description: String status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
 type AcademicSection { id: ID! tenantId: ID! campusId: ID! programId: ID! classId: ID! code: String! name: String! description: String status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
 type AcademicSubject { id: ID! tenantId: ID! campusId: ID! programId: ID! classId: ID code: String! name: String! subjectType: SubjectType! credits: Float status: AcademicEntityStatus! createdAt: AWSDateTime! updatedAt: AWSDateTime! deactivatedAt: AWSDateTime }
 
-input AcademicProgramFilter { campusId: ID! status: AcademicEntityStatus }
+input CurriculumFilter { status: AcademicEntityStatus type: CurriculumType }
+input CreateCurriculumInput { name: String! type: CurriculumType! authorityName: String }
+input UpdateCurriculumInput { name: String type: CurriculumType authorityName: String status: AcademicEntityStatus }
+input AcademicOfferingFilter { campusId: ID academicYearId: ID curriculumId: ID programId: ID classId: ID status: AcademicEntityStatus }
+input CreateAcademicOfferingInput { campusId: ID! academicYearId: ID! curriculumId: ID! programId: ID! classId: ID! sectionId: ID medium: String capacity: Int }
+input UpdateAcademicOfferingInput { sectionId: ID medium: String capacity: Int status: AcademicEntityStatus }
+input AcademicProgramFilter { campusId: ID! academicUnitId: ID status: AcademicEntityStatus }
 input AcademicClassFilter { campusId: ID! programId: ID status: AcademicEntityStatus }
 input AcademicSectionFilter { campusId: ID! programId: ID classId: ID status: AcademicEntityStatus }
 input AcademicSubjectFilter { campusId: ID! programId: ID classId: ID status: AcademicEntityStatus }
-input CreateAcademicProgramInput { campusId: ID! name: String! description: String }
+input CreateAcademicProgramInput { campusId: ID! academicUnitId: ID! name: String! description: String }
 input UpdateAcademicProgramInput { name: String description: String status: AcademicEntityStatus }
 input CreateAcademicClassInput { campusId: ID! programId: ID! name: String! description: String }
 input UpdateAcademicClassInput { programId: ID name: String description: String status: AcademicEntityStatus }
@@ -39,6 +227,17 @@ enum SortDirection { ASC DESC }
 enum StudentSortField { name admissionNumber registrationNumber createdAt }
 type StudentPage { items: [Student!]! page: Int! pageSize: Int! total: Int! totalPages: Int! sortBy: StudentSortField! sortDirection: SortDirection! }
 input StudentFilter { campusId: ID academicYearId: ID classId: ID sectionId: ID status: StudentStatus search: String limit: Int offset: Int page: Int pageSize: Int sortBy: StudentSortField sortDirection: SortDirection }
-input ChangeStudentEnrollmentInput { campusId: ID! academicYearId: ID! classId: ID! sectionId: ID rollNumber: String reason: String! }
+input ChangeStudentEnrollmentInput { campusId: ID! academicYearId: ID! classId: ID! sectionId: ID reason: String! }
+input ClassRegistrationNumberingInput { campusId: ID! academicYearId: ID! classId: ID! clientRequestId: ID! }
+input SectionRollNumberingInput { campusId: ID! academicYearId: ID! classId: ID! sectionId: ID! regenerate: Boolean! clientRequestId: ID! }
+type StudentNumberingBatchResult { updated: Int! skipped: Int! students: [Student!]! }
+enum CampusTransferStatus { DRAFT UNDER_REVIEW PROCESSING COMPLETED FAILED CANCELLED }
+enum RegistrationAction { KEEP REGENERATE }
+type CampusTransferLocation { campusId: ID! academicYearId: ID! programId: ID! classId: ID! sectionId: ID enrollmentId: ID! rollNumber: String }
+type CampusTransferHistory { status: CampusTransferStatus! at: AWSDateTime! actorId: ID! note: String }
+type CampusTransfer { id: ID! studentId: ID! studentName: String! clientRequestId: ID! registrationNumber: String! targetRegistrationNumber: String! source: CampusTransferLocation! target: CampusTransferLocation! effectiveAt: AWSDateTime! reason: String! note: String status: CampusTransferStatus! registrationAction: RegistrationAction! executionArn: String financeAssessment: AWSJSON warning: String failureReason: String requestedBy: ID! reviewedBy: ID completedAt: AWSDateTime createdAt: AWSDateTime! updatedAt: AWSDateTime! history: [CampusTransferHistory!]! }
+input CreateCampusTransferInput { studentId: ID! targetCampusId: ID! academicYearId: ID! targetClassId: ID! targetSectionId: ID effectiveAt: AWSDateTime! reason: String! note: String clientRequestId: ID! }
+input CampusTransferPageFilter { search:String status:CampusTransferStatus page:Int pageSize:Int }
+type CampusTransferPage { items:[CampusTransfer!]! page:Int! pageSize:Int! total:Int! totalPages:Int! }
 type StudentNote { id: ID! studentId: ID! body: String! createdBy: ID! createdAt: AWSDateTime! updatedAt: AWSDateTime! }
 input StudentNoteInput { body: String! }

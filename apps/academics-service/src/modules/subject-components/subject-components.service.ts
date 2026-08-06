@@ -1,0 +1,14 @@
+import type { RequestContext } from "@school-erp/api";
+import { BadRequestError, ForbiddenError, NotFoundError } from "@school-erp/errors";
+import { curriculumSubjectRepository, type CurriculumSubjectRepository } from "../curriculum-subjects/curriculum-subjects.repository";
+import { subjectComponentRepository, type SubjectComponentRepository } from "./subject-components.repository";
+import { validateSubjectComponent } from "./subject-components.validator";
+export interface SubjectComponentDeps { repository?: SubjectComponentRepository; curriculumRepository?: CurriculumSubjectRepository }
+const tenant = (ctx: RequestContext) => { const value = ctx.tenantContext?.tenantId?.trim(); if (!value) throw new BadRequestError("tenantId is required"); return value; };
+const actor = (ctx: RequestContext) => { const value = ctx.authContext?.user?.id?.trim(); if (!value) throw new ForbiddenError("authenticated user is required"); return value; };
+const permit = (ctx: RequestContext, action: string) => { if (!ctx.authContext?.user?.permissions.includes(`academics.subject-component.${action}`)) throw new ForbiddenError(`permission academics.subject-component.${action} is required`); };
+const deps = async (value?: SubjectComponentDeps) => ({ repository: value?.repository ?? await subjectComponentRepository(), curriculumRepository: value?.curriculumRepository ?? await curriculumSubjectRepository() });
+const view = (record: Awaited<ReturnType<SubjectComponentRepository["create"]>>) => ({ ...record, createdAt: record.createdAt.toISOString(), updatedAt: record.updatedAt.toISOString(), deactivatedAt: record.deactivatedAt?.toISOString() });
+export async function listSubjectComponents(ctx: RequestContext, curriculumSubjectId?: string, injected?: SubjectComponentDeps) { permit(ctx, "read"); const { repository } = await deps(injected); return (await repository.list(tenant(ctx), curriculumSubjectId ? { curriculumSubjectId } : {})).map(view); }
+export async function createSubjectComponent(input: unknown, ctx: RequestContext, injected?: SubjectComponentDeps) { permit(ctx, "create"); const tenantId = tenant(ctx), parsed = validateSubjectComponent(input), repositories = await deps(injected); const parent = await repositories.curriculumRepository.get(tenantId, parsed.curriculumSubjectId); if (!parent || parent.status !== "ACTIVE") throw new NotFoundError("active curriculum subject was not found"); return view(await repositories.repository.create(tenantId, actor(ctx), parsed)); }
+export async function deactivateSubjectComponent(id: string, reason: string, ctx: RequestContext, injected?: SubjectComponentDeps) { permit(ctx, "deactivate"); if (!reason.trim()) throw new BadRequestError("deactivation reason is required"); const { repository } = await deps(injected), record = await repository.deactivate(tenant(ctx), actor(ctx), id, reason.trim()); if (!record) throw new NotFoundError("subject component was not found"); return view(record); }

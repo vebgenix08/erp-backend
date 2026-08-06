@@ -6,7 +6,7 @@ import { createProgramContext } from "./fixtures";
 
 test("update program changes fields and preserves tenant isolation", async () => {
   const repository = new InMemoryProgramRepository();
-  const created = await createProgramUseCase({ campusId: "campus_1", code: "BCA", name: "Bachelor of Computer Applications" }, createProgramContext(), { repository });
+  const created = await createProgramUseCase({ campusId: "campus_1", academicUnitId: "unit_degree", code: "BCA", name: "Bachelor of Computer Applications" }, createProgramContext(), { repository });
 
   const updated = await updateProgramUseCase(
     created.id,

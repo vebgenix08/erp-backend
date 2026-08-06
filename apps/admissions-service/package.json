@@ -9,6 +9,7 @@
     "@school-erp/events": "workspace:*",
     "@school-erp/logger": "workspace:*",
     "@school-erp/mongodb": "workspace:*",
+    "@school-erp/numbering": "workspace:*",
     "@school-erp/tenancy": "workspace:*",
     "@school-erp/test-utils": "workspace:*",
     "@school-erp/types": "workspace:*",

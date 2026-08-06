@@ -6,7 +6,7 @@ import { createProgramContext } from "./fixtures";
 
 test("deactivate program marks the record inactive", async () => {
   const repository = new InMemoryProgramRepository();
-  const created = await createProgramUseCase({ campusId: "campus_1", code: "BA", name: "Bachelor of Arts" }, createProgramContext(), { repository });
+  const created = await createProgramUseCase({ campusId: "campus_1", academicUnitId: "unit_degree", code: "BA", name: "Bachelor of Arts" }, createProgramContext(), { repository });
 
   const result = await deactivateProgramUseCase(created.id, createProgramContext({ method: "POST", path: `/programs/${created.id}/deactivate` }), { repository });
 
