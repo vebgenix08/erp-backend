@@ -217,7 +217,7 @@ export class InMemoryStudentRepository implements StudentRepository {
         continue;
       if (
         filter.search &&
-        !`${student.name} ${student.registrationNumber} ${student.admissionNumber} ${student.phone}`
+        !`${student.name} ${student.registrationNumber} ${student.admissionNumber} ${student.phone} ${enrollment.rollNumber ?? ""}`
           .toLowerCase()
           .includes(filter.search.toLowerCase())
       )
@@ -461,7 +461,17 @@ class MongoStudentRepository implements StudentRepository {
     if (filter.status) studentFilter.status = filter.status;
     if (filter.search) {
       const search = { $regex: escapeRegex(filter.search), $options: "i" };
-      studentFilter.$or = [{ name: search }, { registrationNumber: search }, { admissionNumber: search }, { phone: search }];
+      const normalizedSearch = filter.search.toLowerCase();
+      const rollNumberStudentIds = enrollments
+        .filter((enrollment) => enrollment.rollNumber?.toLowerCase().includes(normalizedSearch))
+        .map((enrollment) => enrollment.studentId);
+      studentFilter.$or = [
+        { name: search },
+        { registrationNumber: search },
+        { admissionNumber: search },
+        { phone: search },
+        ...(rollNumberStudentIds.length ? [{ _id: { $in: rollNumberStudentIds } }] : []),
+      ];
     }
     const total = await this.students.countDocuments(studentFilter);
     const students = await this.students
