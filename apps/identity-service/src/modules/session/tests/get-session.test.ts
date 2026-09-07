@@ -14,3 +14,18 @@ test("get session returns auth and tenant snapshots", async () => {
   assert.equal(result.tenant?.tenantId, "tenant_test_1");
   assert.deepEqual(activations, [{ tenantId: "tenant_test_1", email: "user@example.com" }]);
 });
+
+test("get session bootstraps a tenant administrator before resolving authorization", async () => {
+  const context = createSessionContext();
+  context.authContext!.user!.role = "TENANT_ADMIN";
+  const bootstrapped: string[] = [];
+
+  await getSessionUseCase(context, {
+    employeeLoginActivator: async () => undefined,
+    tenantAdminBootstrapper: async (requestContext) => {
+      bootstrapped.push(requestContext.authContext!.user!.id);
+    },
+  });
+
+  assert.deepEqual(bootstrapped, ["user_test_1"]);
+});

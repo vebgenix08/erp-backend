@@ -285,7 +285,11 @@ export async function createRoleRepository(
   return new MongoRoleRepository(createMongoCollectionAdapter(collection));
 }
 
-export const roleRepository = createRoleRepository();
+let singleton: Promise<RoleRepository> | undefined;
+
+export function roleRepository(): Promise<RoleRepository> {
+  return (singleton ??= createRoleRepository());
+}
 
 export {
   InMemoryRoleRepository,

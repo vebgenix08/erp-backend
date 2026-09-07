@@ -1,3 +1,4 @@
+import { normalizePermissions } from "@school-erp/auth";
 import type { AccessRepository } from "./access.repository";
 import { accessRepository } from "./access.repository";
 import type { ResolvedAuthorizationSnapshot } from "./access.model";
@@ -22,7 +23,7 @@ export async function resolvePrincipalAuthorization(
   if (!user || user.status !== "ACTIVE") return null;
 
   const access = dependencies.accessRepository ?? accessRepository;
-  const rolesRepository = await (dependencies.roleRepository ?? roleRepository);
+  const rolesRepository = await (dependencies.roleRepository ?? roleRepository());
   const [assignmentPage, roles, bindings] = await Promise.all([
     access.listAssignmentPage(tenantId, {
       userId: user.id,
@@ -43,13 +44,11 @@ export async function resolvePrincipalAuthorization(
     principalId,
     ...(resolvedRoles[0]?.code ? { role: resolvedRoles[0].code } : {}),
     roles: resolvedRoles.map((role) => ({ id: role.id, code: role.code, name: role.name })),
-    permissions: [
-      ...new Set(
-        bindings
-          .filter((binding) => roleIds.has(binding.roleId))
-          .map((binding) => binding.permission),
-      ),
-    ],
+    permissions: normalizePermissions(
+      bindings
+        .filter((binding) => roleIds.has(binding.roleId))
+        .map((binding) => binding.permission),
+    ),
     scopes: assignments.map((assignment) => ({
       assignmentId: assignment.id,
       roleId: assignment.roleId,

@@ -3,7 +3,14 @@ import { requireAuth, requirePermission } from "@school-erp/auth";
 import { ConflictError } from "@school-erp/errors";
 import { requireTenantId } from "@school-erp/tenancy";
 import { listRoles } from "../roles/roles.service";
-import { createUser, getUserByAuthUserId } from "../users/users.service";
+import type { RoleRepository } from "../roles/roles.repository";
+import {
+  createUser,
+  getUserByAuthUserId,
+  getUserByEmail,
+  updateUser,
+} from "../users/users.service";
+import type { UserRepository } from "../users/users.repository";
 import { PERMISSION_CATALOG } from "./access.model";
 import { accessPermissions } from "./access.permissions";
 import { accessRepository, type AccessRepository } from "./access.repository";
@@ -37,37 +44,60 @@ async function audit(
   });
 }
 
-export async function bootstrapCurrentTenantAdmin(context: RequestContext) {
+export async function bootstrapCurrentTenantAdmin(
+  context: RequestContext,
+  deps: {
+    accessRepository?: AccessRepository;
+    roleRepository?: RoleRepository | Promise<RoleRepository>;
+    userRepository?: UserRepository | Promise<UserRepository>;
+  } = {},
+) {
   const auth = requireAuth(context.authContext);
   const authUser = auth.user!;
   if (authUser.role !== "TENANT_ADMIN") return null;
   const email = authUser.email?.trim();
   if (!email) return null;
-  let user = await getUserByAuthUserId(context.tenantContext, authUser.id);
+  const userDeps = deps.userRepository ? { repository: deps.userRepository } : undefined;
+  const roleDeps = deps.roleRepository ? { repository: deps.roleRepository } : undefined;
+  let user = await getUserByAuthUserId(context.tenantContext, authUser.id, userDeps);
   if (!user) {
     try {
-      user = await createUser(context.tenantContext, {
-        authUserId: authUser.id,
-        email,
-        name: email.split("@")[0] ?? "Tenant Admin",
-        status: "ACTIVE",
-      });
+      user = await createUser(
+        context.tenantContext,
+        {
+          authUserId: authUser.id,
+          email,
+          name: email.split("@")[0] ?? "Tenant Admin",
+          status: "ACTIVE",
+        },
+        userDeps,
+      );
     } catch (error) {
       if (!(error instanceof ConflictError)) throw error;
+      const existing = await getUserByEmail(context.tenantContext, email, userDeps);
+      if (existing?.status === "ACTIVE") {
+        user = await updateUser(
+          context.tenantContext,
+          existing.id,
+          { authUserId: authUser.id },
+          userDeps,
+        );
+      }
     }
   }
   if (!user) return null;
-  const role = (await listRoles(context.tenantContext)).find(
+  const role = (await listRoles(context.tenantContext, roleDeps)).find(
     (item) => item?.code === "TENANT_ADMIN",
   );
   if (role) {
+    const repository = deps.accessRepository ?? accessRepository;
     try {
-      await accessRepository.assignRole(tenant(context), user.id, role.id, { scopeType: "TENANT" });
+      await repository.assignRole(tenant(context), user.id, role.id, { scopeType: "TENANT" });
     } catch (error) {
       if (!(error instanceof ConflictError)) throw error;
     }
     const expected = PERMISSION_CATALOG.map((permission) => permission.code).sort();
-    const stored = (await accessRepository.listRolePermissions(tenant(context)))
+    const stored = (await repository.listRolePermissions(tenant(context)))
       .filter((binding) => binding.roleId === role.id)
       .map((binding) => binding.permission)
       .sort();
@@ -75,7 +105,7 @@ export async function bootstrapCurrentTenantAdmin(context: RequestContext) {
       expected.length !== stored.length ||
       expected.some((permission, index) => permission !== stored[index])
     ) {
-      await accessRepository.setRolePermissions(tenant(context), role.id, expected);
+      await repository.setRolePermissions(tenant(context), role.id, expected);
     }
   }
   return user;

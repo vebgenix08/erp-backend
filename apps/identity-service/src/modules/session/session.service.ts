@@ -15,8 +15,10 @@ import type { RoleRepository } from "../roles/roles.repository";
 import type { UserRepository } from "../users/users.repository";
 import { activateEmployeeLogin } from "../employees/employees.service";
 import { resolvePrincipalAuthorization } from "../access/authorization.service";
+import { bootstrapCurrentTenantAdmin } from "../access/access.service";
 
 type EmployeeLoginActivator = (tenantId: string, email: string) => Promise<unknown>;
+type TenantAdminBootstrapper = (context: RequestContext) => Promise<unknown>;
 
 export interface SessionServiceDeps {
   repository?: SessionRepository;
@@ -24,6 +26,7 @@ export interface SessionServiceDeps {
   roleRepository?: RoleRepository | Promise<RoleRepository>;
   userRepository?: UserRepository | Promise<UserRepository>;
   employeeLoginActivator?: EmployeeLoginActivator;
+  tenantAdminBootstrapper?: TenantAdminBootstrapper;
 }
 
 function resolveRepository(deps?: SessionServiceDeps): SessionRepository {
@@ -53,6 +56,9 @@ export async function getSession(context: RequestContext, deps?: SessionServiceD
   if (!user) {
     throw new Error("auth user is required");
   }
+  if (user.role === "TENANT_ADMIN") {
+    await (deps?.tenantAdminBootstrapper ?? bootstrapCurrentTenantAdmin)(context);
+  }
   const authContext = auth as SessionAuthContext;
   const tenantId = authContext.tenant?.tenantId;
   if (tenantId && user.email) {
@@ -80,6 +86,9 @@ export async function selectTenant(
   const user = auth.user;
   if (!user) {
     throw new Error("auth user is required");
+  }
+  if (user.role === "TENANT_ADMIN") {
+    await (deps?.tenantAdminBootstrapper ?? bootstrapCurrentTenantAdmin)(context);
   }
   const payload = validateSelectTenantInput(input);
   const authenticatedTenant = toSessionTenantSnapshot((auth as SessionAuthContext).tenant);

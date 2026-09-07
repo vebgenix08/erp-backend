@@ -11,7 +11,10 @@ test("authorization is resolved from active tenant role assignments", async () =
     scopeType: "CAMPUS",
     campusIds: ["campus-1"],
   });
-  await access.setRolePermissions("tenant-1", "role-1", ["academics.student.read"]);
+  await access.setRolePermissions("tenant-1", "role-1", [
+    "academics.student.read",
+    "settings.academicYears.read",
+  ]);
   const now = new Date();
   const users = {
     getByAuthUserId: async (tenantId: string, principalId: string) =>
@@ -50,7 +53,10 @@ test("authorization is resolved from active tenant role assignments", async () =
   });
 
   assert.equal(snapshot?.role, "TEACHER");
-  assert.deepEqual(snapshot?.permissions, ["academics.student.read"]);
+  assert.deepEqual(snapshot?.permissions, [
+    "academics.student.read",
+    "settings.academicyears.read",
+  ]);
   assert.deepEqual(snapshot?.scopes[0]?.scope, {
     scopeType: "CAMPUS",
     campusIds: ["campus-1"],

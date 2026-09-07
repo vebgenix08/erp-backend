@@ -50,6 +50,15 @@ export async function getUserByAuthUserId(
   return toUserView(await repository.getByAuthUserId(resolveTenantId(context), authUserId));
 }
 
+export async function getUserByEmail(
+  context: TenantContext | undefined,
+  email: string,
+  deps?: UserServiceDeps,
+) {
+  const repository = await resolveRepository(deps);
+  return toUserView(await repository.getByEmail(resolveTenantId(context), email));
+}
+
 export async function createUser(
   context: TenantContext | undefined,
   input: Record<string, unknown>,
