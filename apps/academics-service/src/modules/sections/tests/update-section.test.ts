@@ -8,7 +8,13 @@ import { createSectionContext } from "./fixtures";
 test("update section changes fields and preserves tenant isolation", async () => {
   const repository = new InMemorySectionRepository();
   const created = await createSectionUseCase(
-    { campusId: "campus_1", programId: "program_1", classId: "class_1", code: "A", name: "Section A" },
+    {
+      campusId: "campus_1",
+      programId: "program_1",
+      classId: "class_1",
+      code: "A",
+      name: "Section A",
+    },
     createSectionContext(),
     { repository, ...academicHierarchyFixture() },
   );

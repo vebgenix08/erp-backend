@@ -6,10 +6,22 @@ import { createProgramContext } from "./fixtures";
 
 test("list programs returns tenant-only results", async () => {
   const repository = new InMemoryProgramRepository();
-  await createProgramUseCase({ campusId: "campus_1", academicUnitId: "unit_degree", code: "BSC", name: "B.Sc" }, createProgramContext(), { repository });
-  await createProgramUseCase({ campusId: "campus_1", academicUnitId: "unit_degree", code: "MSC", name: "M.Sc" }, createProgramContext(), { repository });
+  await createProgramUseCase(
+    { campusId: "campus_1", academicUnitId: "unit_degree", code: "BSC", name: "B.Sc" },
+    createProgramContext(),
+    { repository },
+  );
+  await createProgramUseCase(
+    { campusId: "campus_1", academicUnitId: "unit_degree", code: "MSC", name: "M.Sc" },
+    createProgramContext(),
+    { repository },
+  );
 
-  const result = await listProgramsUseCase(createProgramContext(), { repository }, { campusId: "campus_1" });
+  const result = await listProgramsUseCase(
+    createProgramContext(),
+    { repository },
+    { campusId: "campus_1" },
+  );
 
   assert.equal(result.length, 2);
   assert.deepEqual(

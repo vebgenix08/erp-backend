@@ -1,8 +1,4 @@
-import {
-  jsonResponse,
-  type ApiRouter,
-  type RequestContext,
-} from "@school-erp/api";
+import { jsonResponse, type ApiRouter, type RequestContext } from "@school-erp/api";
 import {
   createPaymentAdjustment,
   listPaymentAdjustments,
@@ -13,19 +9,10 @@ export function registerPaymentAdjustmentRoutes(
   deps: PaymentAdjustmentDependencies = {},
 ) {
   router.route("GET", "/payment-adjustments", async (context: RequestContext) =>
-    jsonResponse(
-      200,
-      await listPaymentAdjustments(context.query, context, deps),
-    ),
+    jsonResponse(200, await listPaymentAdjustments(context.query, context, deps)),
   );
-  router.route(
-    "POST",
-    "/payment-adjustments",
-    async (context: RequestContext) =>
-      jsonResponse(
-        201,
-        await createPaymentAdjustment(context.body, context, deps),
-      ),
+  router.route("POST", "/payment-adjustments", async (context: RequestContext) =>
+    jsonResponse(201, await createPaymentAdjustment(context.body, context, deps)),
   );
   return router;
 }

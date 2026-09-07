@@ -1,7 +1,13 @@
 import type { ApiRouter, RequestContext } from "@school-erp/api";
 import { jsonResponse } from "@school-erp/api";
 import type { SubjectServiceDeps } from "./subjects.shared";
-import { createSubject, deactivateSubject, getSubject, listSubjects, updateSubject } from "./subjects.service";
+import {
+  createSubject,
+  deactivateSubject,
+  getSubject,
+  listSubjects,
+  updateSubject,
+} from "./subjects.service";
 import { validateSubjectListFilter } from "./subjects.validator";
 
 function subjectId(context: RequestContext): string {

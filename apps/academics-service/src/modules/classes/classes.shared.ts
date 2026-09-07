@@ -29,6 +29,9 @@ export function requireClassPermission(context: RequestContext, permission: Perm
   }
 }
 
-export function requireClassPermissions(context: RequestContext, permission: keyof typeof academicsPermissions.classes): void {
+export function requireClassPermissions(
+  context: RequestContext,
+  permission: keyof typeof academicsPermissions.classes,
+): void {
   requireClassPermission(context, academicsPermissions.classes[permission] as Permission);
 }

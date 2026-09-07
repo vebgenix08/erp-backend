@@ -1,9 +1,21 @@
 import { BadRequestError } from "@school-erp/errors";
 import type { TenantType } from "@school-erp/types";
-import { getTenantCodeFromHeaders, getTenantIdFromHeaders, getTenantSubdomain, normalizeTenantClaims } from "./helpers";
-import type { TenantContext, TenantContextOptions, TenantRequestLike, TenantResolutionSource } from "./types";
+import {
+  getTenantCodeFromHeaders,
+  getTenantIdFromHeaders,
+  getTenantSubdomain,
+  normalizeTenantClaims,
+} from "./helpers";
+import type {
+  TenantContext,
+  TenantContextOptions,
+  TenantRequestLike,
+  TenantResolutionSource,
+} from "./types";
 
-function buildContext(partial: Partial<TenantContext> & Pick<TenantContext, "resolvedAt" | "source">): TenantContext {
+function buildContext(
+  partial: Partial<TenantContext> & Pick<TenantContext, "resolvedAt" | "source">,
+): TenantContext {
   return {
     tenantId: partial.tenantId,
     tenantCode: partial.tenantCode,
@@ -99,15 +111,21 @@ export function requireTenantCode(context: TenantContext | undefined): string {
   return value;
 }
 
-export function hasTenantId(context: TenantContext | undefined): context is TenantContext & { tenantId: string } {
+export function hasTenantId(
+  context: TenantContext | undefined,
+): context is TenantContext & { tenantId: string } {
   return Boolean(context?.tenantId?.trim());
 }
 
-export function hasTenantCode(context: TenantContext | undefined): context is TenantContext & { tenantCode: string } {
+export function hasTenantCode(
+  context: TenantContext | undefined,
+): context is TenantContext & { tenantCode: string } {
   return Boolean(context?.tenantCode?.trim());
 }
 
-export function getTenantResolutionSource(context: TenantContext | undefined): TenantResolutionSource {
+export function getTenantResolutionSource(
+  context: TenantContext | undefined,
+): TenantResolutionSource {
   return context?.source ?? "unknown";
 }
 

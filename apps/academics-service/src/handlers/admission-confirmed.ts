@@ -1,4 +1,8 @@
-import { createRuntimeEventPublisher, type AdmissionConfirmedEvent, type StudentEnrolledEvent } from "@school-erp/events";
+import {
+  createRuntimeEventPublisher,
+  type AdmissionConfirmedEvent,
+  type StudentEnrolledEvent,
+} from "@school-erp/events";
 import { createStudentFromAdmission } from "../modules/students/students.service";
 import { hydrateAcademicsRuntimeConfig } from "./runtime-config";
 
@@ -9,7 +13,10 @@ interface EventBridgeEnvelope {
 export async function handler(event: EventBridgeEnvelope): Promise<void> {
   await hydrateAcademicsRuntimeConfig();
   const domainEvent = event.detail;
-  if (domainEvent.type !== "admissions.admission.confirmed.v1" || domainEvent.source !== "erp.admissions") {
+  if (
+    domainEvent.type !== "admissions.admission.confirmed.v1" ||
+    domainEvent.source !== "erp.admissions"
+  ) {
     throw new Error("unsupported admissions event");
   }
   const result = await createStudentFromAdmission(domainEvent.data, domainEvent.tenantId);

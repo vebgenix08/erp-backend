@@ -1,4 +1,4 @@
-import { AppError, isAppError } from "./app-error";
+import { isAppError } from "./app-error";
 
 export interface ErrorResponsePayload {
   error: {
@@ -30,9 +30,7 @@ const transientFailure = (error: unknown): boolean => {
     status === 429 ||
     candidate.name === "TooManyRequestsException" ||
     candidate.code === "TooManyRequestsException" ||
-    /throttl|too many requests|connection pool|temporarily unavailable/i.test(
-      candidate.message,
-    )
+    /throttl|too many requests|connection pool|temporarily unavailable/i.test(candidate.message)
   );
 };
 
@@ -73,13 +71,13 @@ export function toErrorResponse(error: unknown, traceId = createTraceId()): Erro
   return {
     statusCode: 500,
     body: {
-        error: {
-          code: "INTERNAL_SERVER_ERROR",
-          message: "The request could not be completed.",
-          retryable: false,
-          traceId,
-        },
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: "The request could not be completed.",
+        retryable: false,
+        traceId,
       },
+    },
   };
 }
 

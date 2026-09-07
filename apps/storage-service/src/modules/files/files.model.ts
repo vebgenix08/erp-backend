@@ -1,7 +1,14 @@
 import type { RequestContext } from "@school-erp/api";
 
 export type FileStatus = "PENDING_UPLOAD" | "AVAILABLE" | "DELETED";
-export type FileScopeType = "TENANT" | "CAMPUS" | "ACADEMIC_YEAR" | "CLASS" | "SECTION" | "STUDENT" | "PUBLIC";
+export type FileScopeType =
+  | "TENANT"
+  | "CAMPUS"
+  | "ACADEMIC_YEAR"
+  | "CLASS"
+  | "SECTION"
+  | "STUDENT"
+  | "PUBLIC";
 
 export interface FileRecord {
   id: string;

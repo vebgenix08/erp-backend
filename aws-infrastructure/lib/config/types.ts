@@ -1,7 +1,7 @@
-import type { Duration, RemovalPolicy } from 'aws-cdk-lib';
-import type { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import type { Duration, RemovalPolicy } from "aws-cdk-lib";
+import type { RetentionDays } from "aws-cdk-lib/aws-logs";
 
-export type EnvironmentName = 'dev' | 'prod';
+export type EnvironmentName = "dev" | "prod";
 
 export interface EnvironmentInputs {
   environment: EnvironmentName;

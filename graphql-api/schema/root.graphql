@@ -8,7 +8,16 @@ scalar AWSDateTime
 
 type Subscription {
   onTenantUpdated(id: ID!): Tenant
-    @aws_subscribe(mutations: ["updateTenant", "deactivateTenant", "activateTenant", "suspendTenant", "requestTenantDeletion", "confirmTenantDeletion"])
+    @aws_subscribe(
+      mutations: [
+        "updateTenant"
+        "deactivateTenant"
+        "activateTenant"
+        "suspendTenant"
+        "requestTenantDeletion"
+        "confirmTenantDeletion"
+      ]
+    )
 }
 
 type ApiHealth {

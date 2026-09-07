@@ -21,9 +21,7 @@ export async function getFinanceDashboard(
       financeDashboardPermissions.read as Permission,
     )
   )
-    throw new ForbiddenError(
-      `permission ${financeDashboardPermissions.read} is required`,
-    );
+    throw new ForbiddenError(`permission ${financeDashboardPermissions.read} is required`);
   const tenantId = context.tenantContext?.tenantId?.trim();
   if (!tenantId) throw new BadRequestError("tenantId is required");
   if (!scope || typeof scope !== "object" || Array.isArray(scope))

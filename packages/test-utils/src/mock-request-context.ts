@@ -6,7 +6,9 @@ export interface MockRequestContext extends LoggerContext {
   userId?: string;
 }
 
-export function createMockRequestContext(overrides: Partial<MockRequestContext> = {}): MockRequestContext {
+export function createMockRequestContext(
+  overrides: Partial<MockRequestContext> = {},
+): MockRequestContext {
   return {
     requestId: "req_test_1",
     tenantId: "tenant_test_1",

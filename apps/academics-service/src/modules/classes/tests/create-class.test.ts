@@ -8,7 +8,12 @@ import { createClassContext } from "./fixtures";
 test("create class stores a tenant-scoped active record", async () => {
   const repository = new InMemoryClassRepository();
   const result = await createClassUseCase(
-    { campusId: "campus_1", programId: "program_1", code: "CLIENT-CODE-MUST-BE-IGNORED", name: "First Year B.Sc" },
+    {
+      campusId: "campus_1",
+      programId: "program_1",
+      code: "CLIENT-CODE-MUST-BE-IGNORED",
+      name: "First Year B.Sc",
+    },
     createClassContext(),
     { repository, ...academicHierarchyFixture() },
   );

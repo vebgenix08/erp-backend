@@ -8,10 +8,29 @@ test("feature flag routes handle create and list", async () => {
   const router = createRouter();
   registerFeatureFlagRoutes(router, {
     repository: Promise.resolve({
-      list: async () => [{ id: "1", code: "A", name: "A", isEnabled: true, status: "ACTIVE", createdAt: new Date(), updatedAt: new Date() }] as any,
+      list: async () =>
+        [
+          {
+            id: "1",
+            code: "A",
+            name: "A",
+            isEnabled: true,
+            status: "ACTIVE",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ] as any,
       getById: async () => null,
       getByCode: async () => null,
-      create: async (input: any) => ({ id: "1", code: input.code, name: input.name, isEnabled: true, status: "ACTIVE", createdAt: new Date(), updatedAt: new Date() }),
+      create: async (input: any) => ({
+        id: "1",
+        code: input.code,
+        name: input.name,
+        isEnabled: true,
+        status: "ACTIVE",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
       update: async () => null,
     } as any),
   });

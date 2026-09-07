@@ -16,11 +16,19 @@ async function resolveRepository(deps?: AuditLogServiceDeps): Promise<AuditLogRe
   return await (deps?.repository ?? createAuditLogRepository());
 }
 
-export async function listAuditLogs(context: RequestContext, deps?: AuditLogServiceDeps, filter: AuditLogFilter = {}) {
+export async function listAuditLogs(
+  context: RequestContext,
+  deps?: AuditLogServiceDeps,
+  filter: AuditLogFilter = {},
+) {
   requirePlatformPermission(context, platformPermissions.auditLogs.read);
   const repository = await resolveRepository(deps);
   const records = await repository.list(filter);
-  const tenantIds = new Set(records.map((record) => record.tenantId).filter((tenantId): tenantId is string => Boolean(tenantId)));
+  const tenantIds = new Set(
+    records
+      .map((record) => record.tenantId)
+      .filter((tenantId): tenantId is string => Boolean(tenantId)),
+  );
   if (!tenantIds.size) return records.map((record) => toAuditLogView(record));
 
   const tenants = await (deps?.tenants ?? createTenantRepository());
@@ -37,14 +45,17 @@ export async function listAuditLogs(context: RequestContext, deps?: AuditLogServ
   }));
 }
 
-export async function appendAuditLog(input: {
-  actorId?: string | undefined;
-  tenantId?: string | undefined;
-  action: string;
-  entityType: string;
-  entityId?: string | undefined;
-  details?: Record<string, unknown> | undefined;
-}, deps?: AuditLogServiceDeps) {
+export async function appendAuditLog(
+  input: {
+    actorId?: string | undefined;
+    tenantId?: string | undefined;
+    action: string;
+    entityType: string;
+    entityId?: string | undefined;
+    details?: Record<string, unknown> | undefined;
+  },
+  deps?: AuditLogServiceDeps,
+) {
   const repository = await resolveRepository(deps);
   return toAuditLogView(await repository.create(input));
 }

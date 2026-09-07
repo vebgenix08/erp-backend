@@ -12,8 +12,22 @@ test("publish template marks it published when required system keys are present"
       name: "Admission form",
       templateType: "FORM",
       fields: [
-        { key: "studentName", label: "Student name", type: "text", order: 1, required: true, visible: true },
-        { key: "parentName", label: "Parent name", type: "text", order: 2, required: true, visible: true },
+        {
+          key: "studentName",
+          label: "Student name",
+          type: "text",
+          order: 1,
+          required: true,
+          visible: true,
+        },
+        {
+          key: "parentName",
+          label: "Parent name",
+          type: "text",
+          order: 2,
+          required: true,
+          visible: true,
+        },
       ],
       requiredSystemKeys: ["studentName", "parentName"],
     },
@@ -21,7 +35,9 @@ test("publish template marks it published when required system keys are present"
     { repository },
   );
 
-  const published = await publishTemplateUseCase(created.id, createTemplateContext(), { repository });
+  const published = await publishTemplateUseCase(created.id, createTemplateContext(), {
+    repository,
+  });
   assert.equal(published?.status, "PUBLISHED");
   assert.equal(published?.publishedVersion, 1);
 });
@@ -37,7 +53,16 @@ test("publishing a layout archives the previously published template for that la
       name: "Staff onboarding",
       templateType: "FORM",
       layout: "STAFF_ONBOARDING",
-      fields: [{ key: "fullName", label: "Full name", type: "text", order: 1, required: true, visible: true }],
+      fields: [
+        {
+          key: "fullName",
+          label: "Full name",
+          type: "text",
+          order: 1,
+          required: true,
+          visible: true,
+        },
+      ],
       requiredSystemKeys: ["fullName"],
     },
     context,
@@ -49,7 +74,16 @@ test("publishing a layout archives the previously published template for that la
       name: "Staff onboarding revised",
       templateType: "FORM",
       layout: "STAFF_ONBOARDING",
-      fields: [{ key: "fullName", label: "Full name", type: "text", order: 1, required: true, visible: true }],
+      fields: [
+        {
+          key: "fullName",
+          label: "Full name",
+          type: "text",
+          order: 1,
+          required: true,
+          visible: true,
+        },
+      ],
       requiredSystemKeys: ["fullName"],
     },
     context,

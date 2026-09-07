@@ -1,13 +1,5 @@
-export type {
-  ValidationFailure,
-  ValidationResult,
-  ValidationSuccess,
-} from "./result";
-export {
-  isValidationSuccess,
-  validationFail,
-  validationOk,
-} from "./result";
+export type { ValidationFailure, ValidationResult, ValidationSuccess } from "./result";
+export { isValidationSuccess, validationFail, validationOk } from "./result";
 export {
   isNonEmptyString,
   optionalString,

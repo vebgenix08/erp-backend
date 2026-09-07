@@ -21,20 +21,23 @@ function context(tenantId = "tenant_one"): RequestContext {
       authenticatedAt: new Date(),
       user: {
         id: "cashier_1",
-        permissions: [
-          "finance.payment.collect",
-          "finance.payment.read",
-          "finance.receipt.read",
-        ],
+        permissions: ["finance.payment.collect", "finance.payment.read", "finance.receipt.read"],
         source: "headers",
       },
     },
   };
 }
 
-async function repositories(
-  collectionPolicy: "FULL_ONLY" | "PARTIAL_ALLOWED" = "PARTIAL_ALLOWED",
-) {
+const receiptBranding = {
+  institutionName: "Vebgenix Academy",
+  campusName: "Central Campus",
+  academicYearName: "2026 - 2027",
+  className: "Class 10",
+  admissionNumber: "ADM-2026-00001",
+  collectedByName: "Finance Officer",
+};
+
+async function repositories(collectionPolicy: "FULL_ONLY" | "PARTIAL_ALLOWED" = "PARTIAL_ALLOWED") {
   const orders = new InMemoryFeeOrderRepository();
   const at = new Date("2026-06-01T00:00:00.000Z");
   const order = await orders.create("tenant_one", {
@@ -98,13 +101,11 @@ test("backend derives receipt identity and payment data from the fee order", asy
   assert.equal(payment.receiptNumber, "RCP-YEAR2026-000001");
   assert.equal(payment.studentName, "Aarav Sharma");
   assert.equal(payment.amountMinor, 250_000);
-  assert.equal(
-    payment.allocations[0]?.label,
-    `${order.orderNumber} · Class 10 Annual Fee`,
-  );
+  assert.equal(payment.allocations[0]?.label, `${order.orderNumber} · Class 10 Annual Fee`);
   const receipt = await getReceipt(payment.id, context(), {
     repository: payments,
     feeOrderRepository: orders,
+    receiptBranding,
   });
   assert.equal(receipt.student.name, "Aarav Sharma");
   assert.equal(receipt.amountMinor, 250_000);
@@ -117,6 +118,7 @@ test("backend derives receipt identity and payment data from the fee order", asy
   const document = await getReceiptDocument(payment.id, context(), {
     repository: payments,
     feeOrderRepository: orders,
+    receiptBranding,
   });
   const twoCopyDocument = await getReceiptDocument(
     payment.id,
@@ -124,15 +126,13 @@ test("backend derives receipt identity and payment data from the fee order", asy
     {
       repository: payments,
       feeOrderRepository: orders,
+      receiptBranding,
     },
     "BOTH",
   );
   assert.equal(document.contentType, "application/pdf");
   assert.equal(new TextDecoder().decode(document.bytes.subarray(0, 4)), "%PDF");
-  assert.equal(
-    new TextDecoder().decode(twoCopyDocument.bytes.subarray(0, 4)),
-    "%PDF",
-  );
+  assert.equal(new TextDecoder().decode(twoCopyDocument.bytes.subarray(0, 4)), "%PDF");
   assert.equal(twoCopyDocument.bytes.byteLength > document.bytes.byteLength, true);
   assert.equal((await orders.getById("tenant_one", order.id))?.status, "PAID");
   assert.equal((await orders.getById("tenant_one", order.id))?.balanceMinor, 0);
@@ -228,10 +228,7 @@ test("allocates partial payments by fee-head priority and keeps one order open",
   );
   assert.equal(
     JSON.stringify(
-      payment.allocations[0]?.chargeAllocations.map((item) => [
-        item.label,
-        item.amountMinor,
-      ]),
+      payment.allocations[0]?.chargeAllocations.map((item) => [item.label, item.amountMinor]),
     ),
     JSON.stringify([
       ["Admission Fee", 500_000],
@@ -263,10 +260,7 @@ test("supports validated manual fee-head allocation", async () => {
     context(),
     { repository: payments },
   );
-  assert.equal(
-    payment.allocations[0]?.chargeAllocations[0]?.amountMinor,
-    100_000,
-  );
+  assert.equal(payment.allocations[0]?.chargeAllocations[0]?.amountMinor, 100_000);
   await assert.rejects(
     () =>
       collectPayment(
@@ -277,9 +271,7 @@ test("supports validated manual fee-head allocation", async () => {
             {
               feeOrderId: order.id,
               amountMinor: 50_000,
-              chargeAllocations: [
-                { chargeId: "charge_1", amountMinor: 50_001 },
-              ],
+              chargeAllocations: [{ chargeId: "charge_1", amountMinor: 50_001 }],
             },
           ],
         },
@@ -301,6 +293,7 @@ test("receipt PDF consumes the saved tenant receipt template", async () => {
     repository: payments,
     feeOrderRepository: orders,
     receiptTemplateRepository: templates,
+    receiptBranding,
   });
   await templates.save("tenant_one", "finance_admin", {
     title: "Official Collection Receipt",
@@ -318,11 +311,9 @@ test("receipt PDF consumes the saved tenant receipt template", async () => {
     repository: payments,
     feeOrderRepository: orders,
     receiptTemplateRepository: templates,
+    receiptBranding,
   });
-  assert.equal(
-    configuredDocument.bytes.byteLength !== defaultDocument.bytes.byteLength,
-    true,
-  );
+  assert.equal(configuredDocument.bytes.byteLength !== defaultDocument.bytes.byteLength, true);
 });
 
 test("full-only collection policy rejects a partial payment", async () => {
@@ -345,10 +336,7 @@ test("idempotent collection does not reduce the balance twice", async () => {
     repository: payments,
   });
   assert.equal(second.id, first.id);
-  assert.equal(
-    (await orders.getById("tenant_one", order.id))?.balanceMinor,
-    150_000,
-  );
+  assert.equal((await orders.getById("tenant_one", order.id))?.balanceMinor, 150_000);
 });
 
 test("rejects overpayment and unknown fee orders", async () => {
@@ -375,8 +363,7 @@ test("receipt lookup is tenant isolated", async () => {
     repository: payments,
   });
   await assert.rejects(
-    () =>
-      getReceipt(payment.id, context("tenant_two"), { repository: payments }),
+    () => getReceipt(payment.id, context("tenant_two"), { repository: payments }),
     /not found/,
   );
 });

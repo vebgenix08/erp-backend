@@ -262,10 +262,7 @@ type Query {
   platformIntegrations: [PlatformIntegration!]!
   inviteDeliveryEvents(email: AWSEmail!): [EmailDeliveryEvent!]!
   institutionProfile: InstitutionProfile
-  campuses(
-    status: CampusStatus
-    search: String
-  ): [Campus!]!
+  campuses(status: CampusStatus, search: String): [Campus!]!
   campusAcademicUnits(filter: CampusAcademicUnitFilter): [CampusAcademicUnit!]!
   academicYears(status: AcademicYearStatus): [AcademicYear!]!
   tenantAdminDashboard(input: TenantAdminDashboardInput!): TenantAdminDashboard!
@@ -304,6 +301,25 @@ type Query {
   teacherWorkloadPolicies(filter: FacultyPlanningFilter): [TeacherWorkloadPolicy!]!
   facultyWorkload(employeeId: ID!): FacultyWorkload!
   teacherWorkloadWorkspace(input: TeacherWorkloadWorkspaceInput!): TeacherWorkloadWorkspace!
+  teacherClassWorkspace(input: TeacherClassWorkspaceInput!): TeacherClassWorkspace!
+  teacherAttendanceHistory(input: TeacherHistoryPageInput!): TeacherAttendanceHistoryPage!
+  teacherMarksHistory(input: TeacherHistoryPageInput!): TeacherMarksHistoryPage!
+  teacherMentees(input: TeacherMentoringPageInput!): TeacherMentoringPage!
+  teacherMenteeWorkspace(input: TeacherMenteeWorkspaceInput!): TeacherMenteeWorkspace!
+  teacherSectionWorkspace(input: TeacherSectionWorkspaceInput!): TeacherSectionWorkspace!
+  teacherDepartmentWorkspace(input: TeacherDepartmentWorkspaceInput!): TeacherDepartmentWorkspace!
+  teacherCoordinationWorkspace(input: TeacherDepartmentWorkspaceInput!): TeacherDepartmentWorkspace!
+  teacherLeadershipWorkspace(input: TeacherDepartmentWorkspaceInput!): TeacherDepartmentWorkspace!
+  teacherAttendanceWorkspace(input: TeacherAttendanceWorkspaceInput!): TeacherAttendanceWorkspace!
+  assessmentDefinitions(input: AssessmentDefinitionFilterInput!): [AssessmentDefinition!]!
+  teacherMarksWorkspace(input: TeacherMarksWorkspaceInput!): TeacherMarksWorkspace!
+  teacherDailyStudentUpdates(input: DailyStudentUpdatePageInput!): DailyStudentUpdatePage!
+  teacherLessonPlans(input: TeacherContentPageInput!): LessonPlanPage!
+  teacherDiaryEntries(input: TeacherContentPageInput!): TeachingDiaryPage!
+  teacherResources(input: TeacherContentPageInput!): TeachingResourcePage!
+  teacherCoursework(input: TeacherEngagementPageInput!): CourseworkPage!
+  teacherCourseworkSubmissions(input: TeacherEngagementPageInput!): CourseworkSubmissionPage!
+  teacherAcademicDoubts(input: TeacherEngagementPageInput!): AcademicDoubtPage!
   academicRooms(filter: TimetableFilter): [AcademicRoom!]!
   campusTravelRules(filter: TimetableFilter): [CampusTravelRule!]!
   timetablePeriodSets(filter: TimetableFilter): [TimetablePeriodSet!]!
@@ -354,9 +370,7 @@ type Query {
   financeReceiptTemplate: FinanceReceiptTemplate!
   financePayments(filter: PaymentFilter): [FinancePayment!]!
   financePaymentPage(filter: PaymentFilter): FinancePaymentPage!
-  financePaymentAdjustments(
-    filter: PaymentAdjustmentFilter
-  ): [FinancePaymentAdjustment!]!
+  financePaymentAdjustments(filter: PaymentAdjustmentFilter): [FinancePaymentAdjustment!]!
   feeOrderRecoveries(filter: FeeOrderRecoveryFilter): [FeeOrderRecovery!]!
 }
 
@@ -366,33 +380,22 @@ type Mutation {
   deactivateTenant(tenantId: ID!, clientRequestId: ID!): Tenant!
   activateTenant(tenantId: ID!, clientRequestId: ID!): Tenant!
   suspendTenant(tenantId: ID!, clientRequestId: ID!): Tenant!
-  requestTenantDeletion(
-    tenantId: ID!
-    reason: String!
-    clientRequestId: ID!
-  ): Tenant!
+  requestTenantDeletion(tenantId: ID!, reason: String!, clientRequestId: ID!): Tenant!
   confirmTenantDeletion(tenantId: ID!, clientRequestId: ID!): Tenant!
-  createPlatformFeatureFlag(
-    input: CreateFeatureFlagInput!
-  ): PlatformFeatureFlag!
-  updatePlatformFeatureFlag(
-    input: UpdateFeatureFlagInput!
-  ): PlatformFeatureFlag!
-  createFirstAdminBootstrap(
-    input: CreateFirstAdminBootstrapInput!
-  ): FirstAdminBootstrap!
+  createPlatformFeatureFlag(input: CreateFeatureFlagInput!): PlatformFeatureFlag!
+  updatePlatformFeatureFlag(input: UpdateFeatureFlagInput!): PlatformFeatureFlag!
+  createFirstAdminBootstrap(input: CreateFirstAdminBootstrapInput!): FirstAdminBootstrap!
   resendFirstAdminBootstrapInvite(tenantId: ID!): FirstAdminBootstrap!
   completeFirstAdminBootstrap(tenantId: ID!, inviteId: ID): FirstAdminBootstrap!
   setTenantEntitlement(input: SetTenantEntitlementInput!): TenantEntitlement!
-  setPlatformIntegration(
-    input: SetPlatformIntegrationInput!
-  ): PlatformIntegration!
-  updateInstitutionProfile(
-    input: UpdateInstitutionProfileInput!
-  ): InstitutionProfile!
+  setPlatformIntegration(input: SetPlatformIntegrationInput!): PlatformIntegration!
+  updateInstitutionProfile(input: UpdateInstitutionProfileInput!): InstitutionProfile!
   createCampus(input: CreateCampusInput!): Campus!
   createCampusSetup(input: CreateCampusSetupInput!): CampusSetupPayload!
-  createCampusAcademicUnit(campusId: ID!, input: CreateCampusAcademicUnitInput!): CampusAcademicUnit!
+  createCampusAcademicUnit(
+    campusId: ID!
+    input: CreateCampusAcademicUnitInput!
+  ): CampusAcademicUnit!
   updateCampusAcademicUnit(id: ID!, input: UpdateCampusAcademicUnitInput!): CampusAcademicUnit!
   updateCampus(id: ID!, input: UpdateCampusInput!): Campus!
   deactivateCampus(id: ID!): Campus!
@@ -403,16 +406,11 @@ type Mutation {
   closeAcademicYear(id: ID!, reason: String!): AcademicYear!
   reopenAcademicYear(id: ID!, reason: String!): AcademicYear!
   createTenantTemplate(input: CreateTenantTemplateInput!): TenantTemplate!
-  updateTenantTemplate(
-    id: ID!
-    input: UpdateTenantTemplateInput!
-  ): TenantTemplate!
+  updateTenantTemplate(id: ID!, input: UpdateTenantTemplateInput!): TenantTemplate!
   publishTenantTemplate(id: ID!): TenantTemplate!
   archiveTenantTemplate(id: ID!): Boolean!
   saveNumberingPolicy(input: SaveNumberingPolicyInput!): NumberingPolicy!
-  updateNotificationPolicy(
-    input: UpdateNotificationPolicyInput!
-  ): NotificationPolicy!
+  updateNotificationPolicy(input: UpdateNotificationPolicyInput!): NotificationPolicy!
   createCurriculum(input: CreateCurriculumInput!): Curriculum!
   updateCurriculum(id: ID!, input: UpdateCurriculumInput!): Curriculum!
   deactivateCurriculum(id: ID!): Curriculum!
@@ -420,32 +418,33 @@ type Mutation {
   updateAcademicOffering(id: ID!, input: UpdateAcademicOfferingInput!): AcademicOffering!
   deactivateAcademicOffering(id: ID!): AcademicOffering!
   createAcademicProgram(input: CreateAcademicProgramInput!): AcademicProgram!
-  updateAcademicProgram(
-    id: ID!
-    input: UpdateAcademicProgramInput!
-  ): AcademicProgram!
+  updateAcademicProgram(id: ID!, input: UpdateAcademicProgramInput!): AcademicProgram!
   deactivateAcademicProgram(id: ID!): AcademicProgram!
   createAcademicClass(input: CreateAcademicClassInput!): AcademicClass!
   updateAcademicClass(id: ID!, input: UpdateAcademicClassInput!): AcademicClass!
   deactivateAcademicClass(id: ID!): AcademicClass!
   createAcademicSection(input: CreateAcademicSectionInput!): AcademicSection!
-  updateAcademicSection(
-    id: ID!
-    input: UpdateAcademicSectionInput!
-  ): AcademicSection!
+  updateAcademicSection(id: ID!, input: UpdateAcademicSectionInput!): AcademicSection!
   deactivateAcademicSection(id: ID!): AcademicSection!
   createAcademicSubject(input: CreateAcademicSubjectInput!): AcademicSubject!
   createSubjectCatalogueItem(input: CreateSubjectCatalogueItemInput!): SubjectCatalogueItem!
-  updateSubjectCatalogueItem(id: ID!, input: UpdateSubjectCatalogueItemInput!): SubjectCatalogueItem!
+  updateSubjectCatalogueItem(
+    id: ID!
+    input: UpdateSubjectCatalogueItemInput!
+  ): SubjectCatalogueItem!
   deactivateSubjectCatalogueItem(id: ID!, reason: String!): SubjectCatalogueItem!
   createCurriculumSubject(input: CreateCurriculumSubjectInput!): CurriculumSubject!
   updateCurriculumSubject(id: ID!, input: UpdateCurriculumSubjectInput!): CurriculumSubject!
   deactivateCurriculumSubject(id: ID!, reason: String!): CurriculumSubject!
   createSubjectComponent(input: CreateSubjectComponentInput!): SubjectComponent!
   deactivateSubjectComponent(id: ID!, reason: String!): SubjectComponent!
-  createAcademicYearSubjectPlan(input: CreateAcademicYearSubjectPlanInput!): AcademicYearSubjectPlan!
+  createAcademicYearSubjectPlan(
+    input: CreateAcademicYearSubjectPlanInput!
+  ): AcademicYearSubjectPlan!
   activateAcademicYearSubjectPlan(id: ID!): AcademicYearSubjectPlan!
-  createSectionSubjectException(input: CreateSectionSubjectExceptionInput!): SectionSubjectException!
+  createSectionSubjectException(
+    input: CreateSectionSubjectExceptionInput!
+  ): SectionSubjectException!
   createSubjectChoiceGroup(input: CreateSubjectChoiceGroupInput!): SubjectChoiceGroup!
   selectStudentSubject(input: SelectStudentSubjectInput!): StudentSubjectChoice!
   createTeachingGroup(input: CreateTeachingGroupInput!): TeachingGroup!
@@ -460,6 +459,29 @@ type Mutation {
   addAcademicResponsibility(input: AddAcademicResponsibilityInput!): AcademicResponsibility!
   setTeacherAvailability(input: SetTeacherAvailabilityInput!): TeacherAvailability!
   saveTeacherWorkloadPolicy(input: SaveTeacherWorkloadPolicyInput!): TeacherWorkloadPolicy!
+  saveTeacherAttendance(input: SaveTeacherAttendanceInput!): AttendanceSession!
+  saveAssessmentDefinition(input: SaveAssessmentDefinitionInput!): AssessmentDefinition!
+  setAssessmentDefinitionStatus(input: SetAssessmentDefinitionStatusInput!): AssessmentDefinition!
+  saveTeacherMarks(input: SaveTeacherMarksInput!): MarksSheet!
+  saveTeacherDailyStudentUpdate(input: SaveDailyStudentUpdateInput!): DailyStudentUpdate!
+  publishTeacherDailyStudentUpdate(input: DailyStudentUpdateTransitionInput!): DailyStudentUpdate!
+  archiveTeacherDailyStudentUpdate(input: DailyStudentUpdateTransitionInput!): DailyStudentUpdate!
+  saveTeacherLessonPlan(input: SaveLessonPlanInput!): LessonPlan!
+  setTeacherLessonPlanStatus(input: TeacherContentTransitionInput!): LessonPlan!
+  saveTeacherDiaryEntry(input: SaveTeachingDiaryInput!): TeachingDiaryEntry!
+  setTeacherDiaryStatus(input: TeacherContentTransitionInput!): TeachingDiaryEntry!
+  saveTeacherResource(input: SaveTeachingResourceInput!): TeachingResource!
+  archiveTeacherResource(input: TeacherContentTransitionInput!): TeachingResource!
+  saveTeacherCoursework(input: SaveCourseworkInput!): Coursework!
+  setTeacherCourseworkStatus(input: TeacherEngagementTransitionInput!): Coursework!
+  reviewTeacherCourseworkSubmission(input: ReviewCourseworkSubmissionInput!): CourseworkSubmission!
+  replyTeacherAcademicDoubt(input: ReplyAcademicDoubtInput!): AcademicDoubt!
+  closeTeacherAcademicDoubt(input: TeacherEngagementTransitionInput!): AcademicDoubt!
+  assignStudentMentor(input: AssignStudentMentorInput!): StudentMentorAssignment!
+  saveTeacherMentorInteraction(input: SaveMentorInteractionInput!): MentorInteraction!
+  setTeacherMentorInteractionStatus(input: SetMentorInteractionStatusInput!): MentorInteraction!
+  saveTeacherSectionFollowUp(input: SaveSectionFollowUpInput!): SectionStudentFollowUp!
+  resolveTeacherSectionFollowUp(input: ResolveSectionFollowUpInput!): SectionStudentFollowUp!
   createAcademicRoom(input: CreateAcademicRoomInput!): AcademicRoom!
   createCampusTravelRule(input: CreateCampusTravelRuleInput!): CampusTravelRule!
   createTimetablePeriodSet(input: CreateTimetablePeriodSetInput!): TimetablePeriodSet!
@@ -478,17 +500,17 @@ type Mutation {
   updateClassSetupSubject(input: UpdateClassSetupSubjectInput!): ClassSetupWorkspace!
   removeClassSetupSubject(input: RemoveClassSetupSubjectInput!): ClassSetupWorkspace!
   saveClassSetupTiming(input: SaveClassSetupTimingInput!): ClassSetupWorkspace!
-  updateAcademicSubject(
-    id: ID!
-    input: UpdateAcademicSubjectInput!
-  ): AcademicSubject!
+  updateAcademicSubject(id: ID!, input: UpdateAcademicSubjectInput!): AcademicSubject!
   deactivateAcademicSubject(id: ID!): AcademicSubject!
   createTeachingAssignment(input: CreateTeachingAssignmentInput!): TeachingAssignment!
   deactivateTeachingAssignment(id: ID!): TeachingAssignment!
   issueStudentDocument(input: IssueStudentDocumentInput!): StudentDocument!
   revokeStudentDocument(id: ID!, reason: String!): StudentDocument!
   changeStudentEnrollment(id: ID!, input: ChangeStudentEnrollmentInput!): Student!
-  generateClassRegistrationNumbers(input: ClassRegistrationNumberingInput!): StudentNumberingBatchResult!
+  updateStudent(id: ID!, input: UpdateStudentInput!): Student!
+  generateClassRegistrationNumbers(
+    input: ClassRegistrationNumberingInput!
+  ): StudentNumberingBatchResult!
   generateSectionRollNumbers(input: SectionRollNumberingInput!): StudentNumberingBatchResult!
   createCampusTransfer(input: CreateCampusTransferInput!): CampusTransfer!
   approveCampusTransfer(id: ID!): CampusTransfer!
@@ -499,44 +521,24 @@ type Mutation {
   createIdentityRole(input: CreateIdentityRoleInput!): IdentityRole!
   updateIdentityRole(id: ID!, input: UpdateIdentityRoleInput!): IdentityRole!
   deactivateIdentityRole(id: ID!): IdentityRole!
-  assignIdentityUserRole(
-    input: AssignIdentityUserRoleInput!
-  ): UserRoleAssignment!
+  assignIdentityUserRole(input: AssignIdentityUserRoleInput!): UserRoleAssignment!
   revokeIdentityUserRole(id: ID!): UserRoleAssignment!
-  saveIdentityRolePermissions(
-    input: SaveIdentityRolePermissionsInput!
-  ): [RolePermissionBinding!]!
+  saveIdentityRolePermissions(input: SaveIdentityRolePermissionsInput!): [RolePermissionBinding!]!
   createEmployee(input: CreateEmployeeInput!): Employee!
   updateEmployee(id: ID!, input: UpdateEmployeeInput!): Employee!
   deactivateEmployee(id: ID!): Employee!
   reactivateEmployee(id: ID!): Employee!
   resendEmployeeInvite(id: ID!): Employee!
-  endEmployment(id: ID!, reason: String!): Employee!
   createEnquiry(input: CreateEnquiryInput!): Enquiry!
   updateEnquiry(id: ID!, input: UpdateEnquiryInput!): Enquiry!
   closeEnquiry(id: ID!): Enquiry!
   createApplication(input: CreateApplicationInput!): AdmissionApplication!
-  updateApplication(
-    id: ID!
-    input: UpdateApplicationInput!
-  ): AdmissionApplication!
+  updateApplication(id: ID!, input: UpdateApplicationInput!): AdmissionApplication!
   submitApplication(id: ID!): AdmissionApplication!
-  approveApplication(
-    id: ID!
-    input: ApplicationReviewInput
-  ): AdmissionApplication!
-  rejectApplication(
-    id: ID!
-    input: ApplicationRejectInput!
-  ): AdmissionApplication!
-  cancelApplication(
-    id: ID!
-    input: ApplicationCancelInput!
-  ): AdmissionApplication!
-  confirmApplication(
-    id: ID!
-    input: AdmissionConfirmationInput!
-  ): AdmissionApplication!
+  approveApplication(id: ID!, input: ApplicationReviewInput): AdmissionApplication!
+  rejectApplication(id: ID!, input: ApplicationRejectInput!): AdmissionApplication!
+  cancelApplication(id: ID!, input: ApplicationCancelInput!): AdmissionApplication!
+  confirmApplication(id: ID!, input: AdmissionConfirmationInput!): AdmissionApplication!
   createFeeHead(input: CreateFeeHeadInput!): FeeHead!
   updateFeeHead(id: ID!, input: UpdateFeeHeadInput!): FeeHead!
   createFeeSchedule(input: CreateFeeScheduleInput!): FeeSchedule!
@@ -549,11 +551,7 @@ type Mutation {
   ): FinanceMutationResult!
   collectFinancePayment(input: CollectPaymentInput!): FinancePayment!
   createGeneralCharge(input: CreateGeneralChargeInput!): GeneralCharge!
-  saveFinanceReceiptTemplate(
-    input: SaveFinanceReceiptTemplateInput!
-  ): FinanceReceiptTemplate!
-  createFinancePaymentAdjustment(
-    input: CreatePaymentAdjustmentInput!
-  ): FinancePaymentAdjustment!
+  saveFinanceReceiptTemplate(input: SaveFinanceReceiptTemplateInput!): FinanceReceiptTemplate!
+  createFinancePaymentAdjustment(input: CreatePaymentAdjustmentInput!): FinancePaymentAdjustment!
   retryFeeOrderRecovery(id: ID!): FeeOrderRecovery!
 }

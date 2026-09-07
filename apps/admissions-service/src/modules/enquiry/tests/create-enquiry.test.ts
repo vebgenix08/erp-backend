@@ -17,9 +17,21 @@ test("create enquiry stores a tenant-scoped enquiry with a generated enquiry num
 
 test("create enquiry generates numbers per tenant", async () => {
   const repository = new InMemoryEnquiryRepository();
-  const first = await createEnquiryUseCase(createEnquiryInput({ studentName: "One" }), createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository });
-  const second = await createEnquiryUseCase(createEnquiryInput({ studentName: "Two" }), createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository });
-  const otherTenant = await createEnquiryUseCase(createEnquiryInput({ studentName: "Three" }), createEnquiryServiceContext({ tenantId: "tenant_b" }), { repository });
+  const first = await createEnquiryUseCase(
+    createEnquiryInput({ studentName: "One" }),
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+  );
+  const second = await createEnquiryUseCase(
+    createEnquiryInput({ studentName: "Two" }),
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+  );
+  const otherTenant = await createEnquiryUseCase(
+    createEnquiryInput({ studentName: "Three" }),
+    createEnquiryServiceContext({ tenantId: "tenant_b" }),
+    { repository },
+  );
 
   assert.equal(first?.enquiryNumber, "ENQ-0001");
   assert.equal(second?.enquiryNumber, "ENQ-0002");
@@ -39,14 +51,18 @@ test("create enquiry ignores tenantId in the request body", async () => {
 
 test("create enquiry preserves the published template snapshot and operating context", async () => {
   const repository = new InMemoryEnquiryRepository();
-  const result = await createEnquiryUseCase(createEnquiryInput({
-    campusId: "campus_main",
-    academicYearId: "year_2026",
-    academicTargetId: "class_10",
-    templateId: "template_admission",
-    templateVersion: 3,
-    customFields: { admission_source: "Website", blood_group: "O+" },
-  }), createEnquiryServiceContext(), { repository });
+  const result = await createEnquiryUseCase(
+    createEnquiryInput({
+      campusId: "campus_main",
+      academicYearId: "year_2026",
+      academicTargetId: "class_10",
+      templateId: "template_admission",
+      templateVersion: 3,
+      customFields: { admission_source: "Website", blood_group: "O+" },
+    }),
+    createEnquiryServiceContext(),
+    { repository },
+  );
 
   assert.equal(result?.campusId, "campus_main");
   assert.equal(result?.templateVersion, 3);

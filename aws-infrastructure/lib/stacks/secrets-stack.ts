@@ -1,6 +1,6 @@
-import { CfnOutput, Stack, StackProps, aws_secretsmanager as secretsmanager } from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-import type { EnvironmentConfig } from '../config';
+import { CfnOutput, Stack, StackProps, aws_secretsmanager as secretsmanager } from "aws-cdk-lib";
+import { Construct } from "constructs";
+import type { EnvironmentConfig } from "../config";
 
 export interface SecretsStackProps extends StackProps {
   config: EnvironmentConfig;
@@ -14,23 +14,23 @@ export class SecretsStack extends Stack {
   constructor(scope: Construct, id: string, props: SecretsStackProps) {
     super(scope, id, props);
 
-    this.mongodbSecret = new secretsmanager.CfnSecret(this, 'MongoDbSecret', {
+    this.mongodbSecret = new secretsmanager.CfnSecret(this, "MongoDbSecret", {
       name: props.config.secretNames.mongodb,
-      description: 'Placeholder secret for MongoDB connection details',
+      description: "Placeholder secret for MongoDB connection details",
     });
 
-    this.razorpaySecret = new secretsmanager.CfnSecret(this, 'RazorpaySecret', {
+    this.razorpaySecret = new secretsmanager.CfnSecret(this, "RazorpaySecret", {
       name: props.config.secretNames.razorpay,
-      description: 'Placeholder secret for Razorpay credentials',
+      description: "Placeholder secret for Razorpay credentials",
     });
 
-    this.cognitoSecret = new secretsmanager.CfnSecret(this, 'CognitoSecret', {
+    this.cognitoSecret = new secretsmanager.CfnSecret(this, "CognitoSecret", {
       name: props.config.secretNames.cognito,
-      description: 'Placeholder secret for Cognito integration values',
+      description: "Placeholder secret for Cognito integration values",
     });
 
-    new CfnOutput(this, 'MongoDbSecretName', { value: props.config.secretNames.mongodb });
-    new CfnOutput(this, 'RazorpaySecretName', { value: props.config.secretNames.razorpay });
-    new CfnOutput(this, 'CognitoSecretName', { value: props.config.secretNames.cognito });
+    new CfnOutput(this, "MongoDbSecretName", { value: props.config.secretNames.mongodb });
+    new CfnOutput(this, "RazorpaySecretName", { value: props.config.secretNames.razorpay });
+    new CfnOutput(this, "CognitoSecretName", { value: props.config.secretNames.cognito });
   }
 }

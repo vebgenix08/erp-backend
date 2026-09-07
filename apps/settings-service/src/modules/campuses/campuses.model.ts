@@ -34,4 +34,4 @@ export interface CampusListFilter {
   search?: string | undefined;
 }
 
-export interface CampusView extends CampusRecord {}
+export type CampusView = CampusRecord;

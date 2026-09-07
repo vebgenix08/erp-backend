@@ -8,8 +8,10 @@ test("audit log route returns filtered logs", async () => {
   const router = createRouter();
   registerAuditLogRoutes(router, {
     repository: Promise.resolve({
-      list: async () => [{ id: "1", action: "TENANT_CREATED", entityType: "TENANT", createdAt: new Date() }] as any,
-      create: async () => ({ id: "1", action: "TENANT_CREATED", entityType: "TENANT", createdAt: new Date() }) as any,
+      list: async () =>
+        [{ id: "1", action: "TENANT_CREATED", entityType: "TENANT", createdAt: new Date() }] as any,
+      create: async () =>
+        ({ id: "1", action: "TENANT_CREATED", entityType: "TENANT", createdAt: new Date() }) as any,
     } as any),
   });
 

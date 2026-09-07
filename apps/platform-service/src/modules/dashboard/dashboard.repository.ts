@@ -34,10 +34,15 @@ export class DashboardRepository {
       bootstrapCount: bootstrapRecords.length,
       activeFeatureFlagCount: featureFlagRecords.filter((record) => record.isEnabled).length,
       auditLogCount: auditLogRecords.length,
-      onboardingTenantCount: tenantRecords.filter((record) => record.status === "ONBOARDING").length,
-      deletionPendingTenantCount: tenantRecords.filter((record) => Boolean(record.deletionRequestedAt) && !record.deletedAt).length,
+      onboardingTenantCount: tenantRecords.filter((record) => record.status === "ONBOARDING")
+        .length,
+      deletionPendingTenantCount: tenantRecords.filter(
+        (record) => Boolean(record.deletionRequestedAt) && !record.deletedAt,
+      ).length,
       failedBootstrapCount: bootstrapRecords.filter((record) => record.status === "FAILED").length,
-      pendingBootstrapCount: bootstrapRecords.filter((record) => record.status === "PENDING" || record.status === "INVITED").length,
+      pendingBootstrapCount: bootstrapRecords.filter(
+        (record) => record.status === "PENDING" || record.status === "INVITED",
+      ).length,
     };
   }
 }

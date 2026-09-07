@@ -21,7 +21,11 @@ test("list invite emails returns tenant scoped records", async () => {
     { repository, provider: { send: async () => ({ messageId: "ses-message-list" }) } },
   );
 
-  const result = await listInviteEmailsUseCase(createInviteEmailContext(), { repository }, { search: "alpha" });
+  const result = await listInviteEmailsUseCase(
+    createInviteEmailContext(),
+    { repository },
+    { search: "alpha" },
+  );
   assert.equal(result.length, 1);
   assert.equal(result[0]?.email, "alpha@example.test");
 });

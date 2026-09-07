@@ -6,7 +6,11 @@ import { createTemplateContext } from "./fixtures";
 
 test("archive template marks it unavailable for live editing", async () => {
   const repository = new InMemoryTemplateRepository();
-  const created = await createTemplateUseCase({ code: "A", name: "A", templateType: "FORM" }, createTemplateContext(), { repository });
+  const created = await createTemplateUseCase(
+    { code: "A", name: "A", templateType: "FORM" },
+    createTemplateContext(),
+    { repository },
+  );
   const deleted = await archiveTemplateUseCase(created.id, createTemplateContext(), { repository });
   const records = await listTemplatesUseCase(createTemplateContext(), { repository });
   assert.equal(deleted, true);

@@ -24,4 +24,4 @@ export interface InstitutionProfileInput {
 
 export type InstitutionProfileUpdateInput = Partial<InstitutionProfileInput>;
 
-export interface InstitutionProfileView extends InstitutionProfileRecord {}
+export type InstitutionProfileView = InstitutionProfileRecord;

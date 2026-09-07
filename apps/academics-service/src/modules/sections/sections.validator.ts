@@ -1,5 +1,10 @@
 import { BadRequestError } from "@school-erp/errors";
-import type { SectionCreateInput, SectionListFilter, SectionStatus, SectionUpdateInput } from "./sections.model";
+import type {
+  SectionCreateInput,
+  SectionListFilter,
+  SectionStatus,
+  SectionUpdateInput,
+} from "./sections.model";
 
 const allowedStatuses: SectionStatus[] = ["ACTIVE", "INACTIVE"];
 

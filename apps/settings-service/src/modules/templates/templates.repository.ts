@@ -1,7 +1,12 @@
 import { BadRequestError, ConflictError } from "@school-erp/errors";
 import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
 import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { TemplateCreateInput, TemplateListFilter, TemplateRecord, TemplateUpdateInput } from "./templates.model";
+import type {
+  TemplateCreateInput,
+  TemplateListFilter,
+  TemplateRecord,
+  TemplateUpdateInput,
+} from "./templates.model";
 
 export interface TemplateRepository {
   list(tenantId: string, filter?: TemplateListFilter): Promise<TemplateRecord[]>;
@@ -26,7 +31,11 @@ function clone(record: TemplateRecord): TemplateRecord {
   return {
     ...record,
     sections: (record.sections ?? []).map((section) => ({ ...section })),
-    fields: record.fields.map((field) => ({ ...field, options: field.options ? [...field.options] : undefined, rules: field.rules ? { ...field.rules } : undefined })),
+    fields: record.fields.map((field) => ({
+      ...field,
+      options: field.options ? [...field.options] : undefined,
+      rules: field.rules ? { ...field.rules } : undefined,
+    })),
     requiredSystemKeys: [...record.requiredSystemKeys],
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt),
@@ -69,7 +78,9 @@ function createRecord(tenantId: string, input: TemplateCreateInput): TemplateRec
     layout: input.layout?.trim() || undefined,
     sections: input.sections ? input.sections.map((section) => ({ ...section })) : [],
     fields: input.fields ? input.fields.map((field) => ({ ...field })) : [],
-    requiredSystemKeys: input.requiredSystemKeys ? [...new Set(input.requiredSystemKeys.map((key) => key.trim()).filter(Boolean))] : [],
+    requiredSystemKeys: input.requiredSystemKeys
+      ? [...new Set(input.requiredSystemKeys.map((key) => key.trim()).filter(Boolean))]
+      : [],
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -93,7 +104,7 @@ function normalizeTenantId(tenantId: string): string {
   return normalized;
 }
 
-function validateUniqueCode(existing: TemplateRecord | null, id: string, code: string): void {
+function validateUniqueCode(existing: TemplateRecord | null, id: string): void {
   if (existing && existing.id !== id) {
     throw new ConflictError("template code must be unique");
   }
@@ -130,14 +141,17 @@ export class InMemoryTemplateRepository implements TemplateRepository {
 
   async getByCode(tenantId: string, code: string) {
     const normalized = normalize(code);
-    const record = [...this.bucket(normalizeTenantId(tenantId)).values()].find((item) => item.code === normalized) ?? null;
+    const record =
+      [...this.bucket(normalizeTenantId(tenantId)).values()].find(
+        (item) => item.code === normalized,
+      ) ?? null;
     return record ? clone(record) : null;
   }
 
   async create(tenantId: string, input: TemplateCreateInput) {
     const normalizedTenantId = normalizeTenantId(tenantId);
     const duplicate = await this.getByCode(normalizedTenantId, input.code);
-    validateUniqueCode(duplicate, "", input.code);
+    validateUniqueCode(duplicate, "");
     const record = createRecord(normalizedTenantId, input);
     this.bucket(normalizedTenantId).set(record.id, record);
     return clone(record);
@@ -150,7 +164,7 @@ export class InMemoryTemplateRepository implements TemplateRepository {
     if (!existing || existing.status === "ARCHIVED") return null;
     if (input.code !== undefined) {
       const duplicate = await this.getByCode(normalizedTenantId, input.code);
-      validateUniqueCode(duplicate, id, input.code);
+      validateUniqueCode(duplicate, id);
     }
     const nextVersion = existing.version + 1;
     const updated: TemplateRecord = clone({
@@ -158,13 +172,20 @@ export class InMemoryTemplateRepository implements TemplateRepository {
       code: input.code ? normalize(input.code) : existing.code,
       name: input.name ? input.name.trim() : existing.name,
       templateType: input.templateType ?? existing.templateType,
-      description: input.description !== undefined ? input.description?.trim() || undefined : existing.description,
+      description:
+        input.description !== undefined
+          ? input.description?.trim() || undefined
+          : existing.description,
       subject: input.subject !== undefined ? input.subject?.trim() || undefined : existing.subject,
       body: input.body !== undefined ? input.body?.trim() || undefined : existing.body,
       layout: input.layout !== undefined ? input.layout?.trim() || undefined : existing.layout,
-      sections: input.sections ? input.sections.map((section) => ({ ...section })) : existing.sections,
+      sections: input.sections
+        ? input.sections.map((section) => ({ ...section }))
+        : existing.sections,
       fields: input.fields ? input.fields.map((field) => ({ ...field })) : existing.fields,
-      requiredSystemKeys: input.requiredSystemKeys ? [...new Set(input.requiredSystemKeys.map((key) => key.trim()).filter(Boolean))] : existing.requiredSystemKeys,
+      requiredSystemKeys: input.requiredSystemKeys
+        ? [...new Set(input.requiredSystemKeys.map((key) => key.trim()).filter(Boolean))]
+        : existing.requiredSystemKeys,
       status: "DRAFT",
       version: nextVersion,
       updatedAt: now(),
@@ -229,17 +250,24 @@ export class MongoTemplateRepository implements TemplateRepository {
   }
 
   async getById(tenantId: string, id: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }));
+    return fromDocument(
+      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }),
+    );
   }
 
   async getByCode(tenantId: string, code: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), code: normalize(code) }));
+    return fromDocument(
+      await this.collection.findOne({
+        tenantId: normalizeTenantId(tenantId),
+        code: normalize(code),
+      }),
+    );
   }
 
   async create(tenantId: string, input: TemplateCreateInput) {
     const normalizedTenantId = normalizeTenantId(tenantId);
     const duplicate = await this.getByCode(normalizedTenantId, input.code);
-    validateUniqueCode(duplicate, "", input.code);
+    validateUniqueCode(duplicate, "");
     const record = createRecord(normalizedTenantId, input);
     await this.collection.insertOne(toDocument(record));
     return record;
@@ -251,7 +279,7 @@ export class MongoTemplateRepository implements TemplateRepository {
     if (!existing || existing.status === "ARCHIVED") return null;
     if (input.code !== undefined) {
       const duplicate = await this.getByCode(normalizedTenantId, input.code);
-      validateUniqueCode(duplicate, id, input.code);
+      validateUniqueCode(duplicate, id);
     }
     const nextVersion = existing.version + 1;
     const updated: TemplateRecord = clone({
@@ -259,19 +287,29 @@ export class MongoTemplateRepository implements TemplateRepository {
       code: input.code ? normalize(input.code) : existing.code,
       name: input.name ? input.name.trim() : existing.name,
       templateType: input.templateType ?? existing.templateType,
-      description: input.description !== undefined ? input.description?.trim() || undefined : existing.description,
+      description:
+        input.description !== undefined
+          ? input.description?.trim() || undefined
+          : existing.description,
       subject: input.subject !== undefined ? input.subject?.trim() || undefined : existing.subject,
       body: input.body !== undefined ? input.body?.trim() || undefined : existing.body,
       layout: input.layout !== undefined ? input.layout?.trim() || undefined : existing.layout,
-      sections: input.sections ? input.sections.map((section) => ({ ...section })) : existing.sections,
+      sections: input.sections
+        ? input.sections.map((section) => ({ ...section }))
+        : existing.sections,
       fields: input.fields ? input.fields.map((field) => ({ ...field })) : existing.fields,
-      requiredSystemKeys: input.requiredSystemKeys ? [...new Set(input.requiredSystemKeys.map((key) => key.trim()).filter(Boolean))] : existing.requiredSystemKeys,
+      requiredSystemKeys: input.requiredSystemKeys
+        ? [...new Set(input.requiredSystemKeys.map((key) => key.trim()).filter(Boolean))]
+        : existing.requiredSystemKeys,
       status: "DRAFT",
       version: nextVersion,
       updatedAt: now(),
       archivedAt: undefined,
     });
-    const replaced = await this.collection.replaceOne({ tenantId: normalizedTenantId, _id: id }, toDocument(updated));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: normalizedTenantId, _id: id },
+      toDocument(updated),
+    );
     return replaced ? updated : null;
   }
 
@@ -287,7 +325,10 @@ export class MongoTemplateRepository implements TemplateRepository {
       archivedAt: undefined,
       updatedAt: nowValue,
     });
-    const replaced = await this.collection.replaceOne({ tenantId: normalizeTenantId(tenantId), _id: id }, toDocument(published));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: normalizeTenantId(tenantId), _id: id },
+      toDocument(published),
+    );
     return replaced ? published : null;
   }
 
@@ -301,7 +342,10 @@ export class MongoTemplateRepository implements TemplateRepository {
       archivedAt: nowValue,
       updatedAt: nowValue,
     });
-    const replaced = await this.collection.replaceOne({ tenantId: normalizeTenantId(tenantId), _id: id }, toDocument(archived));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: normalizeTenantId(tenantId), _id: id },
+      toDocument(archived),
+    );
     return replaced ? archived : null;
   }
 
@@ -311,7 +355,9 @@ export class MongoTemplateRepository implements TemplateRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -319,7 +365,9 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createTemplateRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<TemplateRepository> {
+export async function createTemplateRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<TemplateRepository> {
   if (!hasMongoEnv(env)) {
     return new InMemoryTemplateRepository();
   }

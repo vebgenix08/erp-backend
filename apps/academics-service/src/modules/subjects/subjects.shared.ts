@@ -10,7 +10,9 @@ export interface SubjectServiceDeps extends AcademicHierarchyRepositories {
   repository?: SubjectRepository | Promise<SubjectRepository>;
 }
 
-export async function resolveSubjectRepository(deps?: SubjectServiceDeps): Promise<SubjectRepository> {
+export async function resolveSubjectRepository(
+  deps?: SubjectServiceDeps,
+): Promise<SubjectRepository> {
   return await (deps?.repository ?? defaultRepository);
 }
 
@@ -27,6 +29,9 @@ export function requireSubjectPermission(context: RequestContext, permission: Pe
   }
 }
 
-export function requireSubjectPermissions(context: RequestContext, permission: keyof typeof academicsPermissions.subjects): void {
+export function requireSubjectPermissions(
+  context: RequestContext,
+  permission: keyof typeof academicsPermissions.subjects,
+): void {
   requireSubjectPermission(context, academicsPermissions.subjects[permission] as Permission);
 }

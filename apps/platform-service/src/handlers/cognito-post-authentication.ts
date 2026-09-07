@@ -8,7 +8,10 @@ interface CognitoPostAuthenticationEvent {
   userName?: string;
 }
 
-export async function handlePostAuthentication<T extends CognitoPostAuthenticationEvent>(event: T, deps?: FirstAdminBootstrapServiceDeps): Promise<T> {
+export async function handlePostAuthentication<T extends CognitoPostAuthenticationEvent>(
+  event: T,
+  deps?: FirstAdminBootstrapServiceDeps,
+): Promise<T> {
   const attributes = event.request.userAttributes ?? {};
   const role = attributes["custom:role"];
   const tenantId = attributes["custom:tenantId"]?.trim();

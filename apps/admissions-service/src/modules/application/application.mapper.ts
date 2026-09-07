@@ -13,7 +13,10 @@ export function toApplicationView(record: ApplicationRecord | null): Application
     rejectedAt: record.rejectedAt?.toISOString(),
     confirmedAt: record.confirmedAt?.toISOString(),
     cancelledAt: record.cancelledAt?.toISOString(),
-    reviews: record.reviews.map((review) => ({ ...review, reviewedAt: review.reviewedAt.toISOString() })),
+    reviews: record.reviews.map((review) => ({
+      ...review,
+      reviewedAt: review.reviewedAt.toISOString(),
+    })),
     stageHistory: record.stageHistory.map((entry) => ({ ...entry, at: entry.at.toISOString() })),
   };
 }

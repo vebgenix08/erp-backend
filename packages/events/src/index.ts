@@ -32,7 +32,10 @@ export interface AdmissionConfirmedEventData {
   confirmedAt: string;
 }
 
-export type AdmissionConfirmedEvent = DomainEvent<"admissions.admission.confirmed.v1", AdmissionConfirmedEventData>;
+export type AdmissionConfirmedEvent = DomainEvent<
+  "admissions.admission.confirmed.v1",
+  AdmissionConfirmedEventData
+>;
 
 export interface StudentEnrolledEventData {
   admissionApplicationId: string;
@@ -49,7 +52,10 @@ export interface StudentEnrolledEventData {
   createdBy: string;
 }
 
-export type StudentEnrolledEvent = DomainEvent<"academics.student.enrolled.v1", StudentEnrolledEventData>;
+export type StudentEnrolledEvent = DomainEvent<
+  "academics.student.enrolled.v1",
+  StudentEnrolledEventData
+>;
 
 export interface StudentEnrollmentChangedEventData extends StudentEnrolledEventData {
   previousEnrollmentId: string;
@@ -68,14 +74,16 @@ export class InMemoryEventPublisher implements EventPublisher {
     this.events.push(structuredClone(event));
   }
 }
-export interface EventBridgePublisherOptions{eventBusName:string;region?:string;source?:string;}
+export interface EventBridgePublisherOptions {
+  eventBusName: string;
+  region?: string;
+  source?: string;
+}
 export class EventBridgeEventPublisher implements EventPublisher {
   constructor(private readonly options: EventBridgePublisherOptions) {}
 
   async publish(event: DomainEvent) {
-    const { EventBridgeClient, PutEventsCommand } = await import(
-      "@aws-sdk/client-eventbridge"
-    );
+    const { EventBridgeClient, PutEventsCommand } = await import("@aws-sdk/client-eventbridge");
     const client = new EventBridgeClient(
       this.options.region ? { region: this.options.region } : {},
     ) as unknown as {
@@ -98,10 +106,18 @@ export class EventBridgeEventPublisher implements EventPublisher {
       }),
     );
     if ((result.FailedEntryCount ?? 0) > 0)
-      throw new Error(
-        result.Entries?.[0]?.ErrorMessage ??
-          "EventBridge rejected the domain event",
-      );
+      throw new Error(result.Entries?.[0]?.ErrorMessage ?? "EventBridge rejected the domain event");
   }
 }
-export function createRuntimeEventPublisher(source:string):EventPublisher{const env=(globalThis as unknown as{process?:{env?:Record<string,string|undefined>}}).process?.env??{},eventBusName=env.EVENT_BUS_NAME?.trim();if(!eventBusName)throw new Error("EVENT_BUS_NAME is required");return new EventBridgeEventPublisher({eventBusName,source,...(env.AWS_REGION?{region:env.AWS_REGION}:{})});}
+export function createRuntimeEventPublisher(source: string): EventPublisher {
+  const env =
+      (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process
+        ?.env ?? {},
+    eventBusName = env.EVENT_BUS_NAME?.trim();
+  if (!eventBusName) throw new Error("EVENT_BUS_NAME is required");
+  return new EventBridgeEventPublisher({
+    eventBusName,
+    source,
+    ...(env.AWS_REGION ? { region: env.AWS_REGION } : {}),
+  });
+}

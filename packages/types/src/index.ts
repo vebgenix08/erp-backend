@@ -2,12 +2,7 @@ export type TenantType = "INSTITUTION" | "SCHOOL" | "COLLEGE" | "DEGREE_COLLEGE"
 export type TenantStatus = "ONBOARDING" | "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETION_PENDING";
 
 export type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED" | "INVITED";
-export type AdmissionStatus =
-  | "DRAFT"
-  | "SUBMITTED"
-  | "UNDER_REVIEW"
-  | "ACCEPTED"
-  | "REJECTED";
+export type AdmissionStatus = "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED";
 export type StudentStatus = "ACTIVE" | "INACTIVE" | "GRADUATED" | "TRANSFERRED" | "DROPPED_OUT";
 export type FeeOrderStatus =
   | "DRAFT"

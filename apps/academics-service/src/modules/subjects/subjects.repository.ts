@@ -1,7 +1,22 @@
 import { BadRequestError, ConflictError } from "@school-erp/errors";
-import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
-import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { SubjectCreateInput, SubjectListFilter, SubjectRecord, SubjectUpdateInput, SubjectType } from "./subjects.model";
+import type {
+  CollectionAdapter,
+  MongoEnvLike,
+  PlatformCollectionAdapter,
+} from "@school-erp/mongodb";
+import {
+  createMongoCollectionAdapter,
+  createPlatformMongoCollectionAdapter,
+  getCollection,
+} from "@school-erp/mongodb";
+import { academicSequenceFilter } from "../academic-sequence";
+import type {
+  SubjectCreateInput,
+  SubjectListFilter,
+  SubjectRecord,
+  SubjectUpdateInput,
+  SubjectType,
+} from "./subjects.model";
 
 export interface SubjectRepository {
   list(tenantId: string, filter: SubjectListFilter): Promise<SubjectRecord[]>;
@@ -67,7 +82,12 @@ function normalizeType(type: SubjectType): SubjectType {
 export class InMemorySubjectRepository implements SubjectRepository {
   private readonly records = new Map<string, Map<string, SubjectRecord>>();
   private readonly sequences = new Map<string, number>();
-  async reserveNextCode(tenantId: string, campusId: string) { const key = `${normalizeTenantId(tenantId)}:${campusId}`; const next = (this.sequences.get(key) ?? 0) + 1; this.sequences.set(key, next); return `SUB-${String(next).padStart(3, "0")}`; }
+  async reserveNextCode(tenantId: string, campusId: string) {
+    const key = `${normalizeTenantId(tenantId)}:${campusId}`;
+    const next = (this.sequences.get(key) ?? 0) + 1;
+    this.sequences.set(key, next);
+    return `SUB-${String(next).padStart(3, "0")}`;
+  }
 
   private bucket(tenantId: string): Map<string, SubjectRecord> {
     let bucket = this.records.get(tenantId);
@@ -98,7 +118,10 @@ export class InMemorySubjectRepository implements SubjectRepository {
 
   async getByCode(tenantId: string, campusId: string, code: string) {
     const normalized = normalizeCode(code);
-    const record = [...this.bucket(normalizeTenantId(tenantId)).values()].find((item) => item.campusId === campusId && item.code === normalized) ?? null;
+    const record =
+      [...this.bucket(normalizeTenantId(tenantId)).values()].find(
+        (item) => item.campusId === campusId && item.code === normalized,
+      ) ?? null;
     return record ? clone(record) : null;
   }
 
@@ -132,15 +155,22 @@ export class InMemorySubjectRepository implements SubjectRepository {
     const nextStatus = input.status ?? existing.status;
     const updated: SubjectRecord = clone({
       ...existing,
-      programId: input.programId ? normalizeRequired(input.programId, "programId") : existing.programId,
-      classId: input.classId !== undefined ? (input.classId ? normalizeRequired(input.classId, "classId") : undefined) : existing.classId,
+      programId: input.programId
+        ? normalizeRequired(input.programId, "programId")
+        : existing.programId,
+      classId:
+        input.classId !== undefined
+          ? input.classId
+            ? normalizeRequired(input.classId, "classId")
+            : undefined
+          : existing.classId,
       name: input.name ? input.name.trim() : existing.name,
       subjectType: input.subjectType ?? existing.subjectType,
       credits: input.credits !== undefined ? input.credits : existing.credits,
       status: nextStatus,
       deactivatedAt:
         nextStatus === "INACTIVE"
-          ? existing.deactivatedAt ?? now()
+          ? (existing.deactivatedAt ?? now())
           : nextStatus === "ACTIVE"
             ? undefined
             : existing.deactivatedAt,
@@ -155,13 +185,31 @@ export class InMemorySubjectRepository implements SubjectRepository {
   }
 }
 
-interface SequenceDocument { _id: string; value: number; }
+interface SequenceDocument {
+  _id: string;
+  tenantId: string;
+  value: number;
+}
 class MongoSubjectRepository implements SubjectRepository {
-  constructor(private readonly collection: CollectionAdapter<SubjectDocument>, private readonly sequences: Awaited<ReturnType<typeof getCollection<SequenceDocument>>>) {}
-  async reserveNextCode(tenantId: string, campusId: string) { const result = await this.sequences.findOneAndUpdate({ _id: `subject:${normalizeTenantId(tenantId)}:${campusId}` }, { $inc: { value: 1 } }, { upsert: true, returnDocument: "after" }); return `SUB-${String(result?.value ?? 1).padStart(3, "0")}`; }
+  constructor(
+    private readonly collection: CollectionAdapter<SubjectDocument>,
+    private readonly sequences: PlatformCollectionAdapter<SequenceDocument>,
+  ) {}
+  async reserveNextCode(tenantId: string, campusId: string) {
+    const owner = normalizeTenantId(tenantId);
+    const result = await this.sequences.findOneAndUpdate(
+      academicSequenceFilter("subject", owner, campusId),
+      { $inc: { value: 1 }, $setOnInsert: { tenantId: owner } },
+      { upsert: true, returnDocument: "after" },
+    );
+    return `SUB-${String(result?.value ?? 1).padStart(3, "0")}`;
+  }
 
   async list(tenantId: string, filter: SubjectListFilter) {
-    const records = await this.collection.findMany({ tenantId: normalizeTenantId(tenantId), campusId: filter.campusId });
+    const records = await this.collection.findMany({
+      tenantId: normalizeTenantId(tenantId),
+      campusId: filter.campusId,
+    });
     return records
       .map((record) => fromDocument(record))
       .filter((record): record is SubjectRecord => record !== null)
@@ -175,11 +223,22 @@ class MongoSubjectRepository implements SubjectRepository {
   }
 
   async getById(tenantId: string, id: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }));
+    return fromDocument(
+      await this.collection.findOne({
+        tenantId: normalizeTenantId(tenantId),
+        _id: id,
+      }),
+    );
   }
 
   async getByCode(tenantId: string, campusId: string, code: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), campusId, code: normalizeCode(code) }));
+    return fromDocument(
+      await this.collection.findOne({
+        tenantId: normalizeTenantId(tenantId),
+        campusId,
+        code: normalizeCode(code),
+      }),
+    );
   }
 
   async create(tenantId: string, input: SubjectCreateInput & { code: string }) {
@@ -212,21 +271,31 @@ class MongoSubjectRepository implements SubjectRepository {
     const nextStatus = input.status ?? existing.status;
     const updated: SubjectRecord = clone({
       ...existing,
-      programId: input.programId ? normalizeRequired(input.programId, "programId") : existing.programId,
-      classId: input.classId !== undefined ? (input.classId ? normalizeRequired(input.classId, "classId") : undefined) : existing.classId,
+      programId: input.programId
+        ? normalizeRequired(input.programId, "programId")
+        : existing.programId,
+      classId:
+        input.classId !== undefined
+          ? input.classId
+            ? normalizeRequired(input.classId, "classId")
+            : undefined
+          : existing.classId,
       name: input.name ? input.name.trim() : existing.name,
       subjectType: input.subjectType ?? existing.subjectType,
       credits: input.credits !== undefined ? input.credits : existing.credits,
       status: nextStatus,
       deactivatedAt:
         nextStatus === "INACTIVE"
-          ? existing.deactivatedAt ?? now()
+          ? (existing.deactivatedAt ?? now())
           : nextStatus === "ACTIVE"
             ? undefined
             : existing.deactivatedAt,
       updatedAt: now(),
     });
-    const replaced = await this.collection.replaceOne({ tenantId: normalizedTenantId, _id: id }, toDocument(updated));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: normalizedTenantId, _id: id },
+      toDocument(updated),
+    );
     return replaced ? updated : null;
   }
 
@@ -236,7 +305,9 @@ class MongoSubjectRepository implements SubjectRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -244,18 +315,26 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createSubjectRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<SubjectRepository> {
+export async function createSubjectRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<SubjectRepository> {
   if (!hasMongoEnv(env)) {
     return new InMemorySubjectRepository();
   }
   const collection = await getCollection<SubjectDocument>("academics_subjects", env);
   const sequences = await getCollection<SequenceDocument>("academics_sequences", env);
   await collection.createIndex({ tenantId: 1, campusId: 1, code: 1 }, { unique: true });
-  return new MongoSubjectRepository(createMongoCollectionAdapter(collection), sequences);
+  return new MongoSubjectRepository(
+    createMongoCollectionAdapter(collection),
+    createPlatformMongoCollectionAdapter(sequences),
+  );
 }
 
 let defaultRepository: Promise<SubjectRepository> | undefined;
-function getDefaultRepository() { defaultRepository ??= createSubjectRepository(); return defaultRepository; }
+function getDefaultRepository() {
+  defaultRepository ??= createSubjectRepository();
+  return defaultRepository;
+}
 export const subjectRepository: SubjectRepository = {
   list: async (...args) => (await getDefaultRepository()).list(...args),
   getById: async (...args) => (await getDefaultRepository()).getById(...args),

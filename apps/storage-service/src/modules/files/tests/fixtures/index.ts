@@ -16,7 +16,12 @@ export function createStorageContext(): FileServiceContext {
         id: "user_1",
         email: "admin@example.test",
         role: "TENANT_ADMIN",
-        permissions: ["storage.files.create", "storage.files.read", "storage.files.update", "storage.files.delete"],
+        permissions: [
+          "storage.files.create",
+          "storage.files.read",
+          "storage.files.update",
+          "storage.files.delete",
+        ],
         source: "request",
       },
       tenant: {

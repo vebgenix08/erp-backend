@@ -1,14 +1,13 @@
+import { BadRequestError, ConflictError, NotFoundError } from "@school-erp/errors";
 import {
-  BadRequestError,
-  ConflictError,
-  NotFoundError,
-} from "@school-erp/errors";
-import {
+  createTenantMongoCollection,
   getMongoConnection,
   type MongoEnvLike,
+  type TenantFilter,
+  type TenantMongoCollection,
   withTransaction,
 } from "@school-erp/mongodb";
-import type { Collection, ClientSession } from "mongodb";
+import type { ClientSession } from "mongodb";
 import type {
   CreateStudentFromAdmissionInput,
   EnrollmentRecord,
@@ -16,6 +15,7 @@ import type {
   StudentPage,
   StudentRecord,
   StudentWithEnrollment,
+  UpdateStudentProfile,
 } from "./students.model";
 interface StudentDocument extends StudentRecord {
   _id: string;
@@ -25,6 +25,7 @@ interface EnrollmentDocument extends EnrollmentRecord {
 }
 interface SequenceDocument {
   _id: string;
+  tenantId: string;
   value: number;
 }
 export interface CreateStudentPersistenceInput extends CreateStudentFromAdmissionInput {
@@ -44,20 +45,50 @@ export interface StudentRepository {
     tenantId: string,
     applicationId: string,
   ): Promise<StudentWithEnrollment | null>;
-  list(
-    tenantId: string,
-    filter?: StudentListFilter,
-  ): Promise<StudentWithEnrollment[]>;
+  list(tenantId: string, filter?: StudentListFilter): Promise<StudentWithEnrollment[]>;
   listPage(tenantId: string, filter: StudentListFilter): Promise<StudentPage>;
+  updateProfile(
+    tenantId: string,
+    studentId: string,
+    input: UpdateStudentProfile,
+  ): Promise<StudentWithEnrollment>;
   changeEnrollment(
     tenantId: string,
     studentId: string,
-    input: { enrollmentId?: string; campusId: string; academicYearId: string; programId: string; classId: string; sectionId?: string; rollNumber?: string; registrationNumber?: string; changedBy: string },
+    input: {
+      enrollmentId?: string;
+      campusId: string;
+      academicYearId: string;
+      programId: string;
+      classId: string;
+      sectionId?: string;
+      rollNumber?: string;
+      registrationNumber?: string;
+      changedBy: string;
+    },
   ): Promise<{ current: StudentWithEnrollment; previousEnrollmentId: string }>;
-  registrationNumberExists(tenantId: string, registrationNumber: string, excludeStudentId?: string): Promise<boolean>;
-  rollNumberExists(tenantId: string, academicYearId: string, sectionId: string, rollNumber: string, excludeEnrollmentId?: string): Promise<boolean>;
-  setRegistrationNumber(tenantId: string, studentId: string, registrationNumber: string): Promise<void>;
-  setEnrollmentRollNumber(tenantId: string, enrollmentId: string, rollNumber: string): Promise<void>;
+  registrationNumberExists(
+    tenantId: string,
+    registrationNumber: string,
+    excludeStudentId?: string,
+  ): Promise<boolean>;
+  rollNumberExists(
+    tenantId: string,
+    academicYearId: string,
+    sectionId: string,
+    rollNumber: string,
+    excludeEnrollmentId?: string,
+  ): Promise<boolean>;
+  setRegistrationNumber(
+    tenantId: string,
+    studentId: string,
+    registrationNumber: string,
+  ): Promise<void>;
+  setEnrollmentRollNumber(
+    tenantId: string,
+    enrollmentId: string,
+    rollNumber: string,
+  ): Promise<void>;
 }
 const tenant = (value: string) => {
   const normalized = value.trim();
@@ -82,10 +113,7 @@ const cloneEnrollment = (item: EnrollmentRecord): EnrollmentRecord => ({
   createdAt: new Date(item.createdAt),
   updatedAt: new Date(item.updatedAt),
 });
-const pair = (
-  student: StudentRecord,
-  enrollment: EnrollmentRecord,
-): StudentWithEnrollment => ({
+const pair = (student: StudentRecord, enrollment: EnrollmentRecord): StudentWithEnrollment => ({
   student: cloneStudent(student),
   enrollment: cloneEnrollment(enrollment),
 });
@@ -108,16 +136,11 @@ export class InMemoryStudentRepository implements StudentRepository {
     programId: string,
   ) {
     const tid = tenant(tenantId),
-      existing = await this.getByAdmissionApplicationId(
-        tid,
-        input.admissionApplicationId,
-      );
+      existing = await this.getByAdmissionApplicationId(tid, input.admissionApplicationId);
     if (existing) return existing;
     if (
       [...this.students.values()].some(
-        (item) =>
-          item.tenantId === tid &&
-          item.admissionNumber === input.admissionNumber,
+        (item) => item.tenantId === tid && item.admissionNumber === input.admissionNumber,
       )
     )
       throw new ConflictError("admission number already belongs to a student");
@@ -168,18 +191,14 @@ export class InMemoryStudentRepository implements StudentRepository {
     if (!student || student.tenantId !== tenant(tenantId)) return null;
     const enrollment = [...this.enrollments.values()].find(
       (item) =>
-        item.tenantId === student.tenantId &&
-        item.studentId === id &&
-        item.status === "ACTIVE",
+        item.tenantId === student.tenantId && item.studentId === id && item.status === "ACTIVE",
     );
     return enrollment ? pair(student, enrollment) : null;
   }
   async getByAdmissionApplicationId(tenantId: string, applicationId: string) {
     const tid = tenant(tenantId),
       student = [...this.students.values()].find(
-        (item) =>
-          item.tenantId === tid &&
-          item.admissionApplicationId === applicationId,
+        (item) => item.tenantId === tid && item.admissionApplicationId === applicationId,
       );
     return student ? this.getById(tid, student.id) : null;
   }
@@ -193,24 +212,23 @@ export class InMemoryStudentRepository implements StudentRepository {
   }
   async listPage(tenantId: string, filter: StudentListFilter = {}) {
     const tid = tenant(tenantId),
-      rows: StudentWithEnrollment[] = [];
+      rows: StudentWithEnrollment[] = [],
+      scopedRows: StudentWithEnrollment[] = [];
     for (const student of this.students.values()) {
-      if (
-        student.tenantId !== tid ||
-        (filter.status && student.status !== filter.status)
-      )
-        continue;
+      if (student.tenantId !== tid) continue;
       const enrollment = [...this.enrollments.values()].find(
         (item) =>
-          item.tenantId === tid &&
-          item.studentId === student.id &&
-          item.status === "ACTIVE",
+          item.tenantId === tid && item.studentId === student.id && item.status === "ACTIVE",
       );
       if (!enrollment) continue;
       if (
         (filter.campusId && enrollment.campusId !== filter.campusId) ||
-        (filter.academicYearId &&
-          enrollment.academicYearId !== filter.academicYearId) ||
+        (filter.academicYearId && enrollment.academicYearId !== filter.academicYearId)
+      )
+        continue;
+      scopedRows.push(pair(student, enrollment));
+      if (
+        (filter.status && student.status !== filter.status) ||
         (filter.classId && enrollment.classId !== filter.classId) ||
         (filter.sectionId && enrollment.sectionId !== filter.sectionId)
       )
@@ -248,8 +266,17 @@ export class InMemoryStudentRepository implements StudentRepository {
     });
     const total = rows.length;
     const offset = (page - 1) * pageSize;
+    const overall = {
+      total: scopedRows.length,
+      active: scopedRows.filter((item) => item.student.status === "ACTIVE").length,
+      inactive: scopedRows.filter((item) => item.student.status === "INACTIVE").length,
+      missingSection: scopedRows.filter(
+        (item) => item.student.status === "ACTIVE" && !item.enrollment.sectionId,
+      ).length,
+    };
     return {
       items: rows.slice(offset, offset + pageSize),
+      overall,
       page,
       pageSize,
       total,
@@ -258,35 +285,143 @@ export class InMemoryStudentRepository implements StudentRepository {
       sortDirection,
     };
   }
-  async changeEnrollment(tenantId: string, studentId: string, input: { enrollmentId?: string; campusId: string; academicYearId: string; programId: string; classId: string; sectionId?: string; rollNumber?: string; registrationNumber?: string; changedBy: string }) {
-    const tid = tenant(tenantId), existing = await this.getById(tid, studentId);
+  async changeEnrollment(
+    tenantId: string,
+    studentId: string,
+    input: {
+      enrollmentId?: string;
+      campusId: string;
+      academicYearId: string;
+      programId: string;
+      classId: string;
+      sectionId?: string;
+      rollNumber?: string;
+      registrationNumber?: string;
+      changedBy: string;
+    },
+  ) {
+    const tid = tenant(tenantId),
+      existing = await this.getById(tid, studentId);
     if (!existing) throw new NotFoundError("student was not found");
-    if (input.registrationNumber && await this.registrationNumberExists(tid, input.registrationNumber, studentId)) throw new ConflictError("registration number already belongs to a student");
-    if (input.rollNumber && input.sectionId && await this.rollNumberExists(tid, input.academicYearId, input.sectionId, input.rollNumber, input.enrollmentId)) throw new ConflictError("roll number already belongs to this section");
+    if (
+      input.registrationNumber &&
+      (await this.registrationNumberExists(tid, input.registrationNumber, studentId))
+    )
+      throw new ConflictError("registration number already belongs to a student");
+    if (
+      input.rollNumber &&
+      input.sectionId &&
+      (await this.rollNumberExists(
+        tid,
+        input.academicYearId,
+        input.sectionId,
+        input.rollNumber,
+        input.enrollmentId,
+      ))
+    )
+      throw new ConflictError("roll number already belongs to this section");
     const previous = this.enrollments.get(existing.enrollment.id)!;
-    previous.status = "COMPLETED"; previous.updatedAt = new Date();
+    previous.status = "COMPLETED";
+    previous.updatedAt = new Date();
     this.enrollments.set(previous.id, cloneEnrollment(previous));
-    const now = new Date(), enrollment: EnrollmentRecord = { id: input.enrollmentId ?? `enrollment_${crypto.randomUUID()}`, tenantId: tid, studentId, campusId: input.campusId, academicYearId: input.academicYearId, programId: input.programId, classId: input.classId, status: "ACTIVE", enrolledAt: now, createdBy: input.changedBy, createdAt: now, updatedAt: now };
+    const now = new Date(),
+      enrollment: EnrollmentRecord = {
+        id: input.enrollmentId ?? `enrollment_${crypto.randomUUID()}`,
+        tenantId: tid,
+        studentId,
+        campusId: input.campusId,
+        academicYearId: input.academicYearId,
+        programId: input.programId,
+        classId: input.classId,
+        status: "ACTIVE",
+        enrolledAt: now,
+        createdBy: input.changedBy,
+        createdAt: now,
+        updatedAt: now,
+      };
     if (input.sectionId) enrollment.sectionId = input.sectionId;
     if (input.rollNumber) enrollment.rollNumber = input.rollNumber;
     this.enrollments.set(enrollment.id, cloneEnrollment(enrollment));
-    const updatedStudent = input.registrationNumber ? { ...existing.student, registrationNumber: input.registrationNumber, updatedAt: now } : existing.student;
+    const updatedStudent = input.registrationNumber
+      ? {
+          ...existing.student,
+          registrationNumber: input.registrationNumber,
+          updatedAt: now,
+        }
+      : existing.student;
     if (input.registrationNumber) this.students.set(studentId, cloneStudent(updatedStudent));
-    return { current: pair(updatedStudent, enrollment), previousEnrollmentId: previous.id };
+    return {
+      current: pair(updatedStudent, enrollment),
+      previousEnrollmentId: previous.id,
+    };
   }
-  async registrationNumberExists(tenantId: string, registrationNumber: string, excludeStudentId?: string) {
+  async updateProfile(tenantId: string, studentId: string, input: UpdateStudentProfile) {
     const tid = tenant(tenantId);
-    return [...this.students.values()].some((item) => item.tenantId === tid && item.id !== excludeStudentId && item.registrationNumber === registrationNumber);
+    const existing = await this.getById(tid, studentId);
+    if (!existing) throw new NotFoundError("student was not found");
+    const updated: StudentRecord = {
+      ...existing.student,
+      name: input.name,
+      phone: input.phone,
+      guardian: { name: input.guardian.name },
+      updatedAt: new Date(),
+    };
+    if (input.dateOfBirth) updated.dateOfBirth = new Date(input.dateOfBirth);
+    else delete updated.dateOfBirth;
+    if (input.gender) updated.gender = input.gender;
+    else delete updated.gender;
+    if (input.email) updated.email = input.email;
+    else delete updated.email;
+    if (input.address) updated.address = input.address;
+    else delete updated.address;
+    if (input.guardian.phone) updated.guardian.phone = input.guardian.phone;
+    if (input.guardian.relation) updated.guardian.relation = input.guardian.relation;
+    this.students.set(studentId, cloneStudent(updated));
+    return pair(updated, existing.enrollment);
   }
-  async rollNumberExists(tenantId: string, academicYearId: string, sectionId: string, rollNumber: string, excludeEnrollmentId?: string) {
+  async registrationNumberExists(
+    tenantId: string,
+    registrationNumber: string,
+    excludeStudentId?: string,
+  ) {
     const tid = tenant(tenantId);
-    return [...this.enrollments.values()].some((item) => item.tenantId === tid && item.id !== excludeEnrollmentId && item.status === "ACTIVE" && item.academicYearId === academicYearId && item.sectionId === sectionId && item.rollNumber === rollNumber);
+    return [...this.students.values()].some(
+      (item) =>
+        item.tenantId === tid &&
+        item.id !== excludeStudentId &&
+        item.registrationNumber === registrationNumber,
+    );
+  }
+  async rollNumberExists(
+    tenantId: string,
+    academicYearId: string,
+    sectionId: string,
+    rollNumber: string,
+    excludeEnrollmentId?: string,
+  ) {
+    const tid = tenant(tenantId);
+    return [...this.enrollments.values()].some(
+      (item) =>
+        item.tenantId === tid &&
+        item.id !== excludeEnrollmentId &&
+        item.status === "ACTIVE" &&
+        item.academicYearId === academicYearId &&
+        item.sectionId === sectionId &&
+        item.rollNumber === rollNumber,
+    );
   }
   async setRegistrationNumber(tenantId: string, studentId: string, registrationNumber: string) {
     const tid = tenant(tenantId);
     const student = this.students.get(studentId);
     if (!student || student.tenantId !== tid) throw new NotFoundError("student was not found");
-    if ([...this.students.values()].some((item) => item.tenantId === tid && item.id !== studentId && item.registrationNumber === registrationNumber))
+    if (
+      [...this.students.values()].some(
+        (item) =>
+          item.tenantId === tid &&
+          item.id !== studentId &&
+          item.registrationNumber === registrationNumber,
+      )
+    )
       throw new ConflictError("registration number already belongs to a student");
     student.registrationNumber = registrationNumber;
     student.updatedAt = new Date();
@@ -297,7 +432,17 @@ export class InMemoryStudentRepository implements StudentRepository {
     const enrollment = this.enrollments.get(enrollmentId);
     if (!enrollment || enrollment.tenantId !== tid || enrollment.status !== "ACTIVE")
       throw new NotFoundError("active enrollment was not found");
-    if ([...this.enrollments.values()].some((item) => item.tenantId === tid && item.id !== enrollmentId && item.status === "ACTIVE" && item.academicYearId === enrollment.academicYearId && item.sectionId === enrollment.sectionId && item.rollNumber === rollNumber))
+    if (
+      [...this.enrollments.values()].some(
+        (item) =>
+          item.tenantId === tid &&
+          item.id !== enrollmentId &&
+          item.status === "ACTIVE" &&
+          item.academicYearId === enrollment.academicYearId &&
+          item.sectionId === enrollment.sectionId &&
+          item.rollNumber === rollNumber,
+      )
+    )
       throw new ConflictError("roll number already belongs to this section");
     enrollment.rollNumber = rollNumber;
     enrollment.updatedAt = new Date();
@@ -306,16 +451,12 @@ export class InMemoryStudentRepository implements StudentRepository {
 }
 class MongoStudentRepository implements StudentRepository {
   constructor(
-    private readonly students: Collection<StudentDocument>,
-    private readonly enrollments: Collection<EnrollmentDocument>,
-    private readonly sequences: Collection<SequenceDocument>,
+    private readonly students: TenantMongoCollection<StudentDocument>,
+    private readonly enrollments: TenantMongoCollection<EnrollmentDocument>,
+    private readonly sequences: TenantMongoCollection<SequenceDocument>,
     private readonly env: MongoEnvLike,
   ) {}
-  private async enrollment(
-    tenantId: string,
-    studentId: string,
-    session?: ClientSession,
-  ) {
+  private async enrollment(tenantId: string, studentId: string, session?: ClientSession) {
     return this.enrollments.findOne(
       { tenantId, studentId, status: "ACTIVE" },
       session ? { session } : {},
@@ -327,10 +468,7 @@ class MongoStudentRepository implements StudentRepository {
     programId: string,
   ) {
     const tid = tenant(tenantId),
-      existing = await this.getByAdmissionApplicationId(
-        tid,
-        input.admissionApplicationId,
-      );
+      existing = await this.getByAdmissionApplicationId(tid, input.admissionApplicationId);
     if (existing) return existing;
     return withTransaction(
       async (session) => {
@@ -345,35 +483,37 @@ class MongoStudentRepository implements StudentRepository {
           session ? { session } : {},
         );
         if (duplicate) {
-          const current = await this.getByAdmissionApplicationId(
-            tid,
-            input.admissionApplicationId,
-          );
+          const current = await this.getByAdmissionApplicationId(tid, input.admissionApplicationId);
           if (current) return current;
-          throw new ConflictError(
-            "admission number already belongs to a student",
-          );
+          throw new ConflictError("admission number already belongs to a student");
         }
-        const sequence = await this.sequences.findOneAndUpdate(
-          { _id: `student-registration:${tid}:${input.academicYearId}` },
-          { $inc: { value: 1 } },
-          {
-            upsert: true,
-            returnDocument: "after",
-            includeResultMetadata: false,
-            ...(session ? { session } : {}),
-          },
-        );
+        const sequence = input.registrationNumber
+          ? null
+          : await this.sequences.findOneAndUpdate(
+              {
+                tenantId: tid,
+                _id: `student-registration:${tid}:${input.academicYearId}`,
+              },
+              { $inc: { value: 1 }, $setOnInsert: { tenantId: tid } },
+              {
+                upsert: true,
+                returnDocument: "after",
+                includeResultMetadata: false,
+                ...(session ? { session } : {}),
+              },
+            );
         const now = new Date(),
           student: StudentRecord = {
             id: input.studentId ?? `student_${crypto.randomUUID()}`,
             tenantId: tid,
             admissionApplicationId: input.admissionApplicationId,
             admissionNumber: input.admissionNumber,
-            registrationNumber: input.registrationNumber ?? `REG-${input.academicYearId
-              .replace(/[^A-Za-z0-9]/g, "")
-              .slice(-8)
-              .toUpperCase()}-${String(sequence?.value ?? 1).padStart(5, "0")}`,
+            registrationNumber:
+              input.registrationNumber ??
+              `REG-${input.academicYearId
+                .replace(/[^A-Za-z0-9]/g, "")
+                .slice(-8)
+                .toUpperCase()}-${String(sequence?.value ?? 1).padStart(5, "0")}`,
             name: input.studentName,
             phone: input.phone,
             guardian: { name: input.parentName },
@@ -382,14 +522,12 @@ class MongoStudentRepository implements StudentRepository {
             createdAt: now,
             updatedAt: now,
           };
-        if (input.dateOfBirth)
-          student.dateOfBirth = new Date(input.dateOfBirth);
+        if (input.dateOfBirth) student.dateOfBirth = new Date(input.dateOfBirth);
         if (input.gender) student.gender = input.gender;
         if (input.email) student.email = input.email;
         if (input.address) student.address = input.address;
         if (input.parentPhone) student.guardian.phone = input.parentPhone;
-        if (input.parentRelation)
-          student.guardian.relation = input.parentRelation;
+        if (input.parentRelation) student.guardian.relation = input.parentRelation;
         const enrollment: EnrollmentRecord = {
           id: input.enrollmentId ?? `enrollment_${crypto.randomUUID()}`,
           tenantId: tid,
@@ -406,10 +544,7 @@ class MongoStudentRepository implements StudentRepository {
         };
         if (input.sectionId) enrollment.sectionId = input.sectionId;
         if (input.rollNumber) enrollment.rollNumber = input.rollNumber;
-        await this.students.insertOne(
-          { ...student, _id: student.id },
-          session ? { session } : {},
-        );
+        await this.students.insertOne({ ...student, _id: student.id }, session ? { session } : {});
         await this.enrollments.insertOne(
           { ...enrollment, _id: enrollment.id },
           session ? { session } : {},
@@ -444,20 +579,73 @@ class MongoStudentRepository implements StudentRepository {
   }
   async listPage(tenantId: string, filter: StudentListFilter = {}) {
     const tid = tenant(tenantId);
-    const enrollmentFilter: Record<string, unknown> = { tenantId: tid, status: "ACTIVE" };
-    if (filter.campusId) enrollmentFilter.campusId = filter.campusId;
-    if (filter.academicYearId) enrollmentFilter.academicYearId = filter.academicYearId;
+    const overallEnrollmentFilter: TenantFilter<EnrollmentDocument> = {
+      tenantId: tid,
+      status: "ACTIVE",
+    };
+    if (filter.campusId) overallEnrollmentFilter.campusId = filter.campusId;
+    if (filter.academicYearId) overallEnrollmentFilter.academicYearId = filter.academicYearId;
+    const overallEnrollments = await this.enrollments.find(overallEnrollmentFilter).toArray();
+    const enrollmentFilter: TenantFilter<EnrollmentDocument> = { ...overallEnrollmentFilter };
     if (filter.classId) enrollmentFilter.classId = filter.classId;
     if (filter.sectionId) enrollmentFilter.sectionId = filter.sectionId;
-    const enrollments = await this.enrollments.find(enrollmentFilter).toArray();
+    const enrollments =
+      filter.classId || filter.sectionId
+        ? await this.enrollments.find(enrollmentFilter).toArray()
+        : overallEnrollments;
     const page = filter.page ?? 1;
     const pageSize = filter.pageSize ?? 25;
     const sortBy = filter.sortBy ?? "name";
     const sortDirection = filter.sortDirection ?? "ASC";
+    const overallStudentIds = overallEnrollments.map((item) => item.studentId);
+    const missingSectionStudentIds = overallEnrollments
+      .filter((item) => !item.sectionId)
+      .map((item) => item.studentId);
+    const [overallTotal, overallActive, overallInactive, overallMissingSection] =
+      overallStudentIds.length
+        ? await Promise.all([
+            this.students.countDocuments({ tenantId: tid, _id: { $in: overallStudentIds } }),
+            this.students.countDocuments({
+              tenantId: tid,
+              _id: { $in: overallStudentIds },
+              status: "ACTIVE",
+            }),
+            this.students.countDocuments({
+              tenantId: tid,
+              _id: { $in: overallStudentIds },
+              status: "INACTIVE",
+            }),
+            missingSectionStudentIds.length
+              ? this.students.countDocuments({
+                  tenantId: tid,
+                  _id: { $in: missingSectionStudentIds },
+                  status: "ACTIVE",
+                })
+              : Promise.resolve(0),
+          ])
+        : [0, 0, 0, 0];
+    const overall = {
+      total: overallTotal,
+      active: overallActive,
+      inactive: overallInactive,
+      missingSection: overallMissingSection,
+    };
     if (!enrollments.length)
-      return { items: [], page, pageSize, total: 0, totalPages: 0, sortBy, sortDirection };
+      return {
+        items: [],
+        overall,
+        page,
+        pageSize,
+        total: 0,
+        totalPages: 0,
+        sortBy,
+        sortDirection,
+      };
     const enrollmentByStudent = new Map(enrollments.map((item) => [item.studentId, item]));
-    const studentFilter: Record<string, unknown> = { tenantId: tid, _id: { $in: [...enrollmentByStudent.keys()] } };
+    const studentFilter: TenantFilter<StudentDocument> = {
+      tenantId: tid,
+      _id: { $in: [...enrollmentByStudent.keys()] },
+    };
     if (filter.status) studentFilter.status = filter.status;
     if (filter.search) {
       const search = { $regex: escapeRegex(filter.search), $options: "i" };
@@ -482,6 +670,7 @@ class MongoStudentRepository implements StudentRepository {
       .toArray();
     return {
       items: students.map((student) => pair(student, enrollmentByStudent.get(student.id)!)),
+      overall,
       page,
       pageSize,
       total,
@@ -490,32 +679,145 @@ class MongoStudentRepository implements StudentRepository {
       sortDirection,
     };
   }
-  async changeEnrollment(tenantId: string, studentId: string, input: { enrollmentId?: string; campusId: string; academicYearId: string; programId: string; classId: string; sectionId?: string; rollNumber?: string; registrationNumber?: string; changedBy: string }) {
+  async changeEnrollment(
+    tenantId: string,
+    studentId: string,
+    input: {
+      enrollmentId?: string;
+      campusId: string;
+      academicYearId: string;
+      programId: string;
+      classId: string;
+      sectionId?: string;
+      rollNumber?: string;
+      registrationNumber?: string;
+      changedBy: string;
+    },
+  ) {
     const tid = tenant(tenantId);
-    return withTransaction(async (session) => {
-      const student = await this.students.findOne({ tenantId: tid, _id: studentId }, session ? { session } : {});
-      if (!student) throw new NotFoundError("student was not found");
-      const previous = await this.enrollment(tid, studentId, session ?? undefined);
-      if (!previous) throw new NotFoundError("active enrollment was not found");
-      const now = new Date();
-      if (input.registrationNumber) {
-        await this.students.updateOne({ tenantId: tid, _id: studentId }, { $set: { registrationNumber: input.registrationNumber, updatedAt: now } }, session ? { session } : {});
-      }
-      await this.enrollments.updateOne({ tenantId: tid, _id: previous.id, status: "ACTIVE" }, { $set: { status: "COMPLETED", updatedAt: now } }, session ? { session } : {});
-      const enrollment: EnrollmentRecord = { id: input.enrollmentId ?? `enrollment_${crypto.randomUUID()}`, tenantId: tid, studentId, campusId: input.campusId, academicYearId: input.academicYearId, programId: input.programId, classId: input.classId, status: "ACTIVE", enrolledAt: now, createdBy: input.changedBy, createdAt: now, updatedAt: now };
-      if (input.sectionId) enrollment.sectionId = input.sectionId;
-      if (input.rollNumber) enrollment.rollNumber = input.rollNumber;
-      await this.enrollments.insertOne({ ...enrollment, _id: enrollment.id }, session ? { session } : {});
-      return { current: pair(input.registrationNumber ? { ...student, registrationNumber: input.registrationNumber, updatedAt: now } : student, enrollment), previousEnrollmentId: previous.id };
-    }, { env: this.env, context: { tenantId: tid, userId: input.changedBy } });
+    return withTransaction(
+      async (session) => {
+        const student = await this.students.findOne(
+          { tenantId: tid, _id: studentId },
+          session ? { session } : {},
+        );
+        if (!student) throw new NotFoundError("student was not found");
+        const previous = await this.enrollment(tid, studentId, session ?? undefined);
+        if (!previous) throw new NotFoundError("active enrollment was not found");
+        const now = new Date();
+        if (input.registrationNumber) {
+          await this.students.updateOne(
+            { tenantId: tid, _id: studentId },
+            {
+              $set: {
+                registrationNumber: input.registrationNumber,
+                updatedAt: now,
+              },
+            },
+            session ? { session } : {},
+          );
+        }
+        await this.enrollments.updateOne(
+          { tenantId: tid, _id: previous.id, status: "ACTIVE" },
+          { $set: { status: "COMPLETED", updatedAt: now } },
+          session ? { session } : {},
+        );
+        const enrollment: EnrollmentRecord = {
+          id: input.enrollmentId ?? `enrollment_${crypto.randomUUID()}`,
+          tenantId: tid,
+          studentId,
+          campusId: input.campusId,
+          academicYearId: input.academicYearId,
+          programId: input.programId,
+          classId: input.classId,
+          status: "ACTIVE",
+          enrolledAt: now,
+          createdBy: input.changedBy,
+          createdAt: now,
+          updatedAt: now,
+        };
+        if (input.sectionId) enrollment.sectionId = input.sectionId;
+        if (input.rollNumber) enrollment.rollNumber = input.rollNumber;
+        await this.enrollments.insertOne(
+          { ...enrollment, _id: enrollment.id },
+          session ? { session } : {},
+        );
+        return {
+          current: pair(
+            input.registrationNumber
+              ? {
+                  ...student,
+                  registrationNumber: input.registrationNumber,
+                  updatedAt: now,
+                }
+              : student,
+            enrollment,
+          ),
+          previousEnrollmentId: previous.id,
+        };
+      },
+      { env: this.env, context: { tenantId: tid, userId: input.changedBy } },
+    );
   }
-  async registrationNumberExists(tenantId: string, registrationNumber: string, excludeStudentId?: string) {
-    const filter: Record<string, unknown> = { tenantId: tenant(tenantId), registrationNumber };
+  async updateProfile(tenantId: string, studentId: string, input: UpdateStudentProfile) {
+    const tid = tenant(tenantId);
+    const existing = await this.getById(tid, studentId);
+    if (!existing) throw new NotFoundError("student was not found");
+    const now = new Date();
+    const set: Record<string, unknown> = {
+      name: input.name,
+      phone: input.phone,
+      "guardian.name": input.guardian.name,
+      updatedAt: now,
+    };
+    const unset: Record<string, ""> = {};
+    const optionalFields: Array<[string, unknown]> = [
+      ["dateOfBirth", input.dateOfBirth],
+      ["gender", input.gender],
+      ["email", input.email],
+      ["address", input.address],
+      ["guardian.phone", input.guardian.phone],
+      ["guardian.relation", input.guardian.relation],
+    ];
+    for (const [field, value] of optionalFields) {
+      if (value == null) unset[field] = "";
+      else set[field] = value;
+    }
+    const result = await this.students.updateOne(
+      { tenantId: tid, _id: studentId },
+      { $set: set, ...(Object.keys(unset).length ? { $unset: unset } : {}) },
+    );
+    if (!result.matchedCount) throw new NotFoundError("student was not found");
+    const updated = await this.getById(tid, studentId);
+    if (!updated) throw new NotFoundError("student was not found");
+    return updated;
+  }
+  async registrationNumberExists(
+    tenantId: string,
+    registrationNumber: string,
+    excludeStudentId?: string,
+  ) {
+    const filter: TenantFilter<StudentDocument> = {
+      tenantId: tenant(tenantId),
+      registrationNumber,
+    };
     if (excludeStudentId) filter._id = { $ne: excludeStudentId };
     return Boolean(await this.students.findOne(filter));
   }
-  async rollNumberExists(tenantId: string, academicYearId: string, sectionId: string, rollNumber: string, excludeEnrollmentId?: string) {
-    const filter: Record<string, unknown> = { tenantId: tenant(tenantId), academicYearId, sectionId, rollNumber, status: "ACTIVE" };
+  async rollNumberExists(
+    tenantId: string,
+    academicYearId: string,
+    sectionId: string,
+    rollNumber: string,
+    excludeEnrollmentId?: string,
+  ) {
+    const filter: TenantFilter<EnrollmentDocument> = {
+      tenantId: tenant(tenantId),
+      academicYearId,
+      sectionId,
+      rollNumber,
+      status: "ACTIVE",
+    };
     if (excludeEnrollmentId) filter._id = { $ne: excludeEnrollmentId };
     return Boolean(await this.enrollments.findOne(filter));
   }
@@ -537,17 +839,11 @@ class MongoStudentRepository implements StudentRepository {
   }
 }
 function runtimeEnv(): MongoEnvLike {
-  return (
-    (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process
-      ?.env ?? {}
-  );
+  return (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
 }
 function hasMongo(env: MongoEnvLike) {
   return Boolean(
-    env.MONGODB_URI ||
-      env.MONGODB_URI_DEV ||
-      env.MONGODB_URI_PROD ||
-      env.MONGODB_URI_TEST,
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
   );
 }
 export async function createStudentRepository(
@@ -559,30 +855,32 @@ export async function createStudentRepository(
     students = db.collection<StudentDocument>("academics_students"),
     enrollments = db.collection<EnrollmentDocument>("academics_enrollments"),
     sequences = db.collection<SequenceDocument>("academics_sequences");
-  await students.createIndex(
-    { tenantId: 1, admissionApplicationId: 1 },
-    { unique: true },
-  );
-  await students.createIndex(
-    { tenantId: 1, registrationNumber: 1 },
-    { unique: true },
-  );
-  await students.createIndex(
-    { tenantId: 1, admissionNumber: 1 },
-    { unique: true },
-  );
+  await students.createIndex({ tenantId: 1, admissionApplicationId: 1 }, { unique: true });
+  await students.createIndex({ tenantId: 1, registrationNumber: 1 }, { unique: true });
+  await students.createIndex({ tenantId: 1, admissionNumber: 1 }, { unique: true });
   await enrollments.dropIndex("tenantId_1_studentId_1_academicYearId_1").catch(() => undefined);
   await enrollments.createIndex(
     { tenantId: 1, studentId: 1 },
-    { unique: true, partialFilterExpression: { status: "ACTIVE" }, name: "uq_active_student_enrollment" },
+    {
+      unique: true,
+      partialFilterExpression: { status: "ACTIVE" },
+      name: "uq_active_student_enrollment",
+    },
   );
-  await enrollments.createIndex({ tenantId: 1, studentId: 1, academicYearId: 1 });
+  await enrollments.createIndex({
+    tenantId: 1,
+    studentId: 1,
+    academicYearId: 1,
+  });
   await enrollments.createIndex(
     { tenantId: 1, academicYearId: 1, sectionId: 1, rollNumber: 1 },
     {
       unique: true,
       name: "uq_active_section_roll_number",
-      partialFilterExpression: { status: "ACTIVE", rollNumber: { $type: "string" } },
+      partialFilterExpression: {
+        status: "ACTIVE",
+        rollNumber: { $type: "string" },
+      },
     },
   );
   await enrollments.createIndex({
@@ -592,7 +890,12 @@ export async function createStudentRepository(
     classId: 1,
     sectionId: 1,
   });
-  return new MongoStudentRepository(students, enrollments, sequences, env);
+  return new MongoStudentRepository(
+    createTenantMongoCollection(students),
+    createTenantMongoCollection(enrollments),
+    createTenantMongoCollection(sequences),
+    env,
+  );
 }
 let singleton: Promise<StudentRepository> | undefined;
 export function studentRepository() {

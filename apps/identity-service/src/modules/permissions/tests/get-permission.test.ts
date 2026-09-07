@@ -6,7 +6,10 @@ import { createPermissionFixture } from "./fixtures";
 
 test("get permission returns tenant-scoped permission", async () => {
   const context = createTenantContext({ tenantId: "tenant-1", source: "request" });
-  const created = await createPermissionUseCase(context, createPermissionFixture({ code: "identity.roles.read" }));
+  const created = await createPermissionUseCase(
+    context,
+    createPermissionFixture({ code: "identity.roles.read" }),
+  );
   const found = await getPermissionUseCase(context, String(created?.id ?? ""));
 
   assert.equal(found?.code, "identity.roles.read");

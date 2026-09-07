@@ -16,6 +16,11 @@ test("update campus changes mutable fields", async () => {
     } as any,
   });
   const created = await createCampusUseCase(context as any, createCampusFixture(), { repository });
-  const updated = await updateCampusUseCase(context as any, created.id, { name: "Updated Campus" }, { repository });
+  const updated = await updateCampusUseCase(
+    context as any,
+    created.id,
+    { name: "Updated Campus" },
+    { repository },
+  );
   assert.equal(updated?.name, "Updated Campus");
 });

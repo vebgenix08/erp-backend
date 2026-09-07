@@ -1,11 +1,17 @@
 import { BadRequestError, ConflictError } from "@school-erp/errors";
 import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
 import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { UserCreateInput, UserPage, UserPageFilter, UserRecord, UserUpdateInput } from "./users.model";
+import type {
+  UserCreateInput,
+  UserPage,
+  UserPageFilter,
+  UserRecord,
+  UserUpdateInput,
+} from "./users.model";
 
 export interface UserRepository {
   list(tenantId: string): Promise<UserRecord[]>;
-  listPage(tenantId:string,filter?:UserPageFilter):Promise<UserPage>;
+  listPage(tenantId: string, filter?: UserPageFilter): Promise<UserPage>;
   getById(tenantId: string, id: string): Promise<UserRecord | null>;
   getByEmail(tenantId: string, email: string): Promise<UserRecord | null>;
   getByAuthUserId(tenantId: string, authUserId: string): Promise<UserRecord | null>;
@@ -80,7 +86,7 @@ function mergeUser(existing: UserRecord, input: UserUpdateInput): UserRecord {
     updatedAt: now(),
     deactivatedAt:
       nextStatus === "INACTIVE" || nextStatus === "SUSPENDED"
-        ? existing.deactivatedAt ?? now()
+        ? (existing.deactivatedAt ?? now())
         : nextStatus === "ACTIVE"
           ? undefined
           : existing.deactivatedAt,
@@ -105,7 +111,24 @@ class InMemoryUserRepository implements UserRepository {
       .sort((left, right) => left.name.localeCompare(right.name))
       .map(cloneUser);
   }
-  async listPage(tenantId:string,filter:UserPageFilter={}){const search=filter.search?.trim().toLowerCase(),rows=(await this.list(tenantId)).filter(item=>(!filter.status||item.status===filter.status)&&(!search||`${item.name} ${item.email}`.toLowerCase().includes(search)));const page=Math.max(1,filter.page??1),pageSize=Math.min(100,Math.max(1,filter.pageSize??25)),total=rows.length;return{items:rows.slice((page-1)*pageSize,page*pageSize),page,pageSize,total,totalPages:Math.ceil(total/pageSize)}}
+  async listPage(tenantId: string, filter: UserPageFilter = {}) {
+    const search = filter.search?.trim().toLowerCase(),
+      rows = (await this.list(tenantId)).filter(
+        (item) =>
+          (!filter.status || item.status === filter.status) &&
+          (!search || `${item.name} ${item.email}`.toLowerCase().includes(search)),
+      );
+    const page = Math.max(1, filter.page ?? 1),
+      pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 25)),
+      total = rows.length;
+    return {
+      items: rows.slice((page - 1) * pageSize, page * pageSize),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
 
   async getById(tenantId: string, id: string) {
     const user = this.users.get(id) ?? null;
@@ -115,13 +138,19 @@ class InMemoryUserRepository implements UserRepository {
   async getByEmail(tenantId: string, email: string) {
     const normalizedTenantId = normalizeTenantId(tenantId);
     const normalizedEmail = normalizeEmail(email);
-    const user = [...this.users.values()].find((item) => item.tenantId === normalizedTenantId && item.email === normalizedEmail) ?? null;
+    const user =
+      [...this.users.values()].find(
+        (item) => item.tenantId === normalizedTenantId && item.email === normalizedEmail,
+      ) ?? null;
     return user ? cloneUser(user) : null;
   }
 
   async getByAuthUserId(tenantId: string, authUserId: string) {
     const normalizedTenantId = normalizeTenantId(tenantId);
-    const user = [...this.users.values()].find((item) => item.tenantId === normalizedTenantId && item.authUserId === authUserId) ?? null;
+    const user =
+      [...this.users.values()].find(
+        (item) => item.tenantId === normalizedTenantId && item.authUserId === authUserId,
+      ) ?? null;
     return user ? cloneUser(user) : null;
   }
 
@@ -167,20 +196,54 @@ class MongoUserRepository implements UserRepository {
       .filter((record): record is UserRecord => record !== null)
       .sort((left, right) => left.name.localeCompare(right.name));
   }
-  async listPage(tenantId:string,filter:UserPageFilter={}){const query:Record<string,unknown>={tenantId:normalizeTenantId(tenantId)};if(filter.status)query.status=filter.status;if(filter.search?.trim())query.$or=[{name:{$regex:filter.search.trim(),$options:"i"}},{email:{$regex:filter.search.trim(),$options:"i"}}];const page=Math.max(1,filter.page??1),pageSize=Math.min(100,Math.max(1,filter.pageSize??25));const[documents,total]=await Promise.all([this.collection.findMany(query as never,{sort:{name:1,_id:1},skip:(page-1)*pageSize,limit:pageSize}),this.collection.count(query as never)]);return{items:documents.map(item=>fromUserDocument(item)).filter((item):item is UserRecord=>Boolean(item)),page,pageSize,total,totalPages:Math.ceil(total/pageSize)}}
+  async listPage(tenantId: string, filter: UserPageFilter = {}) {
+    const query: Record<string, unknown> = { tenantId: normalizeTenantId(tenantId) };
+    if (filter.status) query.status = filter.status;
+    if (filter.search?.trim())
+      query.$or = [
+        { name: { $regex: filter.search.trim(), $options: "i" } },
+        { email: { $regex: filter.search.trim(), $options: "i" } },
+      ];
+    const page = Math.max(1, filter.page ?? 1),
+      pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 25));
+    const [documents, total] = await Promise.all([
+      this.collection.findMany(query as never, {
+        sort: { name: 1, _id: 1 },
+        skip: (page - 1) * pageSize,
+        limit: pageSize,
+      }),
+      this.collection.count(query as never),
+    ]);
+    return {
+      items: documents
+        .map((item) => fromUserDocument(item))
+        .filter((item): item is UserRecord => Boolean(item)),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
 
   async getById(tenantId: string, id: string) {
-    return fromUserDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }));
+    return fromUserDocument(
+      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }),
+    );
   }
 
   async getByEmail(tenantId: string, email: string) {
     return fromUserDocument(
-      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), email: normalizeEmail(email) }),
+      await this.collection.findOne({
+        tenantId: normalizeTenantId(tenantId),
+        email: normalizeEmail(email),
+      }),
     );
   }
 
   async getByAuthUserId(tenantId: string, authUserId: string) {
-    return fromUserDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), authUserId }));
+    return fromUserDocument(
+      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), authUserId }),
+    );
   }
 
   async create(tenantId: string, input: UserCreateInput) {
@@ -204,7 +267,10 @@ class MongoUserRepository implements UserRepository {
       }
     }
     const updated = mergeUser(existing, input);
-    const replaced = await this.collection.replaceOne({ tenantId: updated.tenantId, _id: id }, toUserDocument(updated));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: updated.tenantId, _id: id },
+      toUserDocument(updated),
+    );
     return replaced ? updated : null;
   }
 
@@ -215,7 +281,9 @@ class MongoUserRepository implements UserRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -223,7 +291,9 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createUserRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<UserRepository> {
+export async function createUserRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<UserRepository> {
   if (!hasMongoEnv(env)) {
     return new InMemoryUserRepository();
   }
@@ -234,7 +304,11 @@ export async function createUserRepository(env: MongoEnvLike = getRuntimeEnv()):
   return new MongoUserRepository(createMongoCollectionAdapter(collection));
 }
 
-export const userRepository = createUserRepository();
+let defaultRepository: Promise<UserRepository> | undefined;
+
+export function userRepository(): Promise<UserRepository> {
+  return (defaultRepository ??= createUserRepository());
+}
 
 export {
   InMemoryUserRepository,

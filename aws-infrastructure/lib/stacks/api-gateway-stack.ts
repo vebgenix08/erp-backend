@@ -1,7 +1,13 @@
-import { CfnOutput, Stack, StackProps, aws_apigateway as apigateway, aws_lambda as lambda } from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-import type { EnvironmentConfig } from '../config';
-import type { ServiceName } from './lambda-services-stack';
+import {
+  CfnOutput,
+  Stack,
+  StackProps,
+  aws_apigateway as apigateway,
+  aws_lambda as lambda,
+} from "aws-cdk-lib";
+import { Construct } from "constructs";
+import type { EnvironmentConfig } from "../config";
+import type { ServiceName } from "./lambda-services-stack";
 
 export interface ApiGatewayStackProps extends StackProps {
   config: EnvironmentConfig;
@@ -14,7 +20,7 @@ export class ApiGatewayStack extends Stack {
   constructor(scope: Construct, id: string, props: ApiGatewayStackProps) {
     super(scope, id, props);
 
-    this.api = new apigateway.RestApi(this, 'RestApi', {
+    this.api = new apigateway.RestApi(this, "RestApi", {
       restApiName: props.config.apiName,
       description: `ERP API for ${props.config.environment}`,
       deployOptions: {
@@ -29,40 +35,42 @@ export class ApiGatewayStack extends Stack {
       },
     });
 
-    const health = this.api.root.addResource('health');
+    const health = this.api.root.addResource("health");
     health.addMethod(
-      'GET',
+      "GET",
       new apigateway.MockIntegration({
         integrationResponses: [
           {
-            statusCode: '200',
+            statusCode: "200",
             responseTemplates: {
-              'application/json': JSON.stringify({
+              "application/json": JSON.stringify({
                 ok: true,
-                service: 'api',
+                service: "api",
                 environment: props.config.environment,
               }),
             },
           },
         ],
         requestTemplates: {
-          'application/json': '{"statusCode": 200}',
+          "application/json": '{"statusCode": 200}',
         },
       }),
       {
-        methodResponses: [{ statusCode: '200' }],
+        methodResponses: [{ statusCode: "200" }],
       },
     );
 
-    for (const [serviceName, serviceFunction] of Object.entries(props.healthFunctions) as Array<[ServiceName, lambda.IFunction]>) {
+    for (const [serviceName, serviceFunction] of Object.entries(props.healthFunctions) as Array<
+      [ServiceName, lambda.IFunction]
+    >) {
       const route = health.addResource(serviceName);
-      route.addMethod('GET', new apigateway.LambdaIntegration(serviceFunction), {
-        methodResponses: [{ statusCode: '200' }],
+      route.addMethod("GET", new apigateway.LambdaIntegration(serviceFunction), {
+        methodResponses: [{ statusCode: "200" }],
       });
     }
 
-    new CfnOutput(this, 'ApiUrl', {
-      value: this.api.url ?? 'pending',
+    new CfnOutput(this, "ApiUrl", {
+      value: this.api.url ?? "pending",
     });
   }
 }

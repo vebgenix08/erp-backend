@@ -38,16 +38,10 @@ function context(tenantId = "tenant_one"): RequestContext {
   };
 }
 
-async function createConfiguration(
-  repository: InMemoryFeeConfigurationRepository,
-) {
+async function createConfiguration(repository: InMemoryFeeConfigurationRepository) {
   const deps = { repository };
   const ctx = context();
-  const head = await createFeeHead(
-    { name: "Tuition Fee", category: "TUITION" },
-    ctx,
-    deps,
-  );
+  const head = await createFeeHead({ name: "Tuition Fee", category: "TUITION" }, ctx, deps);
   const schedule = await createFeeSchedule(
     {
       campusId: "campus_1",
@@ -74,8 +68,7 @@ async function createConfiguration(
 
 test("creates a date-free fee configuration and keeps tenants isolated", async () => {
   const repository = new InMemoryFeeConfigurationRepository();
-  const { deps, ctx, schedule, structure } =
-    await createConfiguration(repository);
+  const { deps, ctx, schedule, structure } = await createConfiguration(repository);
   await createFeeMapping(
     {
       campusId: "campus_1",
@@ -94,10 +87,7 @@ test("creates a date-free fee configuration and keeps tenants isolated", async (
   );
   assert.equal(snapshot.schedules[0]?.pattern, "ANNUAL");
   assert.equal(snapshot.structures[0]?.totalAmountMinor, 125_000);
-  assert.equal(
-    snapshot.structures[0]?.components[0]?.allocationPriority,
-    1,
-  );
+  assert.equal(snapshot.structures[0]?.components[0]?.allocationPriority, 1);
   assert.equal(snapshot.mappings.length, 1);
   const other = await listFeeConfiguration(
     { campusId: "campus_1", academicYearId: "year_1" },
@@ -127,11 +117,9 @@ test("supports the approved charging patterns", async () => {
 
 test("edits a fee head without changing its generated identity", async () => {
   const repository = new InMemoryFeeConfigurationRepository();
-  const created = await createFeeHead(
-    { name: "Exam Fee", category: "EXAM" },
-    context(),
-    { repository },
-  );
+  const created = await createFeeHead({ name: "Exam Fee", category: "EXAM" }, context(), {
+    repository,
+  });
   const updated = await updateFeeHead(
     created.id,
     {
@@ -146,10 +134,7 @@ test("edits a fee head without changing its generated identity", async () => {
   assert.equal(updated.id, created.id);
   assert.equal(updated.code, created.code);
   assert.equal(updated.name, "Board Examination Fee");
-  assert.equal(
-    updated.description,
-    "External examination registration and processing",
-  );
+  assert.equal(updated.description, "External examination registration and processing");
 });
 
 test("rejects an unsupported charging pattern", async () => {
@@ -172,8 +157,7 @@ test("rejects an unsupported charging pattern", async () => {
 
 test("rejects duplicate active mappings", async () => {
   const repository = new InMemoryFeeConfigurationRepository();
-  const { deps, ctx, schedule, structure } =
-    await createConfiguration(repository);
+  const { deps, ctx, schedule, structure } = await createConfiguration(repository);
   const input = {
     campusId: "campus_1",
     academicYearId: "year_1",
@@ -182,8 +166,5 @@ test("rejects duplicate active mappings", async () => {
     target: { classId: "class_1" },
   };
   await createFeeMapping(input, ctx, deps);
-  await assert.rejects(
-    () => createFeeMapping(input, ctx, deps),
-    /already exists/,
-  );
+  await assert.rejects(() => createFeeMapping(input, ctx, deps), /already exists/);
 });

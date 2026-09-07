@@ -4,11 +4,14 @@ import { filePermissions } from "./files.permissions";
 import { toFileView } from "./files.mapper";
 import type { FileRepository } from "./files.repository";
 import { fileRepository as defaultRepository } from "./files.repository";
-import { validateFileCreateUploadInput, validateFileDownloadUrlInput, validateFileListFilter } from "./files.validator";
+import {
+  validateFileCreateUploadInput,
+  validateFileDownloadUrlInput,
+  validateFileListFilter,
+} from "./files.validator";
 import type {
   FileCreateUploadInput,
   FileDownloadUrlResponse,
-  FileListFilter,
   FileRecord,
   FileServiceContext,
   FileUploadUrlResponse,
@@ -16,12 +19,26 @@ import type {
 } from "./files.model";
 
 export interface StorageUrlPort {
-  createUploadUrl(input: { bucket: string; storageKey: string; contentType: string; expiresInSeconds: number }): Promise<{ url: string; expiresAt: Date; headers?: Record<string, string> }>;
-  createDownloadUrl(input: { bucket: string; storageKey: string; expiresInSeconds: number }): Promise<{ url: string; expiresAt: Date }>;
+  createUploadUrl(input: {
+    bucket: string;
+    storageKey: string;
+    contentType: string;
+    expiresInSeconds: number;
+  }): Promise<{ url: string; expiresAt: Date; headers?: Record<string, string> }>;
+  createDownloadUrl(input: {
+    bucket: string;
+    storageKey: string;
+    expiresInSeconds: number;
+  }): Promise<{ url: string; expiresAt: Date }>;
 }
 
 export class InMemoryStorageUrlPort implements StorageUrlPort {
-  async createUploadUrl(input: { bucket: string; storageKey: string; contentType: string; expiresInSeconds: number }) {
+  async createUploadUrl(input: {
+    bucket: string;
+    storageKey: string;
+    contentType: string;
+    expiresInSeconds: number;
+  }) {
     const expiresAt = new Date(Date.now() + input.expiresInSeconds * 1000);
     return {
       url: `https://storage.local/upload/${encodeURIComponent(input.bucket)}/${encodeURIComponent(input.storageKey)}`,
@@ -81,7 +98,8 @@ function assertPermission(context: RequestContext | FileServiceContext, permissi
 }
 
 function bucketName(tenantId: string, deps?: StorageServiceDeps): string {
-  const configured = deps?.documentsBucketName?.trim() || runtimeEnv().DOCUMENTS_BUCKET_NAME?.trim();
+  const configured =
+    deps?.documentsBucketName?.trim() || runtimeEnv().DOCUMENTS_BUCKET_NAME?.trim();
   if (configured) return configured;
   return `${deps?.bucketPrefix?.trim() || "documents"}-${tenantId}`;
 }
@@ -91,14 +109,20 @@ function newId(): string {
 }
 
 function storageKey(tenantId: string, input: FileCreateUploadInput): string {
-  const normalizedName = input.fileName.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, "-");
+  const normalizedName = input.fileName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-");
   const scope = input.scopeType?.toLowerCase() ?? "tenant";
   const scopeId = input.scopeId?.trim() || tenantId;
   return `${tenantId}/${scope}/${scopeId}/${crypto.randomUUID()}-${normalizedName}`;
 }
 
 function runtimeEnv(): Record<string, string | undefined> {
-  return (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+  return (
+    (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process
+      ?.env ?? {}
+  );
 }
 
 function ensureAvailable(record: FileRecord): void {
@@ -164,7 +188,11 @@ export async function completeFileUpload(
   return toFileView(updated);
 }
 
-export async function getFile(id: string, context: RequestContext | FileServiceContext, deps?: StorageServiceDeps): Promise<FileView | null> {
+export async function getFile(
+  id: string,
+  context: RequestContext | FileServiceContext,
+  deps?: StorageServiceDeps,
+): Promise<FileView | null> {
   assertPermission(context, filePermissions.read);
   const repository = await resolveRepository(deps);
   return toFileView(await repository.getById(getTenantId(context), id));
@@ -177,7 +205,9 @@ export async function listFiles(
 ): Promise<FileView[]> {
   assertPermission(context, filePermissions.read);
   const repository = await resolveRepository(deps);
-  return (await repository.list(getTenantId(context), validateFileListFilter(filter))).map((record) => toFileView(record) as FileView);
+  return (await repository.list(getTenantId(context), validateFileListFilter(filter))).map(
+    (record) => toFileView(record) as FileView,
+  );
 }
 
 export async function createFileDownloadUrl(
@@ -204,7 +234,11 @@ export async function createFileDownloadUrl(
   };
 }
 
-export async function deleteFile(id: string, context: RequestContext | FileServiceContext, deps?: StorageServiceDeps): Promise<boolean> {
+export async function deleteFile(
+  id: string,
+  context: RequestContext | FileServiceContext,
+  deps?: StorageServiceDeps,
+): Promise<boolean> {
   assertPermission(context, filePermissions.delete);
   const repository = await resolveRepository(deps);
   const existing = await repository.getById(getTenantId(context), id);

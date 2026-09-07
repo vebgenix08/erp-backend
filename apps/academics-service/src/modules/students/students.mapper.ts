@@ -1,1 +1,15 @@
-import type{StudentWithEnrollment}from"./students.model";export function toStudentView(row:StudentWithEnrollment){return{...row.student,dateOfBirth:row.student.dateOfBirth?.toISOString(),createdAt:row.student.createdAt.toISOString(),updatedAt:row.student.updatedAt.toISOString(),enrollment:{...row.enrollment,enrolledAt:row.enrollment.enrolledAt.toISOString(),createdAt:row.enrollment.createdAt.toISOString(),updatedAt:row.enrollment.updatedAt.toISOString()}};}
+import type { StudentWithEnrollment } from "./students.model";
+export function toStudentView(row: StudentWithEnrollment) {
+  return {
+    ...row.student,
+    dateOfBirth: row.student.dateOfBirth?.toISOString(),
+    createdAt: row.student.createdAt.toISOString(),
+    updatedAt: row.student.updatedAt.toISOString(),
+    enrollment: {
+      ...row.enrollment,
+      enrolledAt: row.enrollment.enrolledAt.toISOString(),
+      createdAt: row.enrollment.createdAt.toISOString(),
+      updatedAt: row.enrollment.updatedAt.toISOString(),
+    },
+  };
+}

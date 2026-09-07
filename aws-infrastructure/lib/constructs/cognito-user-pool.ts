@@ -1,6 +1,6 @@
-import { Duration, RemovalPolicy, aws_cognito as cognito } from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-import type { EnvironmentConfig } from '../config';
+import { Duration, RemovalPolicy, aws_cognito as cognito } from "aws-cdk-lib";
+import { Construct } from "constructs";
+import type { EnvironmentConfig } from "../config";
 
 export interface CognitoUserPoolProps {
   config: EnvironmentConfig;
@@ -13,7 +13,7 @@ export class CognitoUserPool extends Construct {
   constructor(scope: Construct, id: string, props: CognitoUserPoolProps) {
     super(scope, id);
 
-    this.userPool = new cognito.UserPool(this, 'UserPool', {
+    this.userPool = new cognito.UserPool(this, "UserPool", {
       userPoolName: `userpool-${props.config.environment}`,
       selfSignUpEnabled: false,
       signInAliases: {
@@ -41,7 +41,7 @@ export class CognitoUserPool extends Construct {
       removalPolicy: props.config.removalPolicy ?? RemovalPolicy.RETAIN,
     });
 
-    this.userPoolClient = this.userPool.addClient('AppClient', {
+    this.userPoolClient = this.userPool.addClient("AppClient", {
       userPoolClientName: `app-client-${props.config.environment}`,
       authFlows: {
         userPassword: true,
@@ -54,10 +54,10 @@ export class CognitoUserPool extends Construct {
       refreshTokenValidity: Duration.days(30),
     });
 
-    new cognito.CfnUserPoolGroup(this, 'TenantAdminGroup', {
+    new cognito.CfnUserPoolGroup(this, "TenantAdminGroup", {
       userPoolId: this.userPool.userPoolId,
-      groupName: 'TENANT_ADMIN',
-      description: 'Tenant administrators',
+      groupName: "TENANT_ADMIN",
+      description: "Tenant administrators",
     });
   }
 }

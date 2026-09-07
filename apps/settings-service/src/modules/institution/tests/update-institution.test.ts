@@ -16,9 +16,13 @@ test("update institution creates and updates the profile", async () => {
     } as any,
   });
 
-  const created = await updateInstitutionUseCase(createInstitutionFixture(), context as any, { repository });
+  const created = await updateInstitutionUseCase(createInstitutionFixture(), context as any, {
+    repository,
+  });
   assert.equal(created.name, "Sample Institution");
 
-  const updated = await updateInstitutionUseCase({ name: "Updated Institution" }, context as any, { repository });
+  const updated = await updateInstitutionUseCase({ name: "Updated Institution" }, context as any, {
+    repository,
+  });
   assert.equal(updated.name, "Updated Institution");
 });

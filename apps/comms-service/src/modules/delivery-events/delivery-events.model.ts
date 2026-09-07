@@ -9,6 +9,7 @@ export type EmailDeliveryEventType =
 
 export interface EmailDeliveryEventRecord {
   id: string;
+  tenantId?: string;
   messageId: string;
   eventType: EmailDeliveryEventType;
   occurredAt: Date;

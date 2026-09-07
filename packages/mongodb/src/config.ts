@@ -14,7 +14,11 @@ function parseNumber(value: string | undefined, fallback: number): number {
 
 function resolveMongoUri(stage: Stage, env: MongoEnvLike): string {
   const stageSpecificKey =
-    stage === "prod" ? "MONGODB_URI_PROD" : stage === "test" ? "MONGODB_URI_TEST" : "MONGODB_URI_DEV";
+    stage === "prod"
+      ? "MONGODB_URI_PROD"
+      : stage === "test"
+        ? "MONGODB_URI_TEST"
+        : "MONGODB_URI_DEV";
   return env[stageSpecificKey] ?? env.MONGODB_URI ?? requiredEnv("MONGODB_URI", env);
 }
 

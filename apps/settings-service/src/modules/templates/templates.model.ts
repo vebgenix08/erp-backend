@@ -3,7 +3,17 @@ import type { TenantContext } from "@school-erp/tenancy";
 
 export type TemplateStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 export type TemplateType = "FORM" | "EMAIL" | "PRINT";
-export type TemplateFieldType = "text" | "textarea" | "number" | "email" | "phone" | "date" | "select" | "checkbox" | "radio" | "document";
+export type TemplateFieldType =
+  | "text"
+  | "textarea"
+  | "number"
+  | "email"
+  | "phone"
+  | "date"
+  | "select"
+  | "checkbox"
+  | "radio"
+  | "document";
 export type TemplateFieldScope = "ENQUIRY" | "APPLICATION" | "BOTH";
 
 export interface TemplateFieldRule {

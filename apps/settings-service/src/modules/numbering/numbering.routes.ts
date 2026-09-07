@@ -1,1 +1,12 @@
-import type { ApiRouter, RequestContext } from "@school-erp/api";import { jsonResponse } from "@school-erp/api";import { listNumberingPolicies,saveNumberingPolicy } from "./numbering.service";export function registerNumberingRoutes(router:ApiRouter){router.route("GET","/numbering",async(c:RequestContext)=>jsonResponse(200,await listNumberingPolicies(c)));router.route("PUT","/numbering",async(c:RequestContext)=>jsonResponse(200,await saveNumberingPolicy(c.body,c)));return router;}
+import type { ApiRouter, RequestContext } from "@school-erp/api";
+import { jsonResponse } from "@school-erp/api";
+import { listNumberingPolicies, saveNumberingPolicy } from "./numbering.service";
+export function registerNumberingRoutes(router: ApiRouter) {
+  router.route("GET", "/numbering", async (c: RequestContext) =>
+    jsonResponse(200, await listNumberingPolicies(c)),
+  );
+  router.route("PUT", "/numbering", async (c: RequestContext) =>
+    jsonResponse(200, await saveNumberingPolicy(c.body, c)),
+  );
+  return router;
+}

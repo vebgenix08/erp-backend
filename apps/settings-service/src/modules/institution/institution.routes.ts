@@ -7,7 +7,10 @@ function toSettingsContext(context: RequestContext): RequestContext {
   return context;
 }
 
-export function registerInstitutionRoutes(router: ApiRouter, deps: InstitutionServiceDeps = {}): ApiRouter {
+export function registerInstitutionRoutes(
+  router: ApiRouter,
+  deps: InstitutionServiceDeps = {},
+): ApiRouter {
   router.route("GET", "/institution", async (context) => {
     const result = await getInstitutionUseCase(toSettingsContext(context), deps);
     return jsonResponse(result ? 200 : 404, result ?? { message: "institution profile not found" });

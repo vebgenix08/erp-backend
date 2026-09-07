@@ -1,6 +1,10 @@
 import { BadRequestError } from "@school-erp/errors";
 import { isNonEmptyString } from "@school-erp/validation";
-import type { AcademicYearCreateInput, AcademicYearListFilter, AcademicYearUpdateInput } from "./academic-years.model";
+import type {
+  AcademicYearCreateInput,
+  AcademicYearListFilter,
+  AcademicYearUpdateInput,
+} from "./academic-years.model";
 import type { AcademicYearStatus } from "./academic-years.model";
 
 const STATUS: AcademicYearStatus[] = ["DRAFT", "ACTIVE", "CLOSED"];
@@ -35,7 +39,8 @@ export function validateAcademicYearCreateInput(input: unknown): AcademicYearCre
   }
   const startYear = new Date(startDate).getUTCFullYear();
   const endYear = new Date(endDate).getUTCFullYear();
-  const code = startYear === endYear ? String(startYear) : `${startYear}-${String(endYear).slice(-2)}`;
+  const code =
+    startYear === endYear ? String(startYear) : `${startYear}-${String(endYear).slice(-2)}`;
   return { code, name: name as string, startDate, endDate };
 }
 
@@ -49,9 +54,14 @@ export function validateAcademicYearUpdateInput(input: unknown): AcademicYearUpd
   const name = normalizeOptional(payload.name);
   if (code !== undefined) result.code = code;
   if (name !== undefined) result.name = name;
-  if (payload.startDate !== undefined) result.startDate = normalizeDate(payload.startDate, "start date");
+  if (payload.startDate !== undefined)
+    result.startDate = normalizeDate(payload.startDate, "start date");
   if (payload.endDate !== undefined) result.endDate = normalizeDate(payload.endDate, "end date");
-  if (result.startDate && result.endDate && new Date(result.startDate).getTime() >= new Date(result.endDate).getTime()) {
+  if (
+    result.startDate &&
+    result.endDate &&
+    new Date(result.startDate).getTime() >= new Date(result.endDate).getTime()
+  ) {
     throw new BadRequestError("end date must be after start date");
   }
   return result;

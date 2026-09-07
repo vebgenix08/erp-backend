@@ -6,7 +6,9 @@ import { createPlatformAdminContext, createTenantFixture } from "./fixtures";
 
 test("create tenant stores an active tenant and enforces required fields", async () => {
   const repository = new InMemoryTenantRepository();
-  const result = await createTenantUseCase(createTenantFixture(), createPlatformAdminContext(), { repository });
+  const result = await createTenantUseCase(createTenantFixture(), createPlatformAdminContext(), {
+    repository,
+  });
 
   assert.equal(result?.name, "Sample School");
   assert.equal(result?.code, "SAMPLE-SCHOOL");
@@ -22,7 +24,12 @@ test("create tenant rejects duplicate code", async () => {
   await createTenantUseCase(duplicate, createPlatformAdminContext(), { repository });
 
   await assert.rejects(
-    () => createTenantUseCase(createTenantFixture({ name: "Two", code: "DUP", type: "COLLEGE" }), createPlatformAdminContext(), { repository }),
+    () =>
+      createTenantUseCase(
+        createTenantFixture({ name: "Two", code: "DUP", type: "COLLEGE" }),
+        createPlatformAdminContext(),
+        { repository },
+      ),
     /tenant code must be unique/i,
   );
 });

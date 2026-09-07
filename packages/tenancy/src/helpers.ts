@@ -34,7 +34,9 @@ export function normalizeTenantCode(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function normalizeTenantClaims(value: TenantClaimsPlaceholder | undefined): TenantClaimsPlaceholder | undefined {
+export function normalizeTenantClaims(
+  value: TenantClaimsPlaceholder | undefined,
+): TenantClaimsPlaceholder | undefined {
   if (!value) return undefined;
   return {
     tenantId: normalizeTenantId(value.tenantId),

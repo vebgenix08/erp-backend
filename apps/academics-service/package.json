@@ -11,6 +11,7 @@
     "@school-erp/events": "workspace:*",
     "@school-erp/mongodb": "workspace:*",
     "@school-erp/numbering": "workspace:*",
+    "@school-erp/service-client": "workspace:*",
     "@school-erp/test-utils": "workspace:*",
     "@school-erp/types": "workspace:*",
     "@school-erp/validation": "workspace:*",
@@ -24,6 +25,8 @@
     "migrate:campus-scope": "node scripts/migrations/001-campus-scope.mjs",
     "prepare:subject-planning-migration": "node scripts/migrations/prepare-002-subject-planning-config.mjs",
     "migrate:subject-planning": "node scripts/migrations/002-subject-planning-and-timetable.mjs",
-    "migrate:reconcile-draft-timetables": "node scripts/migrations/003-reconcile-draft-timetables.mjs"
+    "migrate:reconcile-draft-timetables": "node scripts/migrations/003-reconcile-draft-timetables.mjs",
+    "migrate:assign-program-academic-units": "node scripts/migrations/004-assign-program-academic-units.mjs",
+    "migrate:planning-indexes": "node scripts/migrations/005-planning-query-indexes.mjs"
   }
 }

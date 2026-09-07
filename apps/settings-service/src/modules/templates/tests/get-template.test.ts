@@ -6,7 +6,11 @@ import { createTemplateContext } from "./fixtures";
 
 test("get template returns the stored template", async () => {
   const repository = new InMemoryTemplateRepository();
-  const created = await createTemplateUseCase({ code: "A", name: "A", templateType: "FORM" }, createTemplateContext(), { repository });
+  const created = await createTemplateUseCase(
+    { code: "A", name: "A", templateType: "FORM" },
+    createTemplateContext(),
+    { repository },
+  );
   const fetched = await getTemplateUseCase(created.id, createTemplateContext(), { repository });
   assert.equal(fetched?.id, created.id);
 });

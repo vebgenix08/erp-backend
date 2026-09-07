@@ -1,5 +1,5 @@
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { getMongoConnection, type MongoEnvLike } from "@school-erp/mongodb";
+import { internalServiceInvoker } from "@school-erp/service-client";
 
 export interface ReceiptBranding {
   institutionName: string;
@@ -17,14 +17,52 @@ export interface ReceiptBranding {
   logoContentType?: string;
 }
 
-interface NamedAcademicDocument {
-  _id: string;
-  tenantId: string;
-  name?: unknown;
+interface InstitutionContext {
+  profile: {
+    name: string;
+    shortName?: string;
+    address?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+    logoFileId?: string;
+  } | null;
+  campus: { id: string; name: string; code: string };
+  academicYear: { id: string; name: string; code: string };
 }
 
-const env = (): MongoEnvLike =>
-  (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
+interface StudentFinanceContext {
+  admissionNumber?: string;
+  className?: string;
+  sectionName?: string;
+}
+
+interface EmployeeContext {
+  id: string;
+  fullName: string;
+}
+
+interface FileMetadata {
+  id: string;
+  bucket: string;
+  storageKey: string;
+  contentType: string;
+}
+
+function runtimeEnv() {
+  return (
+    (
+      globalThis as unknown as {
+        process?: { env?: Record<string, string | undefined> };
+      }
+    ).process?.env ?? {}
+  );
+}
+
+function requiredFunction(name: string) {
+  const value = runtimeEnv()[name]?.trim();
+  if (!value) throw new Error(`${name} is not configured`);
+  return value;
+}
 
 export async function getReceiptBranding(
   tenantId: string,
@@ -34,79 +72,76 @@ export async function getReceiptBranding(
   sectionId?: string,
   studentId?: string,
   collectedBy?: string,
-  runtime: MongoEnvLike = env(),
 ): Promise<ReceiptBranding> {
-  if (!runtime.MONGODB_URI && !runtime.MONGODB_URI_DEV && !runtime.MONGODB_URI_PROD && !runtime.MONGODB_URI_TEST) {
-    return { institutionName: "Institution", campusName: "Campus", academicYearName: "Academic year" };
-  }
-  const connection = await getMongoConnection(runtime);
-  const stage = runtime.environment ?? runtime.STAGE ?? runtime.NODE_ENV ?? "dev";
-  const settings = connection.client.db(`settings-service_${stage}`);
-  const storage = connection.client.db(`storage-service_${stage}`);
-  const academics = connection.client.db(`academics-service_${stage}`);
-  const identity = connection.client.db(`identity-service_${stage}`);
-  const [profile, campus, year, academicClass, section, student, collector, enrollment] = await Promise.all([
-    settings.collection("settings_institution_profiles").findOne({ tenantId }),
-    settings.collection("settings_campuses").findOne({ tenantId, id: campusId }),
-    settings.collection("settings_academic_years").findOne({ tenantId, id: academicYearId }),
-    classId ? academics.collection<NamedAcademicDocument>("academics_classes").findOne({ tenantId, _id: classId }) : null,
-    sectionId ? academics.collection<NamedAcademicDocument>("academics_sections").findOne({ tenantId, _id: sectionId }) : null,
-    studentId ? academics.collection("academics_students").findOne({ tenantId, id: studentId }) : null,
-    collectedBy ? identity.collection("identity_employees").findOne({ tenantId, $or: [{ userId: collectedBy }, { id: collectedBy }] }) : null,
+  const invoker = internalServiceInvoker();
+  const [institution, student, collector] = await Promise.all([
+    invoker.invoke<
+      { tenantId: string; campusId: string; academicYearId: string },
+      InstitutionContext
+    >(requiredFunction("SETTINGS_FUNCTION_NAME"), {
+      operation: "GET_INSTITUTION_CONTEXT",
+      payload: { tenantId, campusId, academicYearId },
+    }),
     studentId
-      ? academics.collection("academics_enrollments").findOne({
-          tenantId,
-          studentId,
-          campusId,
-          academicYearId,
-          status: "ACTIVE",
+      ? invoker.invoke<
+          {
+            tenantId: string;
+            studentId: string;
+            classId?: string;
+            sectionId?: string;
+          },
+          StudentFinanceContext
+        >(requiredFunction("ACADEMICS_FUNCTION_NAME"), {
+          operation: "GET_STUDENT_FINANCE_CONTEXT",
+          payload: {
+            tenantId,
+            studentId,
+            ...(classId ? { classId } : {}),
+            ...(sectionId ? { sectionId } : {}),
+          },
         })
       : null,
+    collectedBy
+      ? invoker.invoke<{ tenantId: string; principalId: string }, EmployeeContext | null>(
+          requiredFunction("IDENTITY_FUNCTION_NAME"),
+          {
+            operation: "GET_EMPLOYEE_BY_PRINCIPAL",
+            payload: { tenantId, principalId: collectedBy },
+          },
+        )
+      : null,
   ]);
-  const resolvedClass =
-    academicClass ??
-    (typeof enrollment?.classId === "string"
-      ? await academics.collection<NamedAcademicDocument>("academics_classes").findOne({
-          tenantId,
-          _id: enrollment.classId,
-        })
-      : null);
-  const resolvedSection =
-    section ??
-    (typeof enrollment?.sectionId === "string"
-      ? await academics.collection<NamedAcademicDocument>("academics_sections").findOne({
-          tenantId,
-          _id: enrollment.sectionId,
-        })
-      : null);
+
+  const profile = institution.profile;
   const branding: ReceiptBranding = {
-    institutionName: String(profile?.name ?? "Institution"),
-    campusName: String(campus?.name ?? "Campus"),
-    academicYearName: String(year?.name ?? year?.code ?? "Academic year"),
+    institutionName: profile?.name ?? "Institution",
+    campusName: institution.campus.name,
+    academicYearName: institution.academicYear.name || institution.academicYear.code,
+    ...(profile?.shortName ? { shortName: profile.shortName } : {}),
+    ...(profile?.address ? { address: profile.address } : {}),
+    ...(profile?.contactEmail ? { contactEmail: profile.contactEmail } : {}),
+    ...(profile?.contactPhone ? { contactPhone: profile.contactPhone } : {}),
+    ...(student?.className ? { className: student.className } : {}),
+    ...(student?.sectionName ? { sectionName: student.sectionName } : {}),
+    ...(student?.admissionNumber ? { admissionNumber: student.admissionNumber } : {}),
+    ...(collector?.fullName ? { collectedByName: collector.fullName } : {}),
   };
-  if (typeof profile?.shortName === "string") branding.shortName = profile.shortName;
-  if (typeof profile?.address === "string") branding.address = profile.address;
-  if (typeof profile?.contactEmail === "string") branding.contactEmail = profile.contactEmail;
-  if (typeof profile?.contactPhone === "string") branding.contactPhone = profile.contactPhone;
-  if (typeof resolvedClass?.name === "string") branding.className = resolvedClass.name;
-  if (typeof resolvedSection?.name === "string") branding.sectionName = resolvedSection.name;
-  if (typeof student?.admissionNumber === "string") branding.admissionNumber = student.admissionNumber;
-  if (typeof collector?.fullName === "string") branding.collectedByName = collector.fullName;
-  if (typeof profile?.logoFileId === "string") {
-    const file = await storage.collection("storage_files").findOne({
-      tenantId,
-      id: profile.logoFileId,
-      status: "AVAILABLE",
-    });
-    if (file && typeof file.bucket === "string" && typeof file.storageKey === "string") {
-      const object = await new S3Client({}).send(new GetObjectCommand({
-        Bucket: file.bucket,
-        Key: file.storageKey,
-      }));
+
+  if (profile?.logoFileId) {
+    const file = await invoker.invoke<{ tenantId: string; fileId: string }, FileMetadata | null>(
+      requiredFunction("STORAGE_FUNCTION_NAME"),
+      {
+        operation: "GET_FILE_METADATA",
+        payload: { tenantId, fileId: profile.logoFileId },
+      },
+    );
+    if (file) {
+      const object = await new S3Client({}).send(
+        new GetObjectCommand({ Bucket: file.bucket, Key: file.storageKey }),
+      );
       if (object.Body) {
         branding.logoBytes = await object.Body.transformToByteArray();
-        const contentType =
-          typeof file.contentType === "string" ? file.contentType : object.ContentType;
+        const contentType = file.contentType || object.ContentType;
         if (contentType) branding.logoContentType = contentType;
       }
     }

@@ -2,7 +2,11 @@ import { createRouter, jsonResponse, type ApiRouter, type RequestContext } from 
 import { registerCognitoSyncRoutes } from "../modules/cognito-sync/cognito-sync.routes";
 import { registerPermissionsRoutes } from "../modules/permissions/permissions.routes";
 import { registerRolesRoutes } from "../modules/roles/roles.routes";
-import { getSessionUseCase, logoutUseCase, selectTenantUseCase } from "../modules/session/use-cases";
+import {
+  getSessionUseCase,
+  logoutUseCase,
+  selectTenantUseCase,
+} from "../modules/session/use-cases";
 import { validateSelectTenantInput } from "../modules/session/session.validator";
 import { registerUsersRoutes } from "../modules/users/users.routes";
 import { registerAccessRoutes } from "../modules/access/access.routes";

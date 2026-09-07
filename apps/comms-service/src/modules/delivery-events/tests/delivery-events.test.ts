@@ -9,7 +9,11 @@ test("SES delivery events are normalized and idempotent", async () => {
     time: "2026-07-14T10:00:00.000Z",
     "detail-type": "Email Delivered",
     detail: {
-      mail: { messageId: "ses-1", destination: ["admin@example.com"] },
+      mail: {
+        messageId: "ses-1",
+        destination: ["admin@example.com"],
+        tags: { tenantId: ["tenant-1"] },
+      },
     },
   };
   const first = await recordSesDeliveryEvent(event, repository);
@@ -17,7 +21,12 @@ test("SES delivery events are normalized and idempotent", async () => {
   assert.equal(first.eventType, "DELIVERY");
   assert.deepEqual(first.recipients, ["admin@example.com"]);
   assert.equal(first, repeated);
-  const history = await listSesDeliveryEvents("admin@example.com", repository);
+  const history = await listSesDeliveryEvents("admin@example.com", "tenant-1", repository);
   assert.equal(history.length, 1);
   assert.equal(history[0]?.messageId, "ses-1");
+  assert.equal(history[0]?.tenantId, "tenant-1");
+  assert.equal(
+    (await listSesDeliveryEvents("admin@example.com", "tenant-2", repository)).length,
+    0,
+  );
 });

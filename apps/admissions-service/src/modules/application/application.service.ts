@@ -1,16 +1,13 @@
 import { requireAuth, requirePermission } from "@school-erp/auth";
-import {
-  BadRequestError,
-  ConflictError,
-  NotFoundError,
-} from "@school-erp/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "@school-erp/errors";
 import type {
   AdmissionConfirmedEvent,
   AdmissionConfirmedEventData,
   EventPublisher,
 } from "@school-erp/events";
 import type { StructuredLogger } from "@school-erp/logger";
-import { issueConfiguredNumber, type NumberingContext, type NumberingStream } from "@school-erp/numbering";
+import type { NumberingContext, NumberingStream } from "@school-erp/numbering";
+import { issueConfiguredNumber } from "@school-erp/service-client";
 import { requireTenantId } from "@school-erp/tenancy";
 import { toApplicationView } from "./application.mapper";
 import type {
@@ -23,10 +20,7 @@ import type {
   ApplicationView,
 } from "./application.model";
 import { applicationPermissions } from "./application.permissions";
-import {
-  applicationRepository,
-  type ApplicationRepository,
-} from "./application.repository";
+import { applicationRepository, type ApplicationRepository } from "./application.repository";
 import {
   academicYearReferenceReader,
   normalizeAcademicYearCode,
@@ -43,10 +37,7 @@ import {
 
 export interface ApplicationServiceDeps {
   repository?: ApplicationRepository | undefined;
-  academicYears?:
-    | AcademicYearReferenceReader
-    | Promise<AcademicYearReferenceReader>
-    | undefined;
+  academicYears?: AcademicYearReferenceReader | Promise<AcademicYearReferenceReader> | undefined;
   logger?: StructuredLogger | undefined;
   now?: (() => Date) | undefined;
   eventPublisher?: EventPublisher | undefined;
@@ -86,9 +77,10 @@ async function configuredNumber(
   if (deps?.numberIssuer) return deps.numberIssuer(context);
   if (!deps?.repository) return issueConfiguredNumber(context);
   const code = await resolveAcademicYearCode(record, deps);
-  const sequence = stream === "APPLICATION"
-    ? await deps.repository.nextApplicationSequence(tenant, record.academicYearId)
-    : await deps.repository.nextAdmissionSequence(tenant, record.academicYearId);
+  const sequence =
+    stream === "APPLICATION"
+      ? await deps.repository.nextApplicationSequence(tenant, record.academicYearId)
+      : await deps.repository.nextAdmissionSequence(tenant, record.academicYearId);
   return `${stream === "APPLICATION" ? "APP" : "ADM"}/${code}/${String(sequence).padStart(4, "0")}`;
 }
 function log(
@@ -110,10 +102,7 @@ function view(record: ApplicationRecord | null): ApplicationView {
   return mapped;
 }
 function persisted(record: ApplicationRecord | null): ApplicationRecord {
-  if (!record)
-    throw new ConflictError(
-      "application changed before the operation completed",
-    );
+  if (!record) throw new ConflictError("application changed before the operation completed");
   return record;
 }
 function stage(
@@ -127,16 +116,10 @@ function stage(
     ...record,
     status,
     updatedAt: at,
-    stageHistory: [
-      ...record.stageHistory,
-      { status, at, actorId: actor, remarks },
-    ],
+    stageHistory: [...record.stageHistory, { status, at, actorId: actor, remarks }],
   };
 }
-async function resolveAcademicYearCode(
-  record: ApplicationRecord,
-  deps?: ApplicationServiceDeps,
-) {
+async function resolveAcademicYearCode(record: ApplicationRecord, deps?: ApplicationServiceDeps) {
   if (record.academicYearCode) return record.academicYearCode;
   if (/^\d{2,4}\D+\d{2,4}$/.test(record.academicYearId))
     return normalizeAcademicYearCode(record.academicYearId);
@@ -154,13 +137,8 @@ export async function createApplication(
     tenant = tenantId(context),
     actor = actorId(context),
     payload = validateApplicationCreateInput(input);
-  if (
-    payload.enquiryId &&
-    (await repository.getByEnquiryId(tenant, payload.enquiryId))
-  )
-    throw new ConflictError(
-      "an active application already exists for this enquiry",
-    );
+  if (payload.enquiryId && (await repository.getByEnquiryId(tenant, payload.enquiryId)))
+    throw new ConflictError("an active application already exists for this enquiry");
   const at = now(deps),
     record = await repository.create(tenant, {
       ...payload,
@@ -182,12 +160,9 @@ export async function listApplications(
   filter?: ApplicationListFilter,
 ): Promise<ApplicationView[]> {
   permission(context, applicationPermissions.read);
-  return (
-    await repo(deps).list(
-      tenantId(context),
-      validateApplicationListFilter(filter),
-    )
-  ).map((item) => view(item));
+  return (await repo(deps).list(tenantId(context), validateApplicationListFilter(filter))).map(
+    (item) => view(item),
+  );
 }
 export async function listApplicationPage(
   context: ApplicationServiceContext,
@@ -220,8 +195,7 @@ export async function updateApplication(
     tenant = tenantId(context),
     existing = await repository.getById(tenant, id);
   if (!existing) throw new NotFoundError("application not found");
-  if (existing.status !== "DRAFT")
-    throw new ConflictError("only draft applications can be edited");
+  if (existing.status !== "DRAFT") throw new ConflictError("only draft applications can be edited");
   const updated = {
     ...existing,
     ...validateApplicationUpdateInput(input),
@@ -305,10 +279,7 @@ async function review(
     reviewed = stage(
       {
         ...existing,
-        reviews: [
-          ...existing.reviews,
-          { decision, reviewedBy: actor, reviewedAt: at, remarks },
-        ],
+        reviews: [...existing.reviews, { decision, reviewedBy: actor, reviewedAt: at, remarks }],
         ...(decision === "APPROVED"
           ? { approvedAt: at, approvedBy: actor }
           : { rejectedAt: at, rejectedBy: actor, rejectionReason: remarks }),
@@ -318,11 +289,7 @@ async function review(
       actor,
       remarks,
     );
-  log(
-    deps,
-    context,
-    `application.${decision.toLowerCase()}:${existing.applicationNumber}`,
-  );
+  log(deps, context, `application.${decision.toLowerCase()}:${existing.applicationNumber}`);
   return view(await repository.replace(tenant, reviewed));
 }
 export async function cancelApplication(
@@ -338,9 +305,7 @@ export async function cancelApplication(
     existing = await repository.getById(tenant, id);
   if (!existing) throw new NotFoundError("application not found");
   if (!["DRAFT", "SUBMITTED", "REJECTED"].includes(existing.status))
-    throw new ConflictError(
-      "application cannot be cancelled in its current status",
-    );
+    throw new ConflictError("application cannot be cancelled in its current status");
   const reason = validateRejectInput(input).reason,
     at = now(deps),
     cancelled = stage(
@@ -365,10 +330,8 @@ function duplicateReasons(
   const reasons: ApplicationDuplicateReason[] = [];
   const sourceDigits = source.phone.replace(/\D/g, "");
   const candidateDigits = candidate.phone.replace(/\D/g, "");
-  const sourcePhone =
-    sourceDigits.length > 10 ? sourceDigits.slice(-10) : sourceDigits;
-  const candidatePhone =
-    candidateDigits.length > 10 ? candidateDigits.slice(-10) : candidateDigits;
+  const sourcePhone = sourceDigits.length > 10 ? sourceDigits.slice(-10) : sourceDigits;
+  const candidatePhone = candidateDigits.length > 10 ? candidateDigits.slice(-10) : candidateDigits;
   if (sourcePhone && candidatePhone === sourcePhone) reasons.push("PHONE");
   if (
     source.email?.trim() &&
@@ -378,8 +341,7 @@ function duplicateReasons(
   if (
     source.dateOfBirth &&
     candidate.dateOfBirth &&
-    source.studentName.trim().toLowerCase() ===
-      candidate.studentName.trim().toLowerCase() &&
+    source.studentName.trim().toLowerCase() === candidate.studentName.trim().toLowerCase() &&
     source.dateOfBirth.toISOString().slice(0, 10) ===
       candidate.dateOfBirth.toISOString().slice(0, 10)
   )
@@ -401,12 +363,8 @@ export async function checkApplicationDuplicates(
   const matches = candidates
     .map((candidate) => ({
       applicationId: candidate.id,
-      ...(candidate.applicationNumber
-        ? { applicationNumber: candidate.applicationNumber }
-        : {}),
-      ...(candidate.admissionNumber
-        ? { admissionNumber: candidate.admissionNumber }
-        : {}),
+      ...(candidate.applicationNumber ? { applicationNumber: candidate.applicationNumber } : {}),
+      ...(candidate.admissionNumber ? { admissionNumber: candidate.admissionNumber } : {}),
       studentName: candidate.studentName,
       status: candidate.status,
       reasons: duplicateReasons(source, candidate),
@@ -439,13 +397,8 @@ export async function confirmApplication(
   const confirmation = validateAdmissionConfirmationInput(input);
   if (existing.status === "APPROVED") {
     const duplicateCheck = await checkApplicationDuplicates(id, context, deps);
-    if (
-      duplicateCheck.hasPotentialDuplicates &&
-      !confirmation.duplicateReviewAcknowledged
-    )
-      throw new ConflictError(
-        "potential duplicate records must be reviewed before confirmation",
-      );
+    if (duplicateCheck.hasPotentialDuplicates && !confirmation.duplicateReviewAcknowledged)
+      throw new ConflictError("potential duplicate records must be reviewed before confirmation");
   }
 
   if (existing.status === "APPROVED") {
@@ -463,16 +416,12 @@ export async function confirmApplication(
       confirmedBy: actor,
       confirmedAt: at.toISOString(),
       ...(existing.sectionId ? { sectionId: existing.sectionId } : {}),
-      ...(existing.dateOfBirth
-        ? { dateOfBirth: existing.dateOfBirth.toISOString() }
-        : {}),
+      ...(existing.dateOfBirth ? { dateOfBirth: existing.dateOfBirth.toISOString() } : {}),
       ...(existing.gender ? { gender: existing.gender } : {}),
       ...(existing.email ? { email: existing.email } : {}),
       ...(existing.address ? { address: existing.address } : {}),
       ...(existing.parentPhone ? { parentPhone: existing.parentPhone } : {}),
-      ...(existing.parentRelation
-        ? { parentRelation: existing.parentRelation }
-        : {}),
+      ...(existing.parentRelation ? { parentRelation: existing.parentRelation } : {}),
     };
     const event: AdmissionConfirmedEvent = {
       id: `event_${crypto.randomUUID()}`,
@@ -503,8 +452,7 @@ export async function confirmApplication(
   }
 
   if (existing.pendingEvents.length && deps?.eventPublisher) {
-    for (const event of existing.pendingEvents)
-      await deps.eventPublisher.publish(event);
+    for (const event of existing.pendingEvents) await deps.eventPublisher.publish(event);
     existing = persisted(
       await repository.replace(tenant, {
         ...existing,

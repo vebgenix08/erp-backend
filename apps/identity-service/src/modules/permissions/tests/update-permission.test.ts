@@ -6,7 +6,10 @@ import { createPermissionFixture, updatePermissionFixture } from "./fixtures";
 
 test("update permission changes mutable fields", async () => {
   const context = createTenantContext({ tenantId: "tenant-1", source: "request" });
-  const created = await createPermissionUseCase(context, createPermissionFixture({ code: "identity.users.update" }));
+  const created = await createPermissionUseCase(
+    context,
+    createPermissionFixture({ code: "identity.users.update" }),
+  );
   const updated = await updatePermissionUseCase(
     context,
     String(created?.id ?? ""),

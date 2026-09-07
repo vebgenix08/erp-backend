@@ -1,7 +1,13 @@
 import type { ApiRouter, RequestContext } from "@school-erp/api";
 import { jsonResponse } from "@school-erp/api";
 import type { SectionServiceDeps } from "./sections.shared";
-import { createSection, deactivateSection, getSection, listSections, updateSection } from "./sections.service";
+import {
+  createSection,
+  deactivateSection,
+  getSection,
+  listSections,
+  updateSection,
+} from "./sections.service";
 import { validateSectionListFilter } from "./sections.validator";
 
 function sectionId(context: RequestContext): string {

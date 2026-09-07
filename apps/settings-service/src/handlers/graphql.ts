@@ -2,29 +2,69 @@ import type { RequestContext } from "@school-erp/api";
 import { normalizePermissions } from "@school-erp/auth";
 import { ForbiddenError, NotFoundError, ValidationError, toGraphqlError } from "@school-erp/errors";
 import { academicYearPermissions } from "../modules/academic-years/academic-years.permissions";
-import { activateAcademicYear, closeAcademicYear, createAcademicYear, listAcademicYears, reopenAcademicYear, updateAcademicYear } from "../modules/academic-years/academic-years.service";
+import {
+  activateAcademicYear,
+  closeAcademicYear,
+  createAcademicYear,
+  listAcademicYears,
+  reopenAcademicYear,
+  updateAcademicYear,
+} from "../modules/academic-years/academic-years.service";
 import { campusPermissions } from "../modules/campuses/campuses.permissions";
-import { createCampus, deactivateCampus, listCampuses, reactivateCampus, updateCampus } from "../modules/campuses/campuses.service";
-import { campusAcademicUnitPermissions, createCampusAcademicUnit, listCampusAcademicUnits, updateCampusAcademicUnit } from "../modules/campus-academic-units/campus-academic-units.service";
+import {
+  createCampus,
+  deactivateCampus,
+  listCampuses,
+  reactivateCampus,
+  updateCampus,
+} from "../modules/campuses/campuses.service";
+import {
+  campusAcademicUnitPermissions,
+  createCampusAcademicUnit,
+  listCampusAcademicUnits,
+  updateCampusAcademicUnit,
+} from "../modules/campus-academic-units/campus-academic-units.service";
 import { institutionPermissions } from "../modules/institution/institution.permissions";
-import { getInstitutionProfile, updateInstitutionProfile } from "../modules/institution/institution.service";
+import {
+  getInstitutionProfile,
+  updateInstitutionProfile,
+} from "../modules/institution/institution.service";
 import { templatePermissions } from "../modules/templates/templates.permissions";
-import { archiveTemplate, createTemplate, listTemplates, publishTemplate, updateTemplate } from "../modules/templates/templates.service";
+import {
+  archiveTemplate,
+  createTemplate,
+  listTemplates,
+  publishTemplate,
+  updateTemplate,
+} from "../modules/templates/templates.service";
 import { numberingPermissions } from "../modules/numbering/numbering.permissions";
 import { listNumberingPolicies, saveNumberingPolicy } from "../modules/numbering/numbering.service";
 import { notificationPolicyPermissions } from "../modules/notification-policy/notification-policy.permissions";
-import { getNotificationPolicy, updateNotificationPolicy } from "../modules/notification-policy/notification-policy.service";
+import {
+  getNotificationPolicy,
+  updateNotificationPolicy,
+} from "../modules/notification-policy/notification-policy.service";
 import { hydrateSettingsRuntimeConfig } from "./runtime-config";
 import { adminDashboardPermissions } from "../modules/admin-dashboard/admin-dashboard.permissions";
 import { getAdminDashboard } from "../modules/admin-dashboard/admin-dashboard.service";
 import { createCampusSetup } from "../modules/campus-setup/campus-setup.service";
+import { academicYearRepository } from "../modules/academic-years/academic-years.repository";
+import { campusRepository } from "../modules/campuses/campuses.repository";
+import { institutionRepository } from "../modules/institution/institution.repository";
+import { hydrateConfiguredAuthorization } from "@school-erp/service-client";
 
-interface AppSyncIdentity { sub?: string; claims?: Record<string, unknown>; }
+interface AppSyncIdentity {
+  sub?: string;
+  claims?: Record<string, unknown>;
+}
 export interface SettingsGraphqlEvent {
   info: { fieldName: string };
   arguments?: Record<string, unknown>;
   identity?: AppSyncIdentity | null;
   request?: { headers?: Record<string, string> };
+  source?: string;
+  operation?: string;
+  payload?: Record<string, unknown>;
 }
 
 const TENANT_ADMIN_SETUP_PERMISSIONS = [
@@ -49,8 +89,14 @@ function claim(claims: Record<string, unknown>, ...names: string[]): string | un
 export function createSettingsGraphqlContext(event: SettingsGraphqlEvent): RequestContext {
   const claims = event.identity?.claims ?? {};
   const groupsValue = claims["cognito:groups"];
-  const groups = Array.isArray(groupsValue) ? groupsValue : typeof groupsValue === "string" ? groupsValue.split(",") : [];
-  const role = claim(claims, "custom:role", "role") ?? (groups.includes("TENANT_ADMIN") ? "TENANT_ADMIN" : undefined);
+  const groups = Array.isArray(groupsValue)
+    ? groupsValue
+    : typeof groupsValue === "string"
+      ? groupsValue.split(",")
+      : [];
+  const role =
+    claim(claims, "custom:role", "role") ??
+    (groups.includes("TENANT_ADMIN") ? "TENANT_ADMIN" : undefined);
   const userId = event.identity?.sub ?? claim(claims, "sub");
   const tenantId = claim(claims, "custom:tenantId", "tenantId");
   if (!userId || !tenantId) throw new ForbiddenError("authenticated tenant identity is required");
@@ -83,11 +129,14 @@ function input(args: Record<string, unknown>): Record<string, unknown> {
 }
 
 function requiredId(args: Record<string, unknown>, field = "id"): string {
-  if (typeof args[field] !== "string" || !args[field].trim()) throw new ValidationError([{ field, message: `${field} is required` }]);
+  if (typeof args[field] !== "string" || !args[field].trim())
+    throw new ValidationError([{ field, message: `${field} is required` }]);
   return args[field].trim();
 }
 function filter(args: Record<string, unknown>) {
-  return args.filter && typeof args.filter === "object" && !Array.isArray(args.filter) ? args.filter : undefined;
+  return args.filter && typeof args.filter === "object" && !Array.isArray(args.filter)
+    ? args.filter
+    : undefined;
 }
 
 function templateInput(args: Record<string, unknown>): Record<string, unknown> {
@@ -95,8 +144,13 @@ function templateInput(args: Record<string, unknown>): Record<string, unknown> {
   const parsed = { ...payload };
   for (const property of ["fields", "sections"] as const) {
     if (typeof payload[property] === "string") {
-      try { parsed[property] = JSON.parse(payload[property] as string); }
-      catch { throw new ValidationError([{ field: `input.${property}`, message: `${property} must be valid JSON` }]); }
+      try {
+        parsed[property] = JSON.parse(payload[property] as string);
+      } catch {
+        throw new ValidationError([
+          { field: `input.${property}`, message: `${property} must be valid JSON` },
+        ]);
+      }
     }
   }
   return parsed;
@@ -104,20 +158,48 @@ function templateInput(args: Record<string, unknown>): Record<string, unknown> {
 
 export async function handleSettingsGraphql(event: SettingsGraphqlEvent): Promise<unknown> {
   const context = createSettingsGraphqlContext(event);
+  await hydrateConfiguredAuthorization(context);
   const args = event.arguments ?? {};
   switch (event.info.fieldName) {
-    case "institutionProfile": return getInstitutionProfile(context);
-    case "campuses": return listCampuses(context, undefined, { ...(typeof args.status === "string" ? { status: args.status as "ACTIVE" | "INACTIVE" } : {}), ...(typeof args.search === "string" ? { search: args.search } : {}) });
-    case "campusAcademicUnits": return listCampusAcademicUnits(context, filter(args));
-    case "academicYears": return listAcademicYears(context, undefined, typeof args.status === "string" ? { status: args.status as "DRAFT" | "ACTIVE" | "CLOSED" } : undefined);
-    case "tenantAdminDashboard": return getAdminDashboard(input(args), context);
-    case "tenantTemplates": return listTemplates(context, undefined, { ...(typeof args.status === "string" ? { status: args.status } : {}), ...(typeof args.templateType === "string" ? { templateType: args.templateType } : {}), ...(typeof args.search === "string" ? { search: args.search } : {}) });
-    case "numberingPolicies": return listNumberingPolicies(context);
-    case "notificationPolicy": return getNotificationPolicy(context);
-    case "updateInstitutionProfile": return updateInstitutionProfile(input(args), context);
-    case "createCampus": return createCampus(context, input(args));
-    case "createCampusSetup": return createCampusSetup(context, input(args));
-    case "createCampusAcademicUnit": return createCampusAcademicUnit(context, requiredId(args, "campusId"), input(args));
+    case "institutionProfile":
+      return getInstitutionProfile(context);
+    case "campuses":
+      return listCampuses(context, undefined, {
+        ...(typeof args.status === "string"
+          ? { status: args.status as "ACTIVE" | "INACTIVE" }
+          : {}),
+        ...(typeof args.search === "string" ? { search: args.search } : {}),
+      });
+    case "campusAcademicUnits":
+      return listCampusAcademicUnits(context, filter(args));
+    case "academicYears":
+      return listAcademicYears(
+        context,
+        undefined,
+        typeof args.status === "string"
+          ? { status: args.status as "DRAFT" | "ACTIVE" | "CLOSED" }
+          : undefined,
+      );
+    case "tenantAdminDashboard":
+      return getAdminDashboard(input(args), context);
+    case "tenantTemplates":
+      return listTemplates(context, undefined, {
+        ...(typeof args.status === "string" ? { status: args.status } : {}),
+        ...(typeof args.templateType === "string" ? { templateType: args.templateType } : {}),
+        ...(typeof args.search === "string" ? { search: args.search } : {}),
+      });
+    case "numberingPolicies":
+      return listNumberingPolicies(context);
+    case "notificationPolicy":
+      return getNotificationPolicy(context);
+    case "updateInstitutionProfile":
+      return updateInstitutionProfile(input(args), context);
+    case "createCampus":
+      return createCampus(context, input(args));
+    case "createCampusSetup":
+      return createCampusSetup(context, input(args));
+    case "createCampusAcademicUnit":
+      return createCampusAcademicUnit(context, requiredId(args, "campusId"), input(args));
     case "updateCampusAcademicUnit": {
       const result = await updateCampusAcademicUnit(context, requiredId(args), input(args));
       if (!result) throw new NotFoundError("academic unit not found");
@@ -138,7 +220,8 @@ export async function handleSettingsGraphql(event: SettingsGraphqlEvent): Promis
       if (!result) throw new NotFoundError("campus not found");
       return result;
     }
-    case "createAcademicYear": return createAcademicYear(context, input(args));
+    case "createAcademicYear":
+      return createAcademicYear(context, input(args));
     case "updateAcademicYear": {
       const result = await updateAcademicYear(context, requiredId(args), input(args));
       if (!result) throw new NotFoundError("academic year not found");
@@ -149,21 +232,120 @@ export async function handleSettingsGraphql(event: SettingsGraphqlEvent): Promis
       if (!result) throw new NotFoundError("academic year not found");
       return result;
     }
-    case "closeAcademicYear": { const result=await closeAcademicYear(context,requiredId(args),args.reason);if(!result)throw new NotFoundError("academic year not found");return result; }
-    case "reopenAcademicYear": { const result=await reopenAcademicYear(context,requiredId(args),args.reason);if(!result)throw new NotFoundError("academic year not found");return result; }
-    case "createTenantTemplate": return createTemplate({ ...templateInput(args), code: `TPL-${crypto.randomUUID().slice(0, 8).toUpperCase()}` }, context);
-    case "updateTenantTemplate": { const result=await updateTemplate(requiredId(args),templateInput(args),context);if(!result)throw new NotFoundError("template not found");return result; }
-    case "publishTenantTemplate": { const result=await publishTemplate(requiredId(args),context);if(!result)throw new NotFoundError("template not found");return result; }
-    case "archiveTenantTemplate": return archiveTemplate(requiredId(args),context);
-    case "saveNumberingPolicy": return saveNumberingPolicy(input(args), context);
-    case "updateNotificationPolicy": return updateNotificationPolicy(input(args), context);
-    default: throw new NotFoundError(`unsupported settings GraphQL field: ${event.info.fieldName}`);
+    case "closeAcademicYear": {
+      const result = await closeAcademicYear(context, requiredId(args), args.reason);
+      if (!result) throw new NotFoundError("academic year not found");
+      return result;
+    }
+    case "reopenAcademicYear": {
+      const result = await reopenAcademicYear(context, requiredId(args), args.reason);
+      if (!result) throw new NotFoundError("academic year not found");
+      return result;
+    }
+    case "createTenantTemplate":
+      return createTemplate(
+        { ...templateInput(args), code: `TPL-${crypto.randomUUID().slice(0, 8).toUpperCase()}` },
+        context,
+      );
+    case "updateTenantTemplate": {
+      const result = await updateTemplate(requiredId(args), templateInput(args), context);
+      if (!result) throw new NotFoundError("template not found");
+      return result;
+    }
+    case "publishTenantTemplate": {
+      const result = await publishTemplate(requiredId(args), context);
+      if (!result) throw new NotFoundError("template not found");
+      return result;
+    }
+    case "archiveTenantTemplate":
+      return archiveTemplate(requiredId(args), context);
+    case "saveNumberingPolicy":
+      return saveNumberingPolicy(input(args), context);
+    case "updateNotificationPolicy":
+      return updateNotificationPolicy(input(args), context);
+    default:
+      throw new NotFoundError(`unsupported settings GraphQL field: ${event.info.fieldName}`);
   }
 }
 
 export async function handler(event: SettingsGraphqlEvent): Promise<unknown> {
   try {
     await hydrateSettingsRuntimeConfig();
+    if (event.source === "erp.internal") {
+      const tenantId = event.payload?.tenantId;
+      if (typeof tenantId !== "string" || !tenantId.trim()) {
+        throw new ValidationError([{ field: "tenantId", message: "tenantId is required" }]);
+      }
+      if (event.operation === "GET_ACADEMIC_YEAR") {
+        const academicYearId = event.payload?.academicYearId;
+        if (typeof academicYearId !== "string" || !academicYearId.trim()) {
+          throw new ValidationError([
+            { field: "academicYearId", message: "academicYearId is required" },
+          ]);
+        }
+        const year = await academicYearRepository.getById(tenantId.trim(), academicYearId.trim());
+        if (!year) throw new NotFoundError("academic year was not found");
+        return {
+          result: {
+            id: year.id,
+            code: year.code,
+            name: year.name,
+            status: year.status,
+            startDate: year.startDate,
+            endDate: year.endDate,
+          },
+        };
+      }
+      if (event.operation === "LIST_ACADEMIC_YEARS") {
+        const years = await academicYearRepository.list(tenantId.trim());
+        return {
+          result: years.map((year) => ({
+            id: year.id,
+            code: year.code,
+            name: year.name,
+            status: year.status,
+            startDate: year.startDate,
+            endDate: year.endDate,
+          })),
+        };
+      }
+      if (event.operation === "LIST_CAMPUSES") {
+        const campuses = await campusRepository.list(tenantId.trim());
+        return {
+          result: campuses.map((campus) => ({
+            id: campus.id,
+            name: campus.name,
+            code: campus.code,
+            status: campus.status,
+          })),
+        };
+      }
+      if (event.operation === "GET_INSTITUTION_CONTEXT") {
+        const campusId = event.payload?.campusId;
+        const academicYearId = event.payload?.academicYearId;
+        if (typeof campusId !== "string" || typeof academicYearId !== "string") {
+          throw new ValidationError([
+            { field: "context", message: "campusId and academicYearId are required" },
+          ]);
+        }
+        const [profiles, campus, year] = await Promise.all([
+          institutionRepository.list(tenantId.trim()),
+          campusRepository.getById(tenantId.trim(), campusId.trim()),
+          academicYearRepository.getById(tenantId.trim(), academicYearId.trim()),
+        ]);
+        if (!campus || !year) {
+          throw new NotFoundError("institution context was not found");
+        }
+        return {
+          result: {
+            profile: profiles[0] ?? null,
+            campus: { id: campus.id, name: campus.name, code: campus.code },
+            academicYear: { id: year.id, name: year.name, code: year.code },
+          },
+        };
+      }
+      throw new NotFoundError(`unsupported internal settings operation: ${event.operation}`);
+    }
     return await handleSettingsGraphql(event);
   } catch (error) {
     console.error("Settings GraphQL request failed", {

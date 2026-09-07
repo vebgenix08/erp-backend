@@ -12,13 +12,12 @@ const client = new MongoClient(uri);
 await client.connect();
 
 try {
-  const db = client.db(process.env.MONGODB_DB_NAME?.trim() || "finance-service_dev");
+  const databaseName = process.env.MONGODB_DB_NAME?.trim();
+  if (!databaseName) throw new Error("MONGODB_DB_NAME is required");
+  const db = client.db(databaseName);
   const configuration = db.collection("finance_configuration");
   const orders = db.collection("finance_fee_orders");
   const generalCharges = db.collection("finance_general_charges");
-  const settings = client
-    .db(process.env.SETTINGS_MONGODB_DB_NAME?.trim() || "settings-service_dev")
-    .collection("notification_policies");
 
   const schedules = await configuration
     .find({ kind: "SCHEDULE" })
@@ -38,9 +37,7 @@ try {
     const pattern =
       schedule.record?.code === "FS-0001"
         ? "ANNUAL"
-        :
-      schedule.record?.pattern ??
-      (legacyMode === "FULL_PAYMENT" ? "ANNUAL" : "PERIODIC");
+        : (schedule.record?.pattern ?? (legacyMode === "FULL_PAYMENT" ? "ANNUAL" : "PERIODIC"));
     const legacyName = schedule.record?.name ?? "Fee collection";
     const cleanedName = legacyName
       .replace(/full payment/gi, "annual collection")
@@ -102,22 +99,13 @@ try {
     migratedOrders += result.modifiedCount;
   }
 
-  const chargeResult = await generalCharges.updateMany(
-    {},
-    { $unset: { dueDate: "" } },
-  );
-  const policyResult = await settings.updateMany(
-    {},
-    { $pull: { events: { event: { $in: ["FEE_DUE", "FEE_OVERDUE"] } } } },
-  );
-
+  const chargeResult = await generalCharges.updateMany({}, { $unset: { dueDate: "" } });
   console.log(
     JSON.stringify({
       environment,
       migratedSchedules,
       migratedOrders,
       migratedGeneralCharges: chargeResult.modifiedCount,
-      migratedNotificationPolicies: policyResult.modifiedCount,
     }),
   );
 } finally {

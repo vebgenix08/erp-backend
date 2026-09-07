@@ -18,7 +18,13 @@ test("section routes handle create and list requests", async () => {
     path: "/sections",
     headers: context.headers,
     query: { ...context.query, campusId: "campus_1" },
-    body: { campusId: "campus_1", programId: "program_1", classId: "class_1", code: "A", name: "Section A" },
+    body: {
+      campusId: "campus_1",
+      programId: "program_1",
+      classId: "class_1",
+      code: "A",
+      name: "Section A",
+    },
     tenantContext: context.tenantContext,
     authContext: context.authContext,
   });

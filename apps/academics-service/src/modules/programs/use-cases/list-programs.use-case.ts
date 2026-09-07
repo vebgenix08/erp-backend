@@ -14,6 +14,9 @@ export async function listProgramsUseCase(
 ): Promise<ProgramView[]> {
   requirePermission(context, academicsPermissions.programs.read as Permission);
   const repository = await resolveProgramRepository(deps);
-  const records = await repository.list(requireTenantId(context), validateProgramListFilter(filter));
+  const records = await repository.list(
+    requireTenantId(context),
+    validateProgramListFilter(filter),
+  );
   return records.map((record) => toProgramView(record) as ProgramView);
 }

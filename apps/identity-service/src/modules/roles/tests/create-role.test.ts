@@ -5,7 +5,10 @@ import { createRoleUseCase } from "../use-cases";
 import { createRoleFixture } from "./fixtures";
 
 test("create role stores a tenant-scoped role", async () => {
-  const result = await createRoleUseCase(createTenantContext({ tenantId: "tenant-1", source: "request" }), createRoleFixture());
+  const result = await createRoleUseCase(
+    createTenantContext({ tenantId: "tenant-1", source: "request" }),
+    createRoleFixture(),
+  );
   assert.equal(result?.tenantId, "tenant-1");
   assert.equal(result?.code, "ADMIN");
   assert.equal(result?.isActive, true);

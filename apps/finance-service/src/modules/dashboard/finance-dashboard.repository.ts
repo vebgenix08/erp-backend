@@ -1,6 +1,11 @@
 import { BadRequestError } from "@school-erp/errors";
-import { getMongoConnection, type MongoEnvLike } from "@school-erp/mongodb";
-import type { Collection } from "mongodb";
+import {
+  createTenantMongoCollection,
+  getMongoConnection,
+  type MongoEnvLike,
+  type TenantMongoCollection,
+} from "@school-erp/mongodb";
+import type { Document as MongoDocument } from "mongodb";
 
 export interface FinanceDashboardScope {
   campusId: string;
@@ -22,10 +27,7 @@ export interface FinanceDashboardSummary {
 }
 
 export interface FinanceDashboardRepository {
-  summarize(
-    tenantId: string,
-    scope: FinanceDashboardScope,
-  ): Promise<FinanceDashboardSummary>;
+  summarize(tenantId: string, scope: FinanceDashboardScope): Promise<FinanceDashboardSummary>;
 }
 
 interface AggregateResult {
@@ -38,6 +40,10 @@ interface AggregateResult {
   count?: number;
 }
 
+interface FinanceTenantDocument extends MongoDocument {
+  tenantId: string;
+}
+
 function requiredTenant(value: string) {
   const tenantId = value.trim();
   if (!tenantId) throw new BadRequestError("tenantId is required");
@@ -45,19 +51,17 @@ function requiredTenant(value: string) {
 }
 
 async function firstAggregate(
-  collection: Collection,
+  collection: TenantMongoCollection<FinanceTenantDocument>,
   pipeline: Record<string, unknown>[],
 ) {
-  return (
-    (await collection.aggregate<AggregateResult>(pipeline).toArray())[0] ?? {}
-  );
+  return (await collection.aggregate<AggregateResult>(pipeline).toArray())[0] ?? {};
 }
 
 class MongoFinanceDashboardRepository implements FinanceDashboardRepository {
   constructor(
-    private readonly orders: Collection,
-    private readonly payments: Collection,
-    private readonly adjustments: Collection,
+    private readonly orders: TenantMongoCollection<FinanceTenantDocument>,
+    private readonly payments: TenantMongoCollection<FinanceTenantDocument>,
+    private readonly adjustments: TenantMongoCollection<FinanceTenantDocument>,
   ) {}
 
   async summarize(tenantId: string, scope: FinanceDashboardScope) {
@@ -87,11 +91,7 @@ class MongoFinanceDashboardRepository implements FinanceDashboardRepository {
             balanceMinor: { $sum: "$record.balanceMinor" },
             openOrders: {
               $sum: {
-                $cond: [
-                  { $in: ["$record.status", ["OPEN", "PARTIALLY_PAID"]] },
-                  1,
-                  0,
-                ],
+                $cond: [{ $in: ["$record.status", ["OPEN", "PARTIALLY_PAID"]] }, 1, 0],
               },
             },
             paidOrders: {
@@ -113,10 +113,7 @@ class MongoFinanceDashboardRepository implements FinanceDashboardRepository {
               $sum: {
                 $cond: [
                   {
-                    $and: [
-                      { $gte: ["$paidAt", start] },
-                      { $lt: ["$paidAt", end] },
-                    ],
+                    $and: [{ $gte: ["$paidAt", start] }, { $lt: ["$paidAt", end] }],
                   },
                   "$amountMinor",
                   0,
@@ -137,10 +134,7 @@ class MongoFinanceDashboardRepository implements FinanceDashboardRepository {
               $sum: {
                 $cond: [
                   {
-                    $and: [
-                      { $gte: ["$createdAt", start] },
-                      { $lt: ["$createdAt", end] },
-                    ],
+                    $and: [{ $gte: ["$createdAt", start] }, { $lt: ["$createdAt", end] }],
                   },
                   "$amountMinor",
                   0,
@@ -159,8 +153,7 @@ class MongoFinanceDashboardRepository implements FinanceDashboardRepository {
       reversedMinor,
       collectedMinor: grossCollectedMinor - reversedMinor,
       outstandingMinor: orders.balanceMinor ?? 0,
-      collectedTodayMinor:
-        (payments.todayMinor ?? 0) - (adjustments.todayMinor ?? 0),
+      collectedTodayMinor: (payments.todayMinor ?? 0) - (adjustments.todayMinor ?? 0),
       openOrders: orders.openOrders ?? 0,
       paidOrders: orders.paidOrders ?? 0,
       paymentCount: payments.count ?? 0,
@@ -170,10 +163,7 @@ class MongoFinanceDashboardRepository implements FinanceDashboardRepository {
 }
 
 function runtimeEnv(): MongoEnvLike {
-  return (
-    (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process
-      ?.env ?? {}
-  );
+  return (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
 }
 
 export async function createFinanceDashboardRepository(
@@ -182,9 +172,11 @@ export async function createFinanceDashboardRepository(
   const connection = await getMongoConnection(env);
   const db = connection.client.db(connection.dbName);
   return new MongoFinanceDashboardRepository(
-    db.collection("finance_fee_orders"),
-    db.collection("finance_payments"),
-    db.collection("finance_payment_adjustments"),
+    createTenantMongoCollection(db.collection<FinanceTenantDocument>("finance_fee_orders")),
+    createTenantMongoCollection(db.collection<FinanceTenantDocument>("finance_payments")),
+    createTenantMongoCollection(
+      db.collection<FinanceTenantDocument>("finance_payment_adjustments"),
+    ),
   );
 }
 

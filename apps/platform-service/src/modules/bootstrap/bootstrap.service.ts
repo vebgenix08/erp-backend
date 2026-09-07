@@ -4,7 +4,10 @@ import { requirePlatformPermission } from "../../middleware";
 import { toFirstAdminBootstrapView } from "./bootstrap.mapper";
 import type { FirstAdminBootstrapRepository } from "./bootstrap.repository";
 import { createFirstAdminBootstrapRepository } from "./bootstrap.repository";
-import { validateFirstAdminBootstrapCompleteInput, validateFirstAdminBootstrapCreateInput } from "./bootstrap.validator";
+import {
+  validateFirstAdminBootstrapCompleteInput,
+  validateFirstAdminBootstrapCreateInput,
+} from "./bootstrap.validator";
 import type {
   FirstAdminBootstrapRecord,
   FirstAdminBootstrapServiceContext,
@@ -30,17 +33,39 @@ export async function resendFirstAdminBootstrapInvite(
   const repository = await resolveRepository(deps);
   const existing = await repository.getByTenantId(tenantId);
   if (!existing) throw new NotFoundError("first admin bootstrap not found");
-  if (existing.status === "COMPLETED") throw new ConflictError("completed administrator onboarding cannot be resent");
-  if (existing.inviteAttempts >= MAX_FIRST_ADMIN_INVITE_ATTEMPTS) throw new ConflictError("administrator invite retry limit reached");
+  if (existing.status === "COMPLETED")
+    throw new ConflictError("completed administrator onboarding cannot be resent");
+  if (existing.inviteAttempts >= MAX_FIRST_ADMIN_INVITE_ATTEMPTS)
+    throw new ConflictError("administrator invite retry limit reached");
   const invitePort = deps?.invitePort;
   if (!invitePort) throw new ConflictError("administrator invite delivery is not configured");
   try {
-    const request: FirstAdminInviteRequest = { tenantId, adminName: existing.adminName, adminEmail: existing.adminEmail, adminPhone: existing.adminPhone, roleCode: "TENANT_ADMIN", requestId: context.requestId };
-    const receipt = await (invitePort.resendFirstAdminInvite?.(request) ?? invitePort.sendFirstAdminInvite(request));
-    const updated = await repository.update(tenantId, { status: "INVITED", inviteId: receipt.inviteId, invitedAt: receipt.sentAt, inviteError: undefined, inviteAttempts: existing.inviteAttempts + 1, lastInviteAttemptAt: new Date() });
+    const request: FirstAdminInviteRequest = {
+      tenantId,
+      adminName: existing.adminName,
+      adminEmail: existing.adminEmail,
+      adminPhone: existing.adminPhone,
+      roleCode: "TENANT_ADMIN",
+      requestId: context.requestId,
+    };
+    const receipt = await (invitePort.resendFirstAdminInvite?.(request) ??
+      invitePort.sendFirstAdminInvite(request));
+    const updated = await repository.update(tenantId, {
+      status: "INVITED",
+      inviteId: receipt.inviteId,
+      invitedAt: receipt.sentAt,
+      inviteError: undefined,
+      inviteAttempts: existing.inviteAttempts + 1,
+      lastInviteAttemptAt: new Date(),
+    });
     return toFirstAdminBootstrapView(updated ?? existing) as FirstAdminBootstrapView;
   } catch (error) {
-    const failed = await repository.update(tenantId, { status: "FAILED", inviteError: error instanceof Error ? error.message : "invite resend failed", inviteAttempts: existing.inviteAttempts + 1, lastInviteAttemptAt: new Date() });
+    const failed = await repository.update(tenantId, {
+      status: "FAILED",
+      inviteError: error instanceof Error ? error.message : "invite resend failed",
+      inviteAttempts: existing.inviteAttempts + 1,
+      lastInviteAttemptAt: new Date(),
+    });
     return toFirstAdminBootstrapView(failed ?? existing) as FirstAdminBootstrapView;
   }
 }
@@ -50,7 +75,9 @@ export interface FirstAdminBootstrapServiceDeps {
   invitePort?: FirstAdminInvitePort | undefined;
 }
 
-function resolveRepository(deps?: FirstAdminBootstrapServiceDeps): FirstAdminBootstrapRepository | Promise<FirstAdminBootstrapRepository> {
+function resolveRepository(
+  deps?: FirstAdminBootstrapServiceDeps,
+): FirstAdminBootstrapRepository | Promise<FirstAdminBootstrapRepository> {
   return deps?.repository ?? createFirstAdminBootstrapRepository();
 }
 

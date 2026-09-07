@@ -1,68 +1,58 @@
-import { BadRequestError, NotFoundError } from "@school-erp/errors";
-import {
-  createMongoCollectionAdapter,
-  getMongoConnection,
-  type CollectionAdapter,
-  type MongoEnvLike,
-} from "@school-erp/mongodb";
+import { BadRequestError } from "@school-erp/errors";
+import { internalServiceInvoker, type InternalServiceInvoker } from "@school-erp/service-client";
 
-interface AcademicYearReferenceDocument extends Record<string, unknown> {
-  _id: string;
-  tenantId: string;
+interface AcademicYearReference {
+  id: string;
   code: string;
+  name: string;
+  status: string;
 }
 
 export interface AcademicYearReferenceReader {
   getCode(tenantId: string, academicYearId: string): Promise<string>;
 }
 
-class MongoAcademicYearReferenceReader implements AcademicYearReferenceReader {
+export class SettingsAcademicYearReferenceReader implements AcademicYearReferenceReader {
   constructor(
-    private readonly collection: CollectionAdapter<AcademicYearReferenceDocument>,
+    private readonly functionName: string,
+    private readonly invoker: InternalServiceInvoker = internalServiceInvoker(),
   ) {}
+
   async getCode(tenantId: string, academicYearId: string) {
-    const record = await this.collection.findOne({
-      tenantId,
-      _id: academicYearId,
+    const record = await this.invoker.invoke<
+      { tenantId: string; academicYearId: string },
+      AcademicYearReference
+    >(this.functionName, {
+      operation: "GET_ACADEMIC_YEAR",
+      payload: { tenantId, academicYearId },
     });
-    if (!record)
-      throw new NotFoundError("academic year was not found for this tenant");
     return normalizeAcademicYearCode(record.code);
   }
 }
 
 export function normalizeAcademicYearCode(value: string) {
   const matched = value.trim().match(/^(\d{2,4})\D+(\d{2,4})$/);
-  if (!matched)
+  if (!matched) {
     throw new BadRequestError("academic year code must identify a year range");
+  }
   return `${String(Number(matched[1]) % 100).padStart(2, "0")}-${String(Number(matched[2]) % 100).padStart(2, "0")}`;
 }
 
-function runtimeEnv(): MongoEnvLike {
+function runtimeEnv() {
   return (
-    (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process
-      ?.env ?? {}
+    (
+      globalThis as unknown as {
+        process?: { env?: Record<string, string | undefined> };
+      }
+    ).process?.env ?? {}
   );
 }
 
-export async function createAcademicYearReferenceReader(
-  env: MongoEnvLike = runtimeEnv(),
-): Promise<AcademicYearReferenceReader> {
-  const connection = await getMongoConnection(env);
-  const settingsDatabaseName = env.SETTINGS_MONGODB_DB_NAME?.trim();
-  if (!settingsDatabaseName) {
-    throw new BadRequestError("SETTINGS_MONGODB_DB_NAME is not configured");
-  }
-  const collection = connection.client
-    .db(settingsDatabaseName)
-    .collection<AcademicYearReferenceDocument>("settings_academic_years");
-  return new MongoAcademicYearReferenceReader(
-    createMongoCollectionAdapter(collection),
-  );
-}
+let singleton: AcademicYearReferenceReader | undefined;
 
-let singleton: Promise<AcademicYearReferenceReader> | undefined;
 export function academicYearReferenceReader() {
-  singleton ??= createAcademicYearReferenceReader();
-  return singleton;
+  if (singleton) return singleton;
+  const functionName = runtimeEnv().SETTINGS_FUNCTION_NAME?.trim();
+  if (!functionName) throw new BadRequestError("SETTINGS_FUNCTION_NAME is not configured");
+  return (singleton = new SettingsAcademicYearReferenceReader(functionName));
 }

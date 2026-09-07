@@ -4,6 +4,7 @@ import {
   getCollection,
   type CollectionAdapter,
   type MongoEnvLike,
+  type TenantFilter,
 } from "@school-erp/mongodb";
 import { normalizeTenantId } from "@school-erp/tenancy";
 import type {
@@ -14,28 +15,13 @@ import type {
 } from "./application.model";
 
 export interface ApplicationRepository {
-  list(
-    tenantId: string,
-    filter?: ApplicationListFilter,
-  ): Promise<ApplicationRecord[]>;
+  list(tenantId: string, filter?: ApplicationListFilter): Promise<ApplicationRecord[]>;
   listPage(tenantId: string, filter: ApplicationListFilter): Promise<ApplicationPage>;
   getById(tenantId: string, id: string): Promise<ApplicationRecord | null>;
-  getByEnquiryId(
-    tenantId: string,
-    enquiryId: string,
-  ): Promise<ApplicationRecord | null>;
-  findPotentialDuplicates(
-    tenantId: string,
-    applicationId: string,
-  ): Promise<ApplicationRecord[]>;
-  nextApplicationSequence(
-    tenantId: string,
-    academicYearId: string,
-  ): Promise<number>;
-  nextAdmissionSequence(
-    tenantId: string,
-    academicYearId: string,
-  ): Promise<number>;
+  getByEnquiryId(tenantId: string, enquiryId: string): Promise<ApplicationRecord | null>;
+  findPotentialDuplicates(tenantId: string, applicationId: string): Promise<ApplicationRecord[]>;
+  nextApplicationSequence(tenantId: string, academicYearId: string): Promise<number>;
+  nextAdmissionSequence(tenantId: string, academicYearId: string): Promise<number>;
   create(
     tenantId: string,
     input: ApplicationCreateInput &
@@ -51,10 +37,7 @@ export interface ApplicationRepository {
         | "pendingEvents"
       >,
   ): Promise<ApplicationRecord>;
-  replace(
-    tenantId: string,
-    record: ApplicationRecord,
-  ): Promise<ApplicationRecord | null>;
+  replace(tenantId: string, record: ApplicationRecord): Promise<ApplicationRecord | null>;
 }
 
 function normalized(value?: string) {
@@ -68,14 +51,9 @@ function escaped(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function duplicateOf(candidate: ApplicationRecord, source: ApplicationRecord) {
-  if (candidate.id === source.id || candidate.status === "CANCELLED")
-    return false;
-  if (phone(source.phone) && phone(candidate.phone) === phone(source.phone))
-    return true;
-  if (
-    normalized(source.email) &&
-    normalized(candidate.email) === normalized(source.email)
-  )
+  if (candidate.id === source.id || candidate.status === "CANCELLED") return false;
+  if (phone(source.phone) && phone(candidate.phone) === phone(source.phone)) return true;
+  if (normalized(source.email) && normalized(candidate.email) === normalized(source.email))
     return true;
   return Boolean(
     source.dateOfBirth &&
@@ -105,9 +83,7 @@ function clone(record: ApplicationRecord): ApplicationRecord {
       ...item,
       at: new Date(item.at),
     })),
-    pendingEvents: (record.pendingEvents ?? []).map((event) =>
-      structuredClone(event),
-    ),
+    pendingEvents: (record.pendingEvents ?? []).map((event) => structuredClone(event)),
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt),
     submittedAt: record.submittedAt ? new Date(record.submittedAt) : undefined,
@@ -117,18 +93,17 @@ function clone(record: ApplicationRecord): ApplicationRecord {
     cancelledAt: record.cancelledAt ? new Date(record.cancelledAt) : undefined,
   };
 }
-function match(
-  record: ApplicationRecord,
-  filter?: ApplicationListFilter,
-): boolean {
+function match(record: ApplicationRecord, filter?: ApplicationListFilter): boolean {
   if (filter?.status && record.status !== filter.status) return false;
   if (filter?.campusId && record.campusId !== filter.campusId) return false;
-  if (filter?.academicYearId && record.academicYearId !== filter.academicYearId)
+  if (filter?.academicYearId && record.academicYearId !== filter.academicYearId) return false;
+  if (filter?.academicTargetId && record.academicTargetId !== filter.academicTargetId) return false;
+  if (filter?.sectionId && record.sectionId !== filter.sectionId) return false;
+  if (filter?.createdFrom && record.createdAt < filter.createdFrom) return false;
+  if (filter?.createdTo && record.createdAt > filter.createdTo) return false;
+  if (filter?.confirmedFrom && (!record.confirmedAt || record.confirmedAt < filter.confirmedFrom))
     return false;
-  if (
-    filter?.academicTargetId &&
-    record.academicTargetId !== filter.academicTargetId
-  )
+  if (filter?.confirmedTo && (!record.confirmedAt || record.confirmedAt > filter.confirmedTo))
     return false;
   if (filter?.search) {
     const needle = filter.search.toLowerCase();
@@ -166,8 +141,9 @@ export class InMemoryApplicationRepository implements ApplicationRepository {
       .map(clone);
   }
   async listPage(tenantId: string, filter: ApplicationListFilter) {
-    const matches = (await this.list(tenantId, filter));
-    const page = filter.page ?? 1, pageSize = filter.pageSize ?? 25;
+    const matches = await this.list(tenantId, filter);
+    const page = filter.page ?? 1,
+      pageSize = filter.pageSize ?? 25;
     const total = matches.length;
     return {
       items: matches.slice((page - 1) * pageSize, page * pageSize),
@@ -206,10 +182,7 @@ export class InMemoryApplicationRepository implements ApplicationRepository {
     this.sequences.set(key, value);
     return value;
   }
-  async create(
-    tenantId: string,
-    input: Parameters<ApplicationRepository["create"]>[1],
-  ) {
+  async create(tenantId: string, input: Parameters<ApplicationRepository["create"]>[1]) {
     const record: ApplicationRecord = { ...input, tenantId: tenant(tenantId) };
     this.bucket(tenantId).set(record.id, clone(record));
     return clone(record);
@@ -228,14 +201,13 @@ interface ApplicationDocument extends ApplicationRecord {
 }
 interface SequenceDocument {
   _id: string;
+  tenantId: string;
   value: number;
 }
 function toDocument(record: ApplicationRecord): ApplicationDocument {
   return { ...clone(record), _id: record.id };
 }
-function fromDocument(
-  document: ApplicationDocument | null,
-): ApplicationRecord | null {
+function fromDocument(document: ApplicationDocument | null): ApplicationRecord | null {
   if (!document) return null;
   const { _id, ...record } = document;
   return clone({ ...record, id: record.id || _id });
@@ -244,14 +216,10 @@ function fromDocument(
 class MongoApplicationRepository implements ApplicationRepository {
   constructor(
     private readonly collection: CollectionAdapter<ApplicationDocument>,
-    private readonly sequences: Awaited<
-      ReturnType<typeof getCollection<SequenceDocument>>
-    >,
+    private readonly sequences: CollectionAdapter<SequenceDocument>,
   ) {}
   async list(tenantId: string, filter?: ApplicationListFilter) {
-    const records = (
-      await this.collection.findMany({ tenantId: tenant(tenantId) })
-    )
+    const records = (await this.collection.findMany({ tenantId: tenant(tenantId) }))
       .map(fromDocument)
       .filter((item): item is ApplicationRecord => Boolean(item));
     return records
@@ -259,11 +227,26 @@ class MongoApplicationRepository implements ApplicationRepository {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
   async listPage(tenantId: string, filter: ApplicationListFilter) {
-    const query: Record<string, unknown> = { tenantId: tenant(tenantId) };
+    const query: TenantFilter<ApplicationDocument> = {
+      tenantId: tenant(tenantId),
+    };
     if (filter.status) query.status = filter.status;
     if (filter.campusId) query.campusId = filter.campusId;
     if (filter.academicYearId) query.academicYearId = filter.academicYearId;
     if (filter.academicTargetId) query.academicTargetId = filter.academicTargetId;
+    if (filter.sectionId) query.sectionId = filter.sectionId;
+    if (filter.createdFrom || filter.createdTo) {
+      query.createdAt = {
+        ...(filter.createdFrom ? { $gte: filter.createdFrom } : {}),
+        ...(filter.createdTo ? { $lte: filter.createdTo } : {}),
+      };
+    }
+    if (filter.confirmedFrom || filter.confirmedTo) {
+      query.confirmedAt = {
+        ...(filter.confirmedFrom ? { $gte: filter.confirmedFrom } : {}),
+        ...(filter.confirmedTo ? { $lte: filter.confirmedTo } : {}),
+      };
+    }
     if (filter.search) {
       const expression = { $regex: escaped(filter.search), $options: "i" };
       query.$or = [
@@ -274,7 +257,8 @@ class MongoApplicationRepository implements ApplicationRepository {
         { email: expression },
       ];
     }
-    const page = filter.page ?? 1, pageSize = filter.pageSize ?? 25;
+    const page = filter.page ?? 1,
+      pageSize = filter.pageSize ?? 25;
     const [documents, total] = await Promise.all([
       this.collection.findMany(query, {
         sort: { createdAt: -1, _id: -1 },
@@ -292,16 +276,12 @@ class MongoApplicationRepository implements ApplicationRepository {
     };
   }
   async getById(tenantId: string, id: string) {
-    return fromDocument(
-      await this.collection.findOne({ tenantId: tenant(tenantId), _id: id }),
-    );
+    return fromDocument(await this.collection.findOne({ tenantId: tenant(tenantId), _id: id }));
   }
   async getByEnquiryId(tenantId: string, enquiryId: string) {
     const records = await this.list(tenantId);
     return (
-      records.find(
-        (item) => item.enquiryId === enquiryId && item.status !== "CANCELLED",
-      ) ?? null
+      records.find((item) => item.enquiryId === enquiryId && item.status !== "CANCELLED") ?? null
     );
   }
   async findPotentialDuplicates(tenantId: string, applicationId: string) {
@@ -348,25 +328,24 @@ class MongoApplicationRepository implements ApplicationRepository {
       .filter((item) => duplicateOf(item, source));
   }
   async nextApplicationSequence(tenantId: string, academicYearId: string) {
+    const owner = tenant(tenantId);
     const result = await this.sequences.findOneAndUpdate(
-      { _id: `application:${tenant(tenantId)}:${academicYearId}` },
-      { $inc: { value: 1 } },
+      { tenantId: owner, _id: `application:${owner}:${academicYearId}` },
+      { $inc: { value: 1 }, $setOnInsert: { tenantId: owner } },
       { upsert: true, returnDocument: "after" },
     );
     return result?.value ?? 1;
   }
   async nextAdmissionSequence(tenantId: string, academicYearId: string) {
+    const owner = tenant(tenantId);
     const result = await this.sequences.findOneAndUpdate(
-      { _id: `admission:${tenant(tenantId)}:${academicYearId}` },
-      { $inc: { value: 1 } },
+      { tenantId: owner, _id: `admission:${owner}:${academicYearId}` },
+      { $inc: { value: 1 }, $setOnInsert: { tenantId: owner } },
       { upsert: true, returnDocument: "after" },
     );
     return result?.value ?? 1;
   }
-  async create(
-    tenantId: string,
-    input: Parameters<ApplicationRepository["create"]>[1],
-  ) {
+  async create(tenantId: string, input: Parameters<ApplicationRepository["create"]>[1]) {
     const record: ApplicationRecord = { ...input, tenantId: tenant(tenantId) };
     await this.collection.insertOne(toDocument(record));
     return clone(record);
@@ -383,35 +362,24 @@ class MongoApplicationRepository implements ApplicationRepository {
 }
 
 function runtimeEnv(): MongoEnvLike {
-  return (
-    (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process
-      ?.env ?? {}
-  );
+  return (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
 }
 function hasMongo(env: MongoEnvLike) {
   return Boolean(
-    env.MONGODB_URI ||
-      env.MONGODB_URI_DEV ||
-      env.MONGODB_URI_PROD ||
-      env.MONGODB_URI_TEST,
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
   );
 }
 export async function createApplicationRepository(
   env: MongoEnvLike = runtimeEnv(),
 ): Promise<ApplicationRepository> {
   if (!hasMongo(env)) return new InMemoryApplicationRepository();
-  const collection = await getCollection<ApplicationDocument>(
-      "admissions_applications",
-      env,
-    ),
-    sequences = await getCollection<SequenceDocument>(
-      "admissions_sequences",
-      env,
-    );
+  const collection = await getCollection<ApplicationDocument>("admissions_applications", env),
+    sequences = await getCollection<SequenceDocument>("admissions_sequences", env);
   try {
     await collection.dropIndex("tenantId_1_applicationNumber_1");
   } catch (error) {
-    const codeName = error && typeof error === "object" && "codeName" in error ? error.codeName : undefined;
+    const codeName =
+      error && typeof error === "object" && "codeName" in error ? error.codeName : undefined;
     if (codeName !== "IndexNotFound") throw error;
   }
   await collection.createIndex(
@@ -424,10 +392,12 @@ export async function createApplicationRepository(
   );
   await collection.createIndex({ tenantId: 1, status: 1, createdAt: -1 });
   await collection.createIndex({ tenantId: 1, enquiryId: 1 }, { sparse: true });
-  await collection.createIndex({ tenantId: 1, campusId: 1, academicYearId: 1 });
+  await collection.createIndex({ tenantId: 1, campusId: 1, academicYearId: 1, createdAt: -1 });
+  await collection.createIndex({ tenantId: 1, academicTargetId: 1, sectionId: 1, createdAt: -1 });
+  await collection.createIndex({ tenantId: 1, status: 1, confirmedAt: -1 });
   return new MongoApplicationRepository(
     createMongoCollectionAdapter(collection),
-    sequences,
+    createMongoCollectionAdapter(sequences),
   );
 }
 let singleton: Promise<ApplicationRepository> | undefined;
@@ -438,14 +408,10 @@ export const applicationRepository: ApplicationRepository = {
   list: async (...args) => (await repository()).list(...args),
   listPage: async (...args) => (await repository()).listPage(...args),
   getById: async (...args) => (await repository()).getById(...args),
-  getByEnquiryId: async (...args) =>
-    (await repository()).getByEnquiryId(...args),
-  findPotentialDuplicates: async (...args) =>
-    (await repository()).findPotentialDuplicates(...args),
-  nextApplicationSequence: async (...args) =>
-    (await repository()).nextApplicationSequence(...args),
-  nextAdmissionSequence: async (...args) =>
-    (await repository()).nextAdmissionSequence(...args),
+  getByEnquiryId: async (...args) => (await repository()).getByEnquiryId(...args),
+  findPotentialDuplicates: async (...args) => (await repository()).findPotentialDuplicates(...args),
+  nextApplicationSequence: async (...args) => (await repository()).nextApplicationSequence(...args),
+  nextAdmissionSequence: async (...args) => (await repository()).nextAdmissionSequence(...args),
   create: async (...args) => (await repository()).create(...args),
   replace: async (...args) => (await repository()).replace(...args),
 };

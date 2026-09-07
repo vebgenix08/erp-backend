@@ -1,8 +1,4 @@
-import {
-  jsonResponse,
-  type ApiRouter,
-  type RequestContext,
-} from "@school-erp/api";
+import { jsonResponse, type ApiRouter, type RequestContext } from "@school-erp/api";
 import type { FeeConfigurationDependencies } from "./fee-configuration.shared";
 import {
   createFeeHead,
@@ -32,25 +28,17 @@ export function registerFeeConfigurationRoutes(
   router.route("POST", "/fee-mappings", async (ctx: RequestContext) =>
     jsonResponse(201, await createFeeMapping(ctx.body, ctx, deps)),
   );
-  router.route(
-    "POST",
-    "/fee-configuration/:entity/:id/status",
-    async (ctx: RequestContext) =>
-      jsonResponse(
-        200,
-        await setFeeConfigurationStatus(
-          ctx.params.entity as
-            | "fee-head"
-            | "schedule"
-            | "structure"
-            | "mapping",
-          ctx.params.id ?? "",
-          (ctx.body as { status?: "ACTIVE" | "INACTIVE" } | undefined)
-            ?.status ?? "INACTIVE",
-          ctx,
-          deps,
-        ),
+  router.route("POST", "/fee-configuration/:entity/:id/status", async (ctx: RequestContext) =>
+    jsonResponse(
+      200,
+      await setFeeConfigurationStatus(
+        ctx.params.entity as "fee-head" | "schedule" | "structure" | "mapping",
+        ctx.params.id ?? "",
+        (ctx.body as { status?: "ACTIVE" | "INACTIVE" } | undefined)?.status ?? "INACTIVE",
+        ctx,
+        deps,
       ),
+    ),
   );
   return router;
 }

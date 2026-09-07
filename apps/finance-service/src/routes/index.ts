@@ -7,4 +7,14 @@ import { registerPaymentAdjustmentRoutes } from "../modules/payment-adjustments/
 import { registerFeeOrderRecoveryRoutes } from "../modules/fee-order-recovery/fee-order-recovery.routes";
 import { registerReceiptTemplateRoutes } from "../modules/receipt-template/receipt-template.routes";
 import { registerGeneralChargeRoutes } from "../modules/general-charges/general-charges.routes";
-export function registerFinanceRoutes(router: ApiRouter) { registerFinanceDashboardRoutes(router); registerFeeConfigurationRoutes(router); registerFeeOrderRoutes(router); registerGeneralChargeRoutes(router); registerPaymentRoutes(router); registerPaymentAdjustmentRoutes(router); registerFeeOrderRecoveryRoutes(router); registerReceiptTemplateRoutes(router); return router; }
+export function registerFinanceRoutes(router: ApiRouter) {
+  registerFinanceDashboardRoutes(router);
+  registerFeeConfigurationRoutes(router);
+  registerFeeOrderRoutes(router);
+  registerGeneralChargeRoutes(router);
+  registerPaymentRoutes(router);
+  registerPaymentAdjustmentRoutes(router);
+  registerFeeOrderRecoveryRoutes(router);
+  registerReceiptTemplateRoutes(router);
+  return router;
+}

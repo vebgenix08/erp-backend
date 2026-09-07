@@ -4,14 +4,20 @@ import { cognitoSyncPermissions } from "./cognito-sync.permissions";
 import { toCognitoSyncView } from "./cognito-sync.mapper";
 import type { CognitoSyncRepository } from "./cognito-sync.repository";
 import { cognitoSyncRepository as defaultRepository } from "./cognito-sync.repository";
-import { validateCognitoSyncCreateInput, validateCognitoSyncListFilter, validateCognitoSyncUpdateInput } from "./cognito-sync.validator";
+import {
+  validateCognitoSyncCreateInput,
+  validateCognitoSyncListFilter,
+  validateCognitoSyncUpdateInput,
+} from "./cognito-sync.validator";
 import type { CognitoSyncServiceContext, CognitoSyncView } from "./cognito-sync.model";
 
 export interface CognitoSyncServiceDeps {
   repository?: CognitoSyncRepository | Promise<CognitoSyncRepository> | undefined;
 }
 
-function resolveRepository(deps?: CognitoSyncServiceDeps): CognitoSyncRepository | Promise<CognitoSyncRepository> {
+function resolveRepository(
+  deps?: CognitoSyncServiceDeps,
+): CognitoSyncRepository | Promise<CognitoSyncRepository> {
   return deps?.repository ?? defaultRepository;
 }
 
@@ -32,10 +38,16 @@ export async function createCognitoSync(
   const repository = await resolveRepository(deps);
   const payload = validateCognitoSyncCreateInput(input);
   const record = await repository.create(tenantId(context), payload);
-  return toCognitoSyncView(await repository.getById(tenantId(context), record.id)) as CognitoSyncView;
+  return toCognitoSyncView(
+    await repository.getById(tenantId(context), record.id),
+  ) as CognitoSyncView;
 }
 
-export async function getCognitoSync(id: string, context: CognitoSyncServiceContext, deps?: CognitoSyncServiceDeps) {
+export async function getCognitoSync(
+  id: string,
+  context: CognitoSyncServiceContext,
+  deps?: CognitoSyncServiceDeps,
+) {
   assertPermission(context, cognitoSyncPermissions.read);
   const repository = await resolveRepository(deps);
   return toCognitoSyncView(await repository.getById(tenantId(context), id));
@@ -48,7 +60,9 @@ export async function listCognitoSync(
 ) {
   assertPermission(context, cognitoSyncPermissions.read);
   const repository = await resolveRepository(deps);
-  return (await repository.list(tenantId(context), validateCognitoSyncListFilter(filter))).map((record) => toCognitoSyncView(record) as CognitoSyncView);
+  return (await repository.list(tenantId(context), validateCognitoSyncListFilter(filter))).map(
+    (record) => toCognitoSyncView(record) as CognitoSyncView,
+  );
 }
 
 export async function updateCognitoSync(
@@ -59,11 +73,19 @@ export async function updateCognitoSync(
 ) {
   assertPermission(context, cognitoSyncPermissions.update);
   const repository = await resolveRepository(deps);
-  const updated = await repository.update(tenantId(context), id, validateCognitoSyncUpdateInput(input));
+  const updated = await repository.update(
+    tenantId(context),
+    id,
+    validateCognitoSyncUpdateInput(input),
+  );
   return toCognitoSyncView(updated);
 }
 
-export async function deleteCognitoSync(id: string, context: CognitoSyncServiceContext, deps?: CognitoSyncServiceDeps) {
+export async function deleteCognitoSync(
+  id: string,
+  context: CognitoSyncServiceContext,
+  deps?: CognitoSyncServiceDeps,
+) {
   assertPermission(context, cognitoSyncPermissions.delete);
   const repository = await resolveRepository(deps);
   return repository.delete(tenantId(context), id);

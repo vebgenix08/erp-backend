@@ -1,5 +1,10 @@
 import { BadRequestError } from "@school-erp/errors";
-import type { ClassCreateInput, ClassListFilter, ClassStatus, ClassUpdateInput } from "./classes.model";
+import type {
+  ClassCreateInput,
+  ClassListFilter,
+  ClassStatus,
+  ClassUpdateInput,
+} from "./classes.model";
 
 const allowedStatuses: ClassStatus[] = ["ACTIVE", "INACTIVE"];
 

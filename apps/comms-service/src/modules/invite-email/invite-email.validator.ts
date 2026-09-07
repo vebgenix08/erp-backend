@@ -53,7 +53,18 @@ export function validateInviteEmailListFilter(input: unknown): InviteEmailListFi
   const status = asString(value.status).toUpperCase();
   if (search) filter.search = search;
   if (status) {
-    if (!["QUEUED", "SENT", "DELIVERED", "DELAYED", "BOUNCED", "COMPLAINED", "REJECTED", "FAILED"].includes(status)) {
+    if (
+      ![
+        "QUEUED",
+        "SENT",
+        "DELIVERED",
+        "DELAYED",
+        "BOUNCED",
+        "COMPLAINED",
+        "REJECTED",
+        "FAILED",
+      ].includes(status)
+    ) {
       throw new BadRequestError("invalid invite email status");
     }
     filter.status = status as InviteEmailListFilter["status"];

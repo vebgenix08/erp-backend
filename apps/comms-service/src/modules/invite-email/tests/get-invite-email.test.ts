@@ -21,7 +21,9 @@ test("get invite email returns the stored record", async () => {
     { repository, provider: { send: async () => ({ messageId: "ses-message-get" }) } },
   );
 
-  const result = await getInviteEmailUseCase(created.id, createInviteEmailContext(), { repository });
+  const result = await getInviteEmailUseCase(created.id, createInviteEmailContext(), {
+    repository,
+  });
   assert.equal(result?.id, created.id);
   assert.equal(result?.messageId, created.messageId);
 });

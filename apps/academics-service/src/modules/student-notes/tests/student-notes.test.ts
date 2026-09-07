@@ -36,6 +36,12 @@ test("student notes are tenant isolated and can be updated", async () => {
   );
 
   assert.equal(updated.body, "Academic counselling meeting completed.");
-  assert.equal((await listStudentNotes("student_aarav", context("tenant_greenfield"), repository)).length, 1);
-  assert.equal((await listStudentNotes("student_aarav", context("tenant_other"), repository)).length, 0);
+  assert.equal(
+    (await listStudentNotes("student_aarav", context("tenant_greenfield"), repository)).length,
+    1,
+  );
+  assert.equal(
+    (await listStudentNotes("student_aarav", context("tenant_other"), repository)).length,
+    0,
+  );
 });

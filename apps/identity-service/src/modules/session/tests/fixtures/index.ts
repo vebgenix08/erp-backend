@@ -13,7 +13,11 @@ export function createSessionContext(overrides: Partial<RequestContext> = {}): R
         id: "user_test_1",
         email: "user@example.com",
         role: "ADMIN",
-        permissions: ["identity.session.read", "identity.session.select-tenant", "identity.session.logout"],
+        permissions: [
+          "identity.session.read",
+          "identity.session.select-tenant",
+          "identity.session.logout",
+        ],
         source: "headers",
       },
       tenant: {

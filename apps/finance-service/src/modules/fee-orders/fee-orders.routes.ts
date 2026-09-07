@@ -1,8 +1,4 @@
-import {
-  jsonResponse,
-  type ApiRouter,
-  type RequestContext,
-} from "@school-erp/api";
+import { jsonResponse, type ApiRouter, type RequestContext } from "@school-erp/api";
 import { getFeeOrder, listFeeOrders } from "./fee-orders.service";
 
 export function registerFeeOrderRoutes(router: ApiRouter) {

@@ -6,9 +6,18 @@ import { createFeatureFlagContext } from "./fixtures";
 
 test("update feature flag toggles enabled state", async () => {
   const repository = new InMemoryFeatureFlagRepository();
-  const created = await createFeatureFlag({ code: "STUDENT_PORTAL", name: "Student Portal", isEnabled: false }, createFeatureFlagContext(), { repository });
+  const created = await createFeatureFlag(
+    { code: "STUDENT_PORTAL", name: "Student Portal", isEnabled: false },
+    createFeatureFlagContext(),
+    { repository },
+  );
 
-  const updated = await updateFeatureFlag(created!.id, { isEnabled: true }, createFeatureFlagContext({ method: "PUT" }), { repository });
+  const updated = await updateFeatureFlag(
+    created!.id,
+    { isEnabled: true },
+    createFeatureFlagContext({ method: "PUT" }),
+    { repository },
+  );
 
   assert.equal(updated?.isEnabled, true);
 });

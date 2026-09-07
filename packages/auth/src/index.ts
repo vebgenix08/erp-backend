@@ -1,7 +1,9 @@
 export type {
   AuthContext,
   AuthContextOptions,
+  AuthAccessScope,
   AuthJwtClaimsPlaceholder,
+  AuthRoleAssignment,
   AuthRequestLike,
   AuthResolutionSource,
   AuthUser,

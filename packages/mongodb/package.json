@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.test.json && node scripts/run-tests.mjs"
+    "test": "tsc -p tsconfig.test.json && node scripts/run-tests.mjs",
+    "test:integration": "tsc -p tsconfig.test.json && node --test dist-tests/tests/mongodb-integration.test.js"
   }
 }

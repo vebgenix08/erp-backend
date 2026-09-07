@@ -1,9 +1,28 @@
 import { BadRequestError } from "@school-erp/errors";
-import type { TemplateCreateInput, TemplateField, TemplateFieldType, TemplateListFilter, TemplateSection, TemplateStatus, TemplateUpdateInput } from "./templates.model";
+import type {
+  TemplateCreateInput,
+  TemplateField,
+  TemplateFieldType,
+  TemplateListFilter,
+  TemplateSection,
+  TemplateStatus,
+  TemplateUpdateInput,
+} from "./templates.model";
 
 const allowedStatuses: TemplateStatus[] = ["DRAFT", "PUBLISHED", "ARCHIVED"];
 const allowedTypes = ["FORM", "EMAIL", "PRINT"] as const;
-const allowedFieldTypes: TemplateFieldType[] = ["text", "textarea", "number", "email", "phone", "date", "select", "checkbox", "radio", "document"];
+const allowedFieldTypes: TemplateFieldType[] = [
+  "text",
+  "textarea",
+  "number",
+  "email",
+  "phone",
+  "date",
+  "select",
+  "checkbox",
+  "radio",
+  "document",
+];
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -31,13 +50,18 @@ function validateField(input: unknown): TemplateField {
   if (!key) throw new BadRequestError("template field key is required");
   if (!/^[a-zA-Z0-9_.-]+$/.test(key)) throw new BadRequestError("template field key is invalid");
   if (!label) throw new BadRequestError("template field label is required");
-  if (!allowedFieldTypes.includes(type)) throw new BadRequestError("template field type is invalid");
-  if (typeof orderRaw !== "number" || !Number.isFinite(orderRaw)) throw new BadRequestError("template field order is required");
+  if (!allowedFieldTypes.includes(type))
+    throw new BadRequestError("template field type is invalid");
+  if (typeof orderRaw !== "number" || !Number.isFinite(orderRaw))
+    throw new BadRequestError("template field order is required");
 
-  const options = Array.isArray(value.options) ? value.options.map((option) => asString(option)).filter(Boolean) : undefined;
-  const rules = value.rules && typeof value.rules === "object" && !Array.isArray(value.rules)
-    ? (value.rules as Record<string, unknown>)
+  const options = Array.isArray(value.options)
+    ? value.options.map((option) => asString(option)).filter(Boolean)
     : undefined;
+  const rules =
+    value.rules && typeof value.rules === "object" && !Array.isArray(value.rules)
+      ? (value.rules as Record<string, unknown>)
+      : undefined;
 
   return {
     key,
@@ -52,8 +76,10 @@ function validateField(input: unknown): TemplateField {
     description: asString(value.description) || undefined,
     placeholder: asString(value.placeholder) || undefined,
     section: asString(value.section) || "additional",
-    scope: (["ENQUIRY", "APPLICATION", "BOTH"] as const).includes(asString(value.scope).toUpperCase() as "ENQUIRY" | "APPLICATION" | "BOTH")
-      ? asString(value.scope).toUpperCase() as "ENQUIRY" | "APPLICATION" | "BOTH"
+    scope: (["ENQUIRY", "APPLICATION", "BOTH"] as const).includes(
+      asString(value.scope).toUpperCase() as "ENQUIRY" | "APPLICATION" | "BOTH",
+    )
+      ? (asString(value.scope).toUpperCase() as "ENQUIRY" | "APPLICATION" | "BOTH")
       : "BOTH",
     rules: rules
       ? {
@@ -85,17 +111,29 @@ function validateSections(input: unknown): TemplateSection[] {
   if (input === undefined || input === null) return [];
   if (!Array.isArray(input)) throw new BadRequestError("sections must be an array");
   const keys = new Set<string>();
-  return input.map((item, index) => {
-    if (!item || typeof item !== "object" || Array.isArray(item)) throw new BadRequestError("template section must be an object");
-    const value = item as Record<string, unknown>;
-    const key = asString(value.key);
-    const label = asString(value.label);
-    if (!key || !/^[a-zA-Z0-9_.-]+$/.test(key)) throw new BadRequestError("template section key is invalid");
-    if (!label) throw new BadRequestError("template section label is required");
-    if (keys.has(key)) throw new BadRequestError("template section keys must be unique");
-    keys.add(key);
-    return { key, label, order: typeof value.order === "number" && Number.isFinite(value.order) ? Math.floor(value.order) : index + 1, ...(asString(value.description) ? { description: asString(value.description) } : {}) };
-  }).sort((left, right) => left.order - right.order);
+  return input
+    .map((item, index) => {
+      if (!item || typeof item !== "object" || Array.isArray(item))
+        throw new BadRequestError("template section must be an object");
+      const value = item as Record<string, unknown>;
+      const key = asString(value.key);
+      const label = asString(value.label);
+      if (!key || !/^[a-zA-Z0-9_.-]+$/.test(key))
+        throw new BadRequestError("template section key is invalid");
+      if (!label) throw new BadRequestError("template section label is required");
+      if (keys.has(key)) throw new BadRequestError("template section keys must be unique");
+      keys.add(key);
+      return {
+        key,
+        label,
+        order:
+          typeof value.order === "number" && Number.isFinite(value.order)
+            ? Math.floor(value.order)
+            : index + 1,
+        ...(asString(value.description) ? { description: asString(value.description) } : {}),
+      };
+    })
+    .sort((left, right) => left.order - right.order);
 }
 
 function validateSystemKeys(input: unknown): string[] {
@@ -110,7 +148,9 @@ export function validateTemplateCreateInput(input: unknown): TemplateCreateInput
   const value = input as Record<string, unknown>;
   const code = asString(value.code);
   const name = asString(value.name);
-  const templateType = asString(value.templateType).toUpperCase() as TemplateCreateInput["templateType"];
+  const templateType = asString(
+    value.templateType,
+  ).toUpperCase() as TemplateCreateInput["templateType"];
 
   if (!code) throw new BadRequestError("code is required");
   if (!name) throw new BadRequestError("name is required");
@@ -149,19 +189,23 @@ export function validateTemplateUpdateInput(input: unknown): TemplateUpdateInput
     update.name = name;
   }
   if (value.templateType !== undefined) {
-    const templateType = asString(value.templateType).toUpperCase() as TemplateCreateInput["templateType"];
+    const templateType = asString(
+      value.templateType,
+    ).toUpperCase() as TemplateCreateInput["templateType"];
     if (!allowedTypes.includes(templateType as (typeof allowedTypes)[number])) {
       throw new BadRequestError("templateType is invalid");
     }
     update.templateType = templateType;
   }
-  if (value.description !== undefined) update.description = asString(value.description) || undefined;
+  if (value.description !== undefined)
+    update.description = asString(value.description) || undefined;
   if (value.subject !== undefined) update.subject = asString(value.subject) || undefined;
   if (value.body !== undefined) update.body = asString(value.body) || undefined;
   if (value.layout !== undefined) update.layout = asString(value.layout) || undefined;
   if (value.sections !== undefined) update.sections = validateSections(value.sections);
   if (value.fields !== undefined) update.fields = validateFields(value.fields);
-  if (value.requiredSystemKeys !== undefined) update.requiredSystemKeys = validateSystemKeys(value.requiredSystemKeys);
+  if (value.requiredSystemKeys !== undefined)
+    update.requiredSystemKeys = validateSystemKeys(value.requiredSystemKeys);
   return update;
 }
 

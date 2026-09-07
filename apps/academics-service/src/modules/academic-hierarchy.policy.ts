@@ -25,7 +25,8 @@ export async function requireProgramInCampus(
 ) {
   const program = await (await programs(deps)).getById(tenantId, programId);
   if (!program || program.status !== "ACTIVE") throw new NotFoundError("active program not found");
-  if (program.campusId !== campusId) throw new BadRequestError("program does not belong to the selected campus");
+  if (program.campusId !== campusId)
+    throw new BadRequestError("program does not belong to the selected campus");
   return program;
 }
 
@@ -38,8 +39,11 @@ export async function requireClassInHierarchy(
 ) {
   await requireProgramInCampus(tenantId, campusId, programId, deps);
   const academicClass = await (await classes(deps)).getById(tenantId, classId);
-  if (!academicClass || academicClass.status !== "ACTIVE") throw new NotFoundError("active class not found");
-  if (academicClass.campusId !== campusId) throw new BadRequestError("class does not belong to the selected campus");
-  if (academicClass.programId !== programId) throw new BadRequestError("class does not belong to the selected program");
+  if (!academicClass || academicClass.status !== "ACTIVE")
+    throw new NotFoundError("active class not found");
+  if (academicClass.campusId !== campusId)
+    throw new BadRequestError("class does not belong to the selected campus");
+  if (academicClass.programId !== programId)
+    throw new BadRequestError("class does not belong to the selected program");
   return academicClass;
 }

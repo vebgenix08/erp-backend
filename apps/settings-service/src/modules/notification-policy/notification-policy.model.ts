@@ -2,9 +2,17 @@ import type { AuthContext } from "@school-erp/auth";
 import type { TenantContext } from "@school-erp/tenancy";
 
 export type NotificationEvent =
-  | "NEW_ENQUIRY" | "APPLICATION_SUBMITTED" | "APPLICATION_APPROVED" | "APPLICATION_REJECTED"
-  | "FEE_PAID" | "STAFF_INVITED";
-export type NotificationAudience = "TENANT_ADMINS" | "APPLICANT" | "PARENT_STUDENT" | "STAFF_MEMBER";
+  | "NEW_ENQUIRY"
+  | "APPLICATION_SUBMITTED"
+  | "APPLICATION_APPROVED"
+  | "APPLICATION_REJECTED"
+  | "FEE_PAID"
+  | "STAFF_INVITED";
+export type NotificationAudience =
+  | "TENANT_ADMINS"
+  | "APPLICANT"
+  | "PARENT_STUDENT"
+  | "STAFF_MEMBER";
 
 export interface NotificationEventPolicy {
   event: NotificationEvent;
@@ -36,7 +44,8 @@ export interface NotificationPolicyInput {
   events: NotificationEventPolicy[];
 }
 
-export interface NotificationPolicyView extends Omit<NotificationPolicyRecord, "createdAt" | "updatedAt"> {
+export interface NotificationPolicyView
+  extends Omit<NotificationPolicyRecord, "createdAt" | "updatedAt"> {
   createdAt: string;
   updatedAt: string;
 }
@@ -48,10 +57,46 @@ export interface NotificationPolicyServiceContext {
 }
 
 export const DEFAULT_NOTIFICATION_EVENTS: NotificationEventPolicy[] = [
-  { event: "NEW_ENQUIRY", label: "New enquiry", audience: "TENANT_ADMINS", email: true, sms: false },
-  { event: "APPLICATION_SUBMITTED", label: "Application submitted", audience: "TENANT_ADMINS", email: true, sms: false },
-  { event: "APPLICATION_APPROVED", label: "Application approved", audience: "APPLICANT", email: true, sms: false },
-  { event: "APPLICATION_REJECTED", label: "Application rejected", audience: "APPLICANT", email: true, sms: false },
-  { event: "FEE_PAID", label: "Payment confirmation", audience: "PARENT_STUDENT", email: true, sms: false },
-  { event: "STAFF_INVITED", label: "Staff invitation", audience: "STAFF_MEMBER", email: true, sms: false },
+  {
+    event: "NEW_ENQUIRY",
+    label: "New enquiry",
+    audience: "TENANT_ADMINS",
+    email: true,
+    sms: false,
+  },
+  {
+    event: "APPLICATION_SUBMITTED",
+    label: "Application submitted",
+    audience: "TENANT_ADMINS",
+    email: true,
+    sms: false,
+  },
+  {
+    event: "APPLICATION_APPROVED",
+    label: "Application approved",
+    audience: "APPLICANT",
+    email: true,
+    sms: false,
+  },
+  {
+    event: "APPLICATION_REJECTED",
+    label: "Application rejected",
+    audience: "APPLICANT",
+    email: true,
+    sms: false,
+  },
+  {
+    event: "FEE_PAID",
+    label: "Payment confirmation",
+    audience: "PARENT_STUDENT",
+    email: true,
+    sms: false,
+  },
+  {
+    event: "STAFF_INVITED",
+    label: "Staff invitation",
+    audience: "STAFF_MEMBER",
+    email: true,
+    sms: false,
+  },
 ];

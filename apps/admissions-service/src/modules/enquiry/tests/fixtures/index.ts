@@ -1,17 +1,21 @@
 import { resolveAuthFromRequest } from "@school-erp/auth";
 import { resolveTenantFromRequest } from "@school-erp/tenancy";
 
-export function createEnquiryServiceContext(overrides: {
-  tenantId?: string;
-  userId?: string;
-  permissions?: string[] | string;
-  requestId?: string;
-} = {}) {
+export function createEnquiryServiceContext(
+  overrides: {
+    tenantId?: string;
+    userId?: string;
+    permissions?: string[] | string;
+    requestId?: string;
+  } = {},
+) {
   const request = {
     requestId: overrides.requestId ?? "req_test_1",
     headers: {
       "x-user-id": overrides.userId ?? "user_test_1",
-      "x-user-permissions": overrides.permissions ?? "admissions.enquiry.read admissions.enquiry.create admissions.enquiry.update admissions.enquiry.close",
+      "x-user-permissions":
+        overrides.permissions ??
+        "admissions.enquiry.read admissions.enquiry.create admissions.enquiry.update admissions.enquiry.close",
       "x-tenant-id": overrides.tenantId ?? "tenant_test_1",
     },
   };

@@ -86,10 +86,7 @@ test("issues sequential, tenant-isolated student documents", async () => {
   assert.equal(first.documentNumber, "BON/2026/000001");
   assert.equal(second.documentNumber, "BON/2026/000002");
   assert.equal((await listStudentDocuments({}, context(), deps)).length, 2);
-  assert.equal(
-    (await listStudentDocuments({}, context("tenant_riverside"), deps)).length,
-    0,
-  );
+  assert.equal((await listStudentDocuments({}, context("tenant_riverside"), deps)).length, 0);
 });
 
 test("revokes an issued document without removing its audit record", async () => {
@@ -131,10 +128,7 @@ test("renders valid PDF output for a certificate and an identity card", async ()
       context(),
       deps,
     );
-    const stored = await deps.repository.getById(
-      "tenant_greenfield",
-      issued.id,
-    );
+    const stored = await deps.repository.getById("tenant_greenfield", issued.id);
     if (!stored) throw new Error("issued document was not persisted");
     const pdf = await renderStudentDocumentPdf(stored, branding);
     assert.equal(new TextDecoder().decode(pdf.slice(0, 4)), "%PDF");

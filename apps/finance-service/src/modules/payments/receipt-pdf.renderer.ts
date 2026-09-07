@@ -21,8 +21,7 @@ interface ReceiptSource {
   branding: ReceiptBranding;
 }
 
-const ascii = (value: unknown) =>
-  String(value ?? "-").replace(/[^\x20-\x7E]/g, " ");
+const ascii = (value: unknown) => String(value ?? "-").replace(/[^\x20-\x7E]/g, " ");
 const fit = (value: unknown, max: number) => {
   const text = ascii(value);
   return text.length <= max ? text : `${text.slice(0, Math.max(1, max - 3))}...`;
@@ -76,7 +75,18 @@ const numberWords = [
   "Eighteen",
   "Nineteen",
 ];
-const tensWords = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+const tensWords = [
+  "",
+  "",
+  "Twenty",
+  "Thirty",
+  "Forty",
+  "Fifty",
+  "Sixty",
+  "Seventy",
+  "Eighty",
+  "Ninety",
+];
 
 function belowThousand(value: number): string {
   if (value < 20) return numberWords[value] ?? "";
@@ -114,7 +124,9 @@ async function embedLogo(document: PDFDocument, branding: ReceiptBranding) {
   }
 }
 
-export async function renderReceiptPdf(input: ReceiptSource & { copyMode?: ReceiptCopyMode }): Promise<Uint8Array> {
+export async function renderReceiptPdf(
+  input: ReceiptSource & { copyMode?: ReceiptCopyMode },
+): Promise<Uint8Array> {
   const document = await PDFDocument.create();
   const [portraitWidth, portraitHeight] = PageSizes.A4;
   const page = document.addPage([portraitHeight, portraitWidth]);
@@ -138,7 +150,7 @@ export async function renderReceiptPdf(input: ReceiptSource & { copyMode?: Recei
     height: copyHeight,
     label: "STUDENT COPY",
     accent,
-    pale: rgb(.94, .97, .96),
+    pale: rgb(0.94, 0.97, 0.96),
     regular,
     bold,
     italic,
@@ -150,7 +162,7 @@ export async function renderReceiptPdf(input: ReceiptSource & { copyMode?: Recei
       start: { x: divider, y: 8 },
       end: { x: divider, y: page.getHeight() - 8 },
       dashArray: [3, 3],
-      color: rgb(.25, .28, .32),
+      color: rgb(0.25, 0.28, 0.32),
     });
     page.drawText("X", { x: divider - 3, y: page.getHeight() - 12, size: 7, font: bold });
     drawReceiptCopy(page, input, {
@@ -160,7 +172,7 @@ export async function renderReceiptPdf(input: ReceiptSource & { copyMode?: Recei
       height: copyHeight,
       label: "OFFICE COPY",
       accent,
-      pale: rgb(.94, .97, .96),
+      pale: rgb(0.94, 0.97, 0.96),
       regular,
       bold,
       italic,
@@ -196,7 +208,7 @@ function drawReceiptCopy(page: PDFPage, source: ReceiptSource, layout: CopyLayou
   const innerX = x + pad;
   const innerWidth = width - pad * 2;
 
-  page.drawRectangle({ x, y, width, height, borderWidth: .75, borderColor: accent });
+  page.drawRectangle({ x, y, width, height, borderWidth: 0.75, borderColor: accent });
   page.drawRectangle({
     x: x + width - u(86),
     y: y + height - u(9),
@@ -226,7 +238,7 @@ function drawReceiptCopy(page: PDFPage, source: ReceiptSource, layout: CopyLayou
       y: y + (height - logo.height * watermarkScale) / 2,
       width: logo.width * watermarkScale,
       height: logo.height * watermarkScale,
-      opacity: .045,
+      opacity: 0.045,
     });
   }
 
@@ -281,7 +293,12 @@ function drawReceiptCopy(page: PDFPage, source: ReceiptSource, layout: CopyLayou
   }
 
   let cursor = y + height - u(82);
-  page.drawLine({ start: { x: innerX, y: cursor }, end: { x: innerX + innerWidth, y: cursor }, thickness: .8, color: accent });
+  page.drawLine({
+    start: { x: innerX, y: cursor },
+    end: { x: innerX + innerWidth, y: cursor },
+    thickness: 0.8,
+    color: accent,
+  });
   const receiptTitle = fit(template.title.toUpperCase(), 28);
   const receiptTitleSize = u(receiptTitle.length > 18 ? 8 : 11);
   const receiptTitleWidth = bold.widthOfTextAtSize(receiptTitle, receiptTitleSize);
@@ -311,13 +328,20 @@ function drawReceiptCopy(page: PDFPage, source: ReceiptSource, layout: CopyLayou
       color: accent,
     });
   }
-  const infoWidth = innerWidth * .62;
+  const infoWidth = innerWidth * 0.62;
   const amountBoxX = innerX + infoWidth + u(5);
   const paymentRows = [
     ["Receipt No.", payment.receiptNumber],
-    ["Payment Date", payment.paidAt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })],
+    [
+      "Payment Date",
+      payment.paidAt.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+    ],
     ["Payment Mode", template.showPaymentMethod ? payment.method.replaceAll("_", " ") : "-"],
-    ["Reference / UTR", template.showPaymentReference ? payment.reference ?? "-" : "-"],
+    ["Reference / UTR", template.showPaymentReference ? (payment.reference ?? "-") : "-"],
     ["Collected By", branding.collectedByName ?? "Authorized cashier"],
   ];
   paymentRows.forEach(([label, value], index) => {
@@ -329,7 +353,7 @@ function drawReceiptCopy(page: PDFPage, source: ReceiptSource, layout: CopyLayou
       y: rowY,
       size: u(6.7),
       font: label === "Receipt No." ? bold : regular,
-      color: label === "Receipt No." ? rgb(.82, .03, .04) : rgb(.06, .08, .11),
+      color: label === "Receipt No." ? rgb(0.82, 0.03, 0.04) : rgb(0.06, 0.08, 0.11),
     });
   });
   page.drawRectangle({
@@ -337,62 +361,158 @@ function drawReceiptCopy(page: PDFPage, source: ReceiptSource, layout: CopyLayou
     y: cursor - u(55),
     width: innerX + innerWidth - amountBoxX,
     height: u(57),
-    borderWidth: .55,
+    borderWidth: 0.55,
     borderColor: accent,
-    color: rgb(.99, .99, .99),
+    color: rgb(0.99, 0.99, 0.99),
   });
-  page.drawText("Amount in Words", { x: amountBoxX + u(7), y: cursor - u(10), size: u(6.5), font: bold });
+  page.drawText("Amount in Words", {
+    x: amountBoxX + u(7),
+    y: cursor - u(10),
+    size: u(6.5),
+    font: bold,
+  });
   const words = amountInWords(payment.amountMinor);
   const splitAt = Math.min(words.length, 31);
-  page.drawText(fit(words.slice(0, splitAt), 35), { x: amountBoxX + u(7), y: cursor - u(30), size: u(7.2), font: italic, color: accent });
-  if (words.length > splitAt) page.drawText(fit(words.slice(splitAt).trim(), 35), { x: amountBoxX + u(7), y: cursor - u(42), size: u(7.2), font: italic, color: accent });
+  page.drawText(fit(words.slice(0, splitAt), 35), {
+    x: amountBoxX + u(7),
+    y: cursor - u(30),
+    size: u(7.2),
+    font: italic,
+    color: accent,
+  });
+  if (words.length > splitAt)
+    page.drawText(fit(words.slice(splitAt).trim(), 35), {
+      x: amountBoxX + u(7),
+      y: cursor - u(42),
+      size: u(7.2),
+      font: italic,
+      color: accent,
+    });
 
   cursor -= u(76);
-  cursor = drawSectionTitle(page, "STUDENT INFORMATION", innerX, cursor, innerWidth, u(15), accent, pale, bold, scale);
+  cursor = drawSectionTitle(
+    page,
+    "STUDENT INFORMATION",
+    innerX,
+    cursor,
+    innerWidth,
+    u(15),
+    accent,
+    pale,
+    bold,
+    scale,
+  );
   const first = orders[0];
   const studentRows = [
-    ["Student Name", payment.studentName, "Class & Section", [branding.className, branding.sectionName].filter(Boolean).join(" - ") || "-"],
-    ["Admission No.", branding.admissionNumber ?? "-", "Registration No.", first?.registrationNumber ?? "-"],
+    [
+      "Student Name",
+      payment.studentName,
+      "Class & Section",
+      [branding.className, branding.sectionName].filter(Boolean).join(" - ") || "-",
+    ],
+    [
+      "Admission No.",
+      branding.admissionNumber ?? "-",
+      "Registration No.",
+      first?.registrationNumber ?? "-",
+    ],
     ["Academic Year", branding.academicYearName, "", ""],
   ];
-  studentRows.forEach((row, index) => drawFourColumnRow(page, row, innerX, cursor - u(index * 15), innerWidth, regular, bold, scale));
+  studentRows.forEach((row, index) =>
+    drawFourColumnRow(page, row, innerX, cursor - u(index * 15), innerWidth, regular, bold, scale),
+  );
   cursor -= u(48);
 
-  cursor = drawSectionTitle(page, "FEE DETAILS", innerX, cursor, innerWidth, u(15), accent, accent, bold, scale, true);
-  const columns = [0, .08, .29, .48, .63, .76, .89, 1].map((ratio) => innerX + innerWidth * ratio);
-  const headings = ["Sl.No.", "Fee Head", "Fee Order No.", "Total Amount", "Previous Paid", "Paid Now", "Balance"];
-  page.drawRectangle({ x: innerX, y: cursor - u(18), width: innerWidth, height: u(18), borderWidth: .4, borderColor: accent, color: pale });
-  headings.forEach((heading, index) => page.drawText(heading, {
-    x: (columns[index] ?? innerX) + u(2),
-    y: cursor - u(11),
-    size: u(5.1),
-    font: bold,
-  }));
+  cursor = drawSectionTitle(
+    page,
+    "FEE DETAILS",
+    innerX,
+    cursor,
+    innerWidth,
+    u(15),
+    accent,
+    accent,
+    bold,
+    scale,
+    true,
+  );
+  const columns = [0, 0.08, 0.29, 0.48, 0.63, 0.76, 0.89, 1].map(
+    (ratio) => innerX + innerWidth * ratio,
+  );
+  const headings = [
+    "Sl.No.",
+    "Fee Head",
+    "Fee Order No.",
+    "Total Amount",
+    "Previous Paid",
+    "Paid Now",
+    "Balance",
+  ];
+  page.drawRectangle({
+    x: innerX,
+    y: cursor - u(18),
+    width: innerWidth,
+    height: u(18),
+    borderWidth: 0.4,
+    borderColor: accent,
+    color: pale,
+  });
+  headings.forEach((heading, index) =>
+    page.drawText(heading, {
+      x: (columns[index] ?? innerX) + u(2),
+      y: cursor - u(11),
+      size: u(5.1),
+      font: bold,
+    }),
+  );
   cursor -= u(18);
 
-  const allocationByOrder = new Map(payment.allocations.map((allocation) => [allocation.feeOrderId, allocation]));
-  const rows = orders.flatMap((order) => {
-    const allocation = allocationByOrder.get(order.id);
-    const currentByCharge = new Map((allocation?.chargeAllocations ?? []).map((charge) => [charge.chargeId, charge.amountMinor]));
-    return order.charges
-      .filter((charge) => charge.amountMinor > 0)
-      .map((charge) => {
-        const paidNow = currentByCharge.get(charge.id) ?? 0;
-        return {
-          label: charge.label,
-          orderNumber: order.orderNumber,
-          totalMinor: charge.amountMinor,
-          previousPaidMinor: Math.max(0, charge.paidMinor - paidNow),
-          paidNowMinor: paidNow,
-          balanceMinor: charge.balanceMinor,
-        };
-      });
-  }).slice(0, 7);
+  const allocationByOrder = new Map(
+    payment.allocations.map((allocation) => [allocation.feeOrderId, allocation]),
+  );
+  const rows = orders
+    .flatMap((order) => {
+      const allocation = allocationByOrder.get(order.id);
+      const currentByCharge = new Map(
+        (allocation?.chargeAllocations ?? []).map((charge) => [
+          charge.chargeId,
+          charge.amountMinor,
+        ]),
+      );
+      return order.charges
+        .filter((charge) => charge.amountMinor > 0)
+        .map((charge) => {
+          const paidNow = currentByCharge.get(charge.id) ?? 0;
+          return {
+            label: charge.label,
+            orderNumber: order.orderNumber,
+            totalMinor: charge.amountMinor,
+            previousPaidMinor: Math.max(0, charge.paidMinor - paidNow),
+            paidNowMinor: paidNow,
+            balanceMinor: charge.balanceMinor,
+          };
+        });
+    })
+    .slice(0, 7);
 
   rows.forEach((row, rowIndex) => {
     const rowHeight = u(17);
-    page.drawRectangle({ x: innerX, y: cursor - rowHeight, width: innerWidth, height: rowHeight, borderWidth: .35, borderColor: rgb(.55, .59, .63) });
-    columns.slice(1, -1).forEach((columnX) => page.drawLine({ start: { x: columnX, y: cursor - rowHeight }, end: { x: columnX, y: cursor }, thickness: .3, color: rgb(.55, .59, .63) }));
+    page.drawRectangle({
+      x: innerX,
+      y: cursor - rowHeight,
+      width: innerWidth,
+      height: rowHeight,
+      borderWidth: 0.35,
+      borderColor: rgb(0.55, 0.59, 0.63),
+    });
+    columns.slice(1, -1).forEach((columnX) =>
+      page.drawLine({
+        start: { x: columnX, y: cursor - rowHeight },
+        end: { x: columnX, y: cursor },
+        thickness: 0.3,
+        color: rgb(0.55, 0.59, 0.63),
+      }),
+    );
     const values = [
       String(rowIndex + 1),
       fit(row.label, 23),
@@ -402,12 +522,14 @@ function drawReceiptCopy(page: PDFPage, source: ReceiptSource, layout: CopyLayou
       money(row.paidNowMinor).replace("INR ", ""),
       money(row.balanceMinor).replace("INR ", ""),
     ];
-    values.forEach((value, index) => page.drawText(value, {
-      x: (columns[index] ?? innerX) + u(2),
-      y: cursor - u(11),
-      size: u(5.4),
-      font: index === 1 ? regular : bold,
-    }));
+    values.forEach((value, index) =>
+      page.drawText(value, {
+        x: (columns[index] ?? innerX) + u(2),
+        y: cursor - u(11),
+        size: u(5.4),
+        font: index === 1 ? regular : bold,
+      }),
+    );
     cursor -= rowHeight;
   });
 
@@ -416,9 +538,21 @@ function drawReceiptCopy(page: PDFPage, source: ReceiptSource, layout: CopyLayou
   const totalBalance = orders.reduce((sum, order) => sum + order.balanceMinor, 0);
   const previousPaid = Math.max(0, totalPaid - payment.amountMinor);
   cursor -= u(9);
-  const summaryWidth = innerWidth * .58;
-  page.drawRectangle({ x: innerX + u(8), y: cursor - u(67), width: summaryWidth - u(12), height: u(67), borderWidth: .55, borderColor: accent });
-  page.drawText("Payment Summary", { x: innerX + u(58), y: cursor - u(12), size: u(7), font: bold });
+  const summaryWidth = innerWidth * 0.58;
+  page.drawRectangle({
+    x: innerX + u(8),
+    y: cursor - u(67),
+    width: summaryWidth - u(12),
+    height: u(67),
+    borderWidth: 0.55,
+    borderColor: accent,
+  });
+  page.drawText("Payment Summary", {
+    x: innerX + u(58),
+    y: cursor - u(12),
+    size: u(7),
+    font: bold,
+  });
   [
     ["Total Order Amount", totalOrder],
     ["Total Paid (Before)", previousPaid],
@@ -426,27 +560,89 @@ function drawReceiptCopy(page: PDFPage, source: ReceiptSource, layout: CopyLayou
     ["Balance Amount", totalBalance],
   ].forEach(([label, amount], index) => {
     const lineY = cursor - u(27 + index * 12);
-    page.drawText(String(label), { x: innerX + u(18), y: lineY, size: u(5.9), font: index === 3 ? bold : regular });
-    page.drawText(money(Number(amount)), { x: innerX + summaryWidth - u(74), y: lineY, size: u(6.1), font: bold, color: index === 3 ? rgb(1, 1, 1) : rgb(.05, .07, .1) });
-    if (index === 3) page.drawRectangle({ x: innerX + u(10), y: lineY - u(4), width: summaryWidth - u(16), height: u(12), color: accent, opacity: .98 });
+    page.drawText(String(label), {
+      x: innerX + u(18),
+      y: lineY,
+      size: u(5.9),
+      font: index === 3 ? bold : regular,
+    });
+    page.drawText(money(Number(amount)), {
+      x: innerX + summaryWidth - u(74),
+      y: lineY,
+      size: u(6.1),
+      font: bold,
+      color: index === 3 ? rgb(1, 1, 1) : rgb(0.05, 0.07, 0.1),
+    });
+    if (index === 3)
+      page.drawRectangle({
+        x: innerX + u(10),
+        y: lineY - u(4),
+        width: summaryWidth - u(16),
+        height: u(12),
+        color: accent,
+        opacity: 0.98,
+      });
     if (index === 3) {
-      page.drawText(String(label), { x: innerX + u(18), y: lineY, size: u(5.9), font: bold, color: rgb(1, 1, 1) });
-      page.drawText(money(Number(amount)), { x: innerX + summaryWidth - u(74), y: lineY, size: u(6.1), font: bold, color: rgb(1, 1, 1) });
+      page.drawText(String(label), {
+        x: innerX + u(18),
+        y: lineY,
+        size: u(5.9),
+        font: bold,
+        color: rgb(1, 1, 1),
+      });
+      page.drawText(money(Number(amount)), {
+        x: innerX + summaryWidth - u(74),
+        y: lineY,
+        size: u(6.1),
+        font: bold,
+        color: rgb(1, 1, 1),
+      });
     }
   });
   const totalBoxX = innerX + summaryWidth + u(8);
-  page.drawRectangle({ x: totalBoxX, y: cursor - u(55), width: innerX + innerWidth - totalBoxX - u(8), height: u(48), borderWidth: .65, borderColor: accent });
-  page.drawText("TOTAL PAID NOW", { x: totalBoxX + u(25), y: cursor - u(23), size: u(7), font: bold, color: accent });
-  page.drawText(money(payment.amountMinor), { x: totalBoxX + u(17), y: cursor - u(43), size: u(13), font: bold, color: accent });
+  page.drawRectangle({
+    x: totalBoxX,
+    y: cursor - u(55),
+    width: innerX + innerWidth - totalBoxX - u(8),
+    height: u(48),
+    borderWidth: 0.65,
+    borderColor: accent,
+  });
+  page.drawText("TOTAL PAID NOW", {
+    x: totalBoxX + u(25),
+    y: cursor - u(23),
+    size: u(7),
+    font: bold,
+    color: accent,
+  });
+  page.drawText(money(payment.amountMinor), {
+    x: totalBoxX + u(17),
+    y: cursor - u(43),
+    size: u(13),
+    font: bold,
+    color: accent,
+  });
 
   const footerY = y + u(18);
-  page.drawText(fit(template.footerText || "This is a computer generated receipt and does not require any signature.", 90), {
-    x: innerX,
-    y: footerY + u(20),
-    size: u(5.8),
-    font: regular,
+  page.drawText(
+    fit(
+      template.footerText ||
+        "This is a computer generated receipt and does not require any signature.",
+      90,
+    ),
+    {
+      x: innerX,
+      y: footerY + u(20),
+      size: u(5.8),
+      font: regular,
+    },
+  );
+  page.drawLine({
+    start: { x: innerX, y: footerY + u(10) },
+    end: { x: innerX + innerWidth, y: footerY + u(10) },
+    thickness: 0.5,
+    color: accent,
   });
-  page.drawLine({ start: { x: innerX, y: footerY + u(10) }, end: { x: innerX + innerWidth, y: footerY + u(10) }, thickness: .5, color: accent });
   page.drawText(ascii(template.signatureLabel || "Authorized Signatory"), {
     x: innerX + innerWidth - u(85),
     y: footerY - u(2),
@@ -469,7 +665,15 @@ function drawSectionTitle(
   scale: number,
   inverse = false,
 ) {
-  page.drawRectangle({ x, y: cursor - height, width, height, borderWidth: .45, borderColor: accent, color: fill });
+  page.drawRectangle({
+    x,
+    y: cursor - height,
+    width,
+    height,
+    borderWidth: 0.45,
+    borderColor: accent,
+    color: fill,
+  });
   const titleWidth = title.length * 4.1 * scale;
   page.drawText(title, {
     x: x + (width - titleWidth) / 2,

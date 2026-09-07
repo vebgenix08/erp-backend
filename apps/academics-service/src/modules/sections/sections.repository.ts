@@ -1,7 +1,21 @@
 import { BadRequestError, ConflictError } from "@school-erp/errors";
-import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
-import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { SectionCreateInput, SectionListFilter, SectionRecord, SectionUpdateInput } from "./sections.model";
+import type {
+  CollectionAdapter,
+  MongoEnvLike,
+  PlatformCollectionAdapter,
+} from "@school-erp/mongodb";
+import {
+  createMongoCollectionAdapter,
+  createPlatformMongoCollectionAdapter,
+  getCollection,
+} from "@school-erp/mongodb";
+import { academicSequenceFilter } from "../academic-sequence";
+import type {
+  SectionCreateInput,
+  SectionListFilter,
+  SectionRecord,
+  SectionUpdateInput,
+} from "./sections.model";
 
 export interface SectionRepository {
   list(tenantId: string, filter: SectionListFilter): Promise<SectionRecord[]>;
@@ -63,7 +77,12 @@ function normalizeRequired(value: string, field: string): string {
 export class InMemorySectionRepository implements SectionRepository {
   private readonly records = new Map<string, Map<string, SectionRecord>>();
   private readonly sequences = new Map<string, number>();
-  async reserveNextCode(tenantId: string, campusId: string) { const key = `${normalizeTenantId(tenantId)}:${campusId}`; const next = (this.sequences.get(key) ?? 0) + 1; this.sequences.set(key, next); return `SEC-${String(next).padStart(3, "0")}`; }
+  async reserveNextCode(tenantId: string, campusId: string) {
+    const key = `${normalizeTenantId(tenantId)}:${campusId}`;
+    const next = (this.sequences.get(key) ?? 0) + 1;
+    this.sequences.set(key, next);
+    return `SEC-${String(next).padStart(3, "0")}`;
+  }
 
   private bucket(tenantId: string): Map<string, SectionRecord> {
     let bucket = this.records.get(tenantId);
@@ -94,7 +113,10 @@ export class InMemorySectionRepository implements SectionRepository {
 
   async getByCode(tenantId: string, campusId: string, code: string) {
     const normalized = normalizeCode(code);
-    const record = [...this.bucket(normalizeTenantId(tenantId)).values()].find((item) => item.campusId === campusId && item.code === normalized) ?? null;
+    const record =
+      [...this.bucket(normalizeTenantId(tenantId)).values()].find(
+        (item) => item.campusId === campusId && item.code === normalized,
+      ) ?? null;
     return record ? clone(record) : null;
   }
 
@@ -127,14 +149,19 @@ export class InMemorySectionRepository implements SectionRepository {
     const nextStatus = input.status ?? existing.status;
     const updated: SectionRecord = clone({
       ...existing,
-      programId: input.programId ? normalizeRequired(input.programId, "programId") : existing.programId,
+      programId: input.programId
+        ? normalizeRequired(input.programId, "programId")
+        : existing.programId,
       classId: input.classId ? normalizeRequired(input.classId, "classId") : existing.classId,
       name: input.name ? input.name.trim() : existing.name,
-      description: input.description !== undefined ? input.description?.trim() || undefined : existing.description,
+      description:
+        input.description !== undefined
+          ? input.description?.trim() || undefined
+          : existing.description,
       status: nextStatus,
       deactivatedAt:
         nextStatus === "INACTIVE"
-          ? existing.deactivatedAt ?? now()
+          ? (existing.deactivatedAt ?? now())
           : nextStatus === "ACTIVE"
             ? undefined
             : existing.deactivatedAt,
@@ -149,13 +176,31 @@ export class InMemorySectionRepository implements SectionRepository {
   }
 }
 
-interface SequenceDocument { _id: string; value: number; }
+interface SequenceDocument {
+  _id: string;
+  tenantId: string;
+  value: number;
+}
 class MongoSectionRepository implements SectionRepository {
-  constructor(private readonly collection: CollectionAdapter<SectionDocument>, private readonly sequences: Awaited<ReturnType<typeof getCollection<SequenceDocument>>>) {}
-  async reserveNextCode(tenantId: string, campusId: string) { const result = await this.sequences.findOneAndUpdate({ _id: `section:${normalizeTenantId(tenantId)}:${campusId}` }, { $inc: { value: 1 } }, { upsert: true, returnDocument: "after" }); return `SEC-${String(result?.value ?? 1).padStart(3, "0")}`; }
+  constructor(
+    private readonly collection: CollectionAdapter<SectionDocument>,
+    private readonly sequences: PlatformCollectionAdapter<SequenceDocument>,
+  ) {}
+  async reserveNextCode(tenantId: string, campusId: string) {
+    const owner = normalizeTenantId(tenantId);
+    const result = await this.sequences.findOneAndUpdate(
+      academicSequenceFilter("section", owner, campusId),
+      { $inc: { value: 1 }, $setOnInsert: { tenantId: owner } },
+      { upsert: true, returnDocument: "after" },
+    );
+    return `SEC-${String(result?.value ?? 1).padStart(3, "0")}`;
+  }
 
   async list(tenantId: string, filter: SectionListFilter) {
-    const records = await this.collection.findMany({ tenantId: normalizeTenantId(tenantId), campusId: filter.campusId });
+    const records = await this.collection.findMany({
+      tenantId: normalizeTenantId(tenantId),
+      campusId: filter.campusId,
+    });
     return records
       .map((record) => fromDocument(record))
       .filter((record): record is SectionRecord => record !== null)
@@ -169,11 +214,22 @@ class MongoSectionRepository implements SectionRepository {
   }
 
   async getById(tenantId: string, id: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }));
+    return fromDocument(
+      await this.collection.findOne({
+        tenantId: normalizeTenantId(tenantId),
+        _id: id,
+      }),
+    );
   }
 
   async getByCode(tenantId: string, campusId: string, code: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), campusId, code: normalizeCode(code) }));
+    return fromDocument(
+      await this.collection.findOne({
+        tenantId: normalizeTenantId(tenantId),
+        campusId,
+        code: normalizeCode(code),
+      }),
+    );
   }
 
   async create(tenantId: string, input: SectionCreateInput & { code: string }) {
@@ -205,20 +261,28 @@ class MongoSectionRepository implements SectionRepository {
     const nextStatus = input.status ?? existing.status;
     const updated: SectionRecord = clone({
       ...existing,
-      programId: input.programId ? normalizeRequired(input.programId, "programId") : existing.programId,
+      programId: input.programId
+        ? normalizeRequired(input.programId, "programId")
+        : existing.programId,
       classId: input.classId ? normalizeRequired(input.classId, "classId") : existing.classId,
       name: input.name ? input.name.trim() : existing.name,
-      description: input.description !== undefined ? input.description?.trim() || undefined : existing.description,
+      description:
+        input.description !== undefined
+          ? input.description?.trim() || undefined
+          : existing.description,
       status: nextStatus,
       deactivatedAt:
         nextStatus === "INACTIVE"
-          ? existing.deactivatedAt ?? now()
+          ? (existing.deactivatedAt ?? now())
           : nextStatus === "ACTIVE"
             ? undefined
             : existing.deactivatedAt,
       updatedAt: now(),
     });
-    const replaced = await this.collection.replaceOne({ tenantId: normalizedTenantId, _id: id }, toDocument(updated));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: normalizedTenantId, _id: id },
+      toDocument(updated),
+    );
     return replaced ? updated : null;
   }
 
@@ -228,7 +292,9 @@ class MongoSectionRepository implements SectionRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -236,18 +302,26 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createSectionRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<SectionRepository> {
+export async function createSectionRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<SectionRepository> {
   if (!hasMongoEnv(env)) {
     return new InMemorySectionRepository();
   }
   const collection = await getCollection<SectionDocument>("academics_sections", env);
   const sequences = await getCollection<SequenceDocument>("academics_sequences", env);
   await collection.createIndex({ tenantId: 1, campusId: 1, code: 1 }, { unique: true });
-  return new MongoSectionRepository(createMongoCollectionAdapter(collection), sequences);
+  return new MongoSectionRepository(
+    createMongoCollectionAdapter(collection),
+    createPlatformMongoCollectionAdapter(sequences),
+  );
 }
 
 let defaultRepository: Promise<SectionRepository> | undefined;
-function getDefaultRepository() { defaultRepository ??= createSectionRepository(); return defaultRepository; }
+function getDefaultRepository() {
+  defaultRepository ??= createSectionRepository();
+  return defaultRepository;
+}
 export const sectionRepository: SectionRepository = {
   list: async (...args) => (await getDefaultRepository()).list(...args),
   getById: async (...args) => (await getDefaultRepository()).getById(...args),

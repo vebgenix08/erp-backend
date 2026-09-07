@@ -37,13 +37,15 @@ export function validateRoleUpdateInput(input: Record<string, unknown>): RoleUpd
 
   if (input.code !== undefined) {
     const value = validateNonEmptyString(input.code, "code");
-    if (!value.success) errors.push({ field: "code", message: value.errors[0] ?? "code cannot be empty" });
+    if (!value.success)
+      errors.push({ field: "code", message: value.errors[0] ?? "code cannot be empty" });
     else update.code = value.value;
   }
 
   if (input.name !== undefined) {
     const value = validateNonEmptyString(input.name, "name");
-    if (!value.success) errors.push({ field: "name", message: value.errors[0] ?? "name cannot be empty" });
+    if (!value.success)
+      errors.push({ field: "name", message: value.errors[0] ?? "name cannot be empty" });
     else update.name = value.value;
   }
 

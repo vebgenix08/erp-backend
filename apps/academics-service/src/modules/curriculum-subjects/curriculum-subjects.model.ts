@@ -26,11 +26,42 @@ export interface CurriculumSubjectRecord {
   deactivationReason?: string;
 }
 
-export type CurriculumSubjectCreateInput = Pick<CurriculumSubjectRecord,
-  "academicUnitId" | "curriculumId" | "programId" | "academicLevelId" | "subjectCatalogueId" |
-  "subjectCategory" | "isMandatory"> & Partial<Pick<CurriculumSubjectRecord,
-  "localSubjectCode" | "gradingSchemeId" | "examinationSchemeId" | "credits">>;
-export type CurriculumSubjectUpdateInput = Partial<Pick<CurriculumSubjectRecord,
-  "localSubjectCode" | "subjectCategory" | "gradingSchemeId" | "examinationSchemeId" | "credits" | "isMandatory">> & { expectedVersion: number };
-export type CurriculumSubjectFilter = Partial<Pick<CurriculumSubjectRecord,
-  "academicUnitId" | "curriculumId" | "programId" | "academicLevelId" | "subjectCatalogueId" | "subjectCategory" | "status">>;
+export type CurriculumSubjectCreateInput = Pick<
+  CurriculumSubjectRecord,
+  | "academicUnitId"
+  | "curriculumId"
+  | "programId"
+  | "academicLevelId"
+  | "subjectCatalogueId"
+  | "subjectCategory"
+  | "isMandatory"
+> &
+  Partial<
+    Pick<
+      CurriculumSubjectRecord,
+      "localSubjectCode" | "gradingSchemeId" | "examinationSchemeId" | "credits"
+    >
+  >;
+export type CurriculumSubjectUpdateInput = Partial<
+  Pick<
+    CurriculumSubjectRecord,
+    | "localSubjectCode"
+    | "subjectCategory"
+    | "gradingSchemeId"
+    | "examinationSchemeId"
+    | "credits"
+    | "isMandatory"
+  >
+> & { expectedVersion: number };
+export type CurriculumSubjectFilter = Partial<
+  Pick<
+    CurriculumSubjectRecord,
+    | "academicUnitId"
+    | "curriculumId"
+    | "programId"
+    | "academicLevelId"
+    | "subjectCatalogueId"
+    | "subjectCategory"
+    | "status"
+  >
+>;

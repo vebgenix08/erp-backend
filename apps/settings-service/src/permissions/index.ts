@@ -32,7 +32,7 @@ export const settingsPermissions = {
 } as const;
 
 export type SettingsPermission =
-  (typeof settingsPermissions.institution)[keyof typeof settingsPermissions.institution]
+  | (typeof settingsPermissions.institution)[keyof typeof settingsPermissions.institution]
   | (typeof settingsPermissions.campuses)[keyof typeof settingsPermissions.campuses]
   | (typeof settingsPermissions.academicUnits)[keyof typeof settingsPermissions.academicUnits]
   | (typeof settingsPermissions.academicYears)[keyof typeof settingsPermissions.academicYears]

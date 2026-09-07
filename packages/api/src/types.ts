@@ -40,7 +40,9 @@ export interface RequestContext {
 
 export type ApiNext = () => Promise<ApiResponse | void>;
 export type ApiMiddleware = (context: RequestContext, next: ApiNext) => Promise<ApiResponse | void>;
-export type ApiHandler = (context: RequestContext) => Promise<ApiResponse | void> | ApiResponse | void;
+export type ApiHandler = (
+  context: RequestContext,
+) => Promise<ApiResponse | void> | ApiResponse | void;
 
 export interface RouteMatch {
   method: ApiMethod;

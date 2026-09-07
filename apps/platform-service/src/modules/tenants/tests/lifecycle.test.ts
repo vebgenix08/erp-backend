@@ -19,11 +19,14 @@ test("tenant lifecycle uses explicit suspend, activate, deletion request and con
   assert.equal(suspended?.status, "SUSPENDED");
   const active = await activateTenantUseCase(created.id, context, { repository });
   assert.equal(active?.status, "ACTIVE");
-  const requested = await requestTenantDeletionUseCase(created.id, "Institution closed", context, { repository });
+  const requested = await requestTenantDeletionUseCase(created.id, "Institution closed", context, {
+    repository,
+  });
   assert.ok(requested?.deletionRequestedAt);
   assert.equal(requested?.status, "INACTIVE");
   const deleted = await confirmTenantDeletionUseCase(created.id, context, { repository });
-  if (!deleted?.deletedAt || !deleted.purgeEligibleAt) throw new Error("deletion retention metadata was not created");
+  if (!deleted?.deletedAt || !deleted.purgeEligibleAt)
+    throw new Error("deletion retention metadata was not created");
   assert.equal(deleted.deletedBy, "platform_admin_test");
   assert.equal(deleted.status, "INACTIVE");
   assert.equal(deleted.deletionReason, "Institution closed");

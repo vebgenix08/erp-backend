@@ -1,7 +1,14 @@
 import type { ApiRouter, RequestContext } from "@school-erp/api";
 import { jsonResponse } from "@school-erp/api";
 import type { StorageServiceDeps } from "./files.service";
-import { completeFileUpload, createFileDownloadUrl, createFileUploadUrl, deleteFile, getFile, listFiles } from "./files.service";
+import {
+  completeFileUpload,
+  createFileDownloadUrl,
+  createFileUploadUrl,
+  deleteFile,
+  getFile,
+  listFiles,
+} from "./files.service";
 import { validateFileDownloadUrlInput, validateFileListFilter } from "./files.validator";
 
 function fileId(context: RequestContext): string {
@@ -30,7 +37,12 @@ export function registerStorageRoutes(router: ApiRouter, deps: StorageServiceDep
   });
 
   router.route("POST", "/files/:id/download-url", async (context: RequestContext) => {
-    const result = await createFileDownloadUrl(fileId(context), context.body ? validateFileDownloadUrlInput(context.body) : {}, context, deps);
+    const result = await createFileDownloadUrl(
+      fileId(context),
+      context.body ? validateFileDownloadUrlInput(context.body) : {},
+      context,
+      deps,
+    );
     return jsonResponse(result ? 200 : 404, result ?? { message: "file not found" });
   });
 

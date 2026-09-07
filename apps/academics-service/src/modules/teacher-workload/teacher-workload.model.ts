@@ -3,8 +3,8 @@ export type AvailabilityExceptionType = "BLOCKED" | "PREFERRED";
 export type WorkloadIssueSeverity = "ERROR" | "WARNING";
 
 export interface TeacherWorkloadInput {
-  teacherId: string;
-  academicYearId: string;
+  teacherId?: string;
+  academicYearId?: string;
   viewMode?: TeacherWorkloadViewMode;
   timetableVersionId?: string;
   weekStartDate?: string;
@@ -49,6 +49,11 @@ export interface WorkloadAssignmentView {
 
 export interface WorkloadLessonView {
   id: string;
+  sourceTimetableEntryId: string;
+  subjectOfferingId: string;
+  sectionId?: string;
+  subjectBatchId?: string;
+  teachingGroupId?: string;
   dayOfWeek: string;
   startTime: string;
   endTime: string;
@@ -71,6 +76,7 @@ export interface WorkloadLessonView {
 export interface WorkloadIssueView {
   code: string;
   severity: WorkloadIssueSeverity;
+  campusId?: string;
   dayOfWeek?: string;
   startTime?: string;
   endTime?: string;
@@ -87,16 +93,27 @@ export interface TeacherWorkloadWorkspace {
     id: string;
     employeeCode: string;
     fullName: string;
+    email?: string;
+    phone?: string;
     department?: string;
     designation?: string;
     staffType: string;
+    employmentType?: string;
+    joiningDate?: string;
+    status?: string;
+    profilePhotoFileId?: string;
     primaryCampusId: string;
     campusIds: string[];
   };
   academicYear: { id: string; name: string; startDate?: string; endDate?: string };
   viewMode: TeacherWorkloadViewMode;
   weekStartDate: string;
-  selectedVersions: Array<{ id: string; name: string; status: "DRAFT" | "PUBLISHED"; campusId: string }>;
+  selectedVersions: Array<{
+    id: string;
+    name: string;
+    status: "DRAFT" | "PUBLISHED";
+    campusId: string;
+  }>;
   policy: WorkloadPolicyView;
   summary: {
     requiredPeriods: number;
@@ -113,9 +130,25 @@ export interface TeacherWorkloadWorkspace {
     maximumConsecutivePeriods: number;
     weightedUnits: number;
   };
-  campusBreakdown: Array<{ campusId: string; campusName: string; requiredPeriods: number; scheduledPeriods: number; actualPeriods: number }>;
-  componentBreakdown: Array<{ componentType: string; requiredPeriods: number; scheduledPeriods: number; weightedUnits: number }>;
-  dailyBreakdown: Array<{ dayOfWeek: string; scheduledPeriods: number; actualPeriods: number; maximumConsecutivePeriods: number }>;
+  campusBreakdown: Array<{
+    campusId: string;
+    campusName: string;
+    requiredPeriods: number;
+    scheduledPeriods: number;
+    actualPeriods: number;
+  }>;
+  componentBreakdown: Array<{
+    componentType: string;
+    requiredPeriods: number;
+    scheduledPeriods: number;
+    weightedUnits: number;
+  }>;
+  dailyBreakdown: Array<{
+    dayOfWeek: string;
+    scheduledPeriods: number;
+    actualPeriods: number;
+    maximumConsecutivePeriods: number;
+  }>;
   assignments: WorkloadAssignmentView[];
   timetableEntries: WorkloadLessonView[];
   availabilityExceptions: Array<{
@@ -134,6 +167,9 @@ export interface TeacherWorkloadWorkspace {
     responsibilityType: string;
     campusId: string;
     campusName: string;
+    academicUnitId?: string;
+    programId?: string;
+    programName?: string;
     classId?: string;
     className?: string;
     sectionId?: string;

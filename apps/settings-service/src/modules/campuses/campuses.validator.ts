@@ -20,9 +20,15 @@ export function validateCampusCreateInput(input: unknown): CampusCreateInput {
   if (!isNonEmptyString(name ?? "")) throw new BadRequestError("campus name is required");
   return {
     name: name as string,
-    ...(normalizeOptional(payload.address) !== undefined ? { address: normalizeOptional(payload.address) } : {}),
-    ...(normalizeOptional(payload.contactEmail) !== undefined ? { contactEmail: normalizeOptional(payload.contactEmail) } : {}),
-    ...(normalizeOptional(payload.contactPhone) !== undefined ? { contactPhone: normalizeOptional(payload.contactPhone) } : {}),
+    ...(normalizeOptional(payload.address) !== undefined
+      ? { address: normalizeOptional(payload.address) }
+      : {}),
+    ...(normalizeOptional(payload.contactEmail) !== undefined
+      ? { contactEmail: normalizeOptional(payload.contactEmail) }
+      : {}),
+    ...(normalizeOptional(payload.contactPhone) !== undefined
+      ? { contactPhone: normalizeOptional(payload.contactPhone) }
+      : {}),
   };
 }
 

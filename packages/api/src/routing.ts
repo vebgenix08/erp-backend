@@ -1,5 +1,14 @@
 import { NotFoundError } from "@school-erp/errors";
-import type { ApiHandler, ApiMethod, ApiMiddleware, ApiResponse, ApiRequest, RequestContext, RouteMatch, RouteRegistrationOptions } from "./types";
+import type {
+  ApiHandler,
+  ApiMethod,
+  ApiMiddleware,
+  ApiResponse,
+  ApiRequest,
+  RequestContext,
+  RouteMatch,
+  RouteRegistrationOptions,
+} from "./types";
 import { createRequestContext, parseJsonBody } from "./request";
 import { errorResponse } from "./responses";
 
@@ -92,7 +101,12 @@ export class ApiRouter {
     return this;
   }
 
-  route(method: ApiMethod, path: string, handler: ApiHandler, options: RouteRegistrationOptions = {}): this {
+  route(
+    method: ApiMethod,
+    path: string,
+    handler: ApiHandler,
+    options: RouteRegistrationOptions = {},
+  ): this {
     this.routes.push({
       method,
       path: normalizePath(path),
@@ -106,14 +120,21 @@ export class ApiRouter {
     try {
       const context = createRequestContext(request);
       const matched = this.routes
-        .map((candidate) => ({ route: candidate, match: matchRoute(candidate, context.method, context.path) }))
+        .map((candidate) => ({
+          route: candidate,
+          match: matchRoute(candidate, context.method, context.path),
+        }))
         .find((candidate) => candidate.match.matched);
       const route = matched?.route;
       if (!route) {
         throw new NotFoundError(`No route for ${context.method} ${context.path}`);
       }
       context.params = matched?.match.params ?? {};
-      return await executeMiddlewareChain([...this.middlewares, ...route.middlewares], context, route.handler);
+      return await executeMiddlewareChain(
+        [...this.middlewares, ...route.middlewares],
+        context,
+        route.handler,
+      );
     } catch (error) {
       return errorResponse(error);
     }

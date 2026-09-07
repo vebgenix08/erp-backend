@@ -1,8 +1,14 @@
-import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
-import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
+import type { MongoEnvLike, PlatformCollectionAdapter } from "@school-erp/mongodb";
+import { createPlatformMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
 import type { AuditLogCreateInput, AuditLogRecord } from "./audit-logs.model";
 
-export interface AuditLogFilter { tenantId?: string | undefined; entityType?: string | undefined; action?: string | undefined; limit?: number | undefined; offset?: number | undefined; }
+export interface AuditLogFilter {
+  tenantId?: string | undefined;
+  entityType?: string | undefined;
+  action?: string | undefined;
+  limit?: number | undefined;
+  offset?: number | undefined;
+}
 export interface AuditLogRepository {
   list(filter?: AuditLogFilter): Promise<AuditLogRecord[]>;
   create(input: AuditLogCreateInput): Promise<AuditLogRecord>;
@@ -71,13 +77,17 @@ export class InMemoryAuditLogRepository implements AuditLogRepository {
 }
 
 class MongoAuditLogRepository implements AuditLogRepository {
-  constructor(private readonly collection: CollectionAdapter<AuditLogDocument>) {}
+  constructor(private readonly collection: PlatformCollectionAdapter<AuditLogDocument>) {}
   async list(filter: AuditLogFilter = {}) {
     const databaseFilter: Record<string, unknown> = {};
     if (filter.tenantId) databaseFilter.tenantId = filter.tenantId;
     if (filter.entityType) databaseFilter.entityType = filter.entityType;
     if (filter.action) databaseFilter.action = filter.action;
-    const records = await this.collection.findMany(databaseFilter, { sort: { createdAt: -1 }, skip: filter.offset ?? 0, limit: filter.limit ?? 100 });
+    const records = await this.collection.findMany(databaseFilter, {
+      sort: { createdAt: -1 },
+      skip: filter.offset ?? 0,
+      limit: filter.limit ?? 100,
+    });
     return records
       .map((record) => fromDocument(record))
       .filter((record): record is AuditLogRecord => record !== null)
@@ -100,7 +110,9 @@ class MongoAuditLogRepository implements AuditLogRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -108,11 +120,13 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createAuditLogRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<AuditLogRepository> {
+export async function createAuditLogRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<AuditLogRepository> {
   if (!hasMongoEnv(env)) return new InMemoryAuditLogRepository();
   const collection = await getCollection<AuditLogDocument>("platform_audit_logs", env);
   await collection.createIndex({ createdAt: -1 });
-  return new MongoAuditLogRepository(createMongoCollectionAdapter(collection));
+  return new MongoAuditLogRepository(createPlatformMongoCollectionAdapter(collection));
 }
 
 export const auditLogRepository = createAuditLogRepository();

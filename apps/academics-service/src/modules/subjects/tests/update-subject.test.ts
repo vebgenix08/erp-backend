@@ -8,7 +8,14 @@ import { createSubjectContext } from "./fixtures";
 test("update subject changes fields and preserves tenant isolation", async () => {
   const repository = new InMemorySubjectRepository();
   const created = await createSubjectUseCase(
-    { campusId: "campus_1", programId: "program_1", classId: "class_1", code: "ENG", name: "English", subjectType: "THEORY" },
+    {
+      campusId: "campus_1",
+      programId: "program_1",
+      classId: "class_1",
+      code: "ENG",
+      name: "English",
+      subjectType: "THEORY",
+    },
     createSubjectContext(),
     { repository, ...academicHierarchyFixture() },
   );

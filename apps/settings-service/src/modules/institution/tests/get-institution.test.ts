@@ -10,7 +10,10 @@ test("get institution returns the stored profile", async () => {
   const context = createMockRequestContext({
     tenantContext: { tenantId: "tenant-1" } as any,
     authContext: {
-      user: { id: "user-1", permissions: ["settings.institution.read", "settings.institution.update"] },
+      user: {
+        id: "user-1",
+        permissions: ["settings.institution.read", "settings.institution.update"],
+      },
       source: "request",
       authenticatedAt: new Date(),
     } as any,

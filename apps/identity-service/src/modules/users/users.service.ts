@@ -10,7 +10,9 @@ export type UserServiceDeps = {
 };
 
 let defaultRepository: Promise<UserRepository> | undefined;
-function resolveRepository(deps?: UserServiceDeps) { return deps?.repository ?? (defaultRepository ??= createUserRepository()); }
+function resolveRepository(deps?: UserServiceDeps) {
+  return deps?.repository ?? (defaultRepository ??= createUserRepository());
+}
 
 function resolveTenantId(context: TenantContext | undefined): string {
   return requireTenant(context).tenantId as string;
@@ -20,19 +22,39 @@ export async function listUsers(context: TenantContext | undefined, deps?: UserS
   const repository = await resolveRepository(deps);
   return (await repository.list(resolveTenantId(context))).map((user) => toUserView(user));
 }
-export async function listUserPage(context:TenantContext|undefined,filter:import("./users.model").UserPageFilter={},deps?:UserServiceDeps){const repository=await resolveRepository(deps);const page=await repository.listPage(resolveTenantId(context),filter);return{...page,items:page.items.map(user=>toUserView(user))}}
+export async function listUserPage(
+  context: TenantContext | undefined,
+  filter: import("./users.model").UserPageFilter = {},
+  deps?: UserServiceDeps,
+) {
+  const repository = await resolveRepository(deps);
+  const page = await repository.listPage(resolveTenantId(context), filter);
+  return { ...page, items: page.items.map((user) => toUserView(user)) };
+}
 
-export async function getUser(context: TenantContext | undefined, id: string, deps?: UserServiceDeps) {
+export async function getUser(
+  context: TenantContext | undefined,
+  id: string,
+  deps?: UserServiceDeps,
+) {
   const repository = await resolveRepository(deps);
   return toUserView(await repository.getById(resolveTenantId(context), id));
 }
 
-export async function getUserByAuthUserId(context: TenantContext | undefined, authUserId: string, deps?: UserServiceDeps) {
+export async function getUserByAuthUserId(
+  context: TenantContext | undefined,
+  authUserId: string,
+  deps?: UserServiceDeps,
+) {
   const repository = await resolveRepository(deps);
   return toUserView(await repository.getByAuthUserId(resolveTenantId(context), authUserId));
 }
 
-export async function createUser(context: TenantContext | undefined, input: Record<string, unknown>, deps?: UserServiceDeps) {
+export async function createUser(
+  context: TenantContext | undefined,
+  input: Record<string, unknown>,
+  deps?: UserServiceDeps,
+) {
   const repository = await resolveRepository(deps);
   const tenantId = resolveTenantId(context);
   const payload = validateUserCreateInput(input);
@@ -51,7 +73,11 @@ export async function updateUser(
   return toUserView(await repository.update(tenantId, id, payload));
 }
 
-export async function deleteUser(context: TenantContext | undefined, id: string, deps?: UserServiceDeps) {
+export async function deleteUser(
+  context: TenantContext | undefined,
+  id: string,
+  deps?: UserServiceDeps,
+) {
   const repository = await resolveRepository(deps);
   const tenantId = resolveTenantId(context);
   return repository.delete(tenantId, id);

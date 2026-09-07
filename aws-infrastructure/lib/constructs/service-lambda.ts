@@ -1,8 +1,8 @@
-import * as path from 'path';
-import { aws_lambda as lambda } from 'aws-cdk-lib';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { Construct } from 'constructs';
-import type { EnvironmentConfig } from '../config';
+import * as path from "path";
+import { aws_lambda as lambda } from "aws-cdk-lib";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Construct } from "constructs";
+import type { EnvironmentConfig } from "../config";
 
 export interface ServiceLambdaProps {
   serviceName: string;
@@ -18,13 +18,13 @@ export class ServiceLambda extends Construct {
 
     const functionName = `${props.serviceName}-${props.config.environment}`;
 
-    this.function = new NodejsFunction(this, 'Function', {
+    this.function = new NodejsFunction(this, "Function", {
       functionName,
       description: `Health handler for ${props.serviceName}`,
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'handler',
-      entry: path.resolve(process.cwd(), 'runtime', 'health', 'index.ts'),
-      depsLockFilePath: path.resolve(process.cwd(), '..', '..', 'pnpm-lock.yaml'),
+      handler: "handler",
+      entry: path.resolve(process.cwd(), "runtime", "health", "index.ts"),
+      depsLockFilePath: path.resolve(process.cwd(), "..", "..", "pnpm-lock.yaml"),
       memorySize: props.config.lambdaMemorySize,
       timeout: props.config.lambdaTimeout,
       environment: {

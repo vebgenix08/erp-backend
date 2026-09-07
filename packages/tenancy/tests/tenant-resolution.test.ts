@@ -56,7 +56,11 @@ test("falls back to subdomain placeholder", () => {
 });
 
 test("requireTenant and helpers validate presence", () => {
-  const context = createTenantContext({ source: "request", tenantId: "tenant-1", tenantCode: "T-1" });
+  const context = createTenantContext({
+    source: "request",
+    tenantId: "tenant-1",
+    tenantCode: "T-1",
+  });
 
   assert.equal(requireTenant(context).tenantId, "tenant-1");
   assert.equal(requireTenantId(context), "tenant-1");
@@ -67,10 +71,16 @@ test("requireTenant and helpers validate presence", () => {
 
 test("header helper readers normalize values", () => {
   assert.equal(getTenantIdFromHeaders({ headers: { "x-tenant-id": "  tenant-a  " } }), "tenant-a");
-  assert.equal(getTenantCodeFromHeaders({ headers: { "x-tenant-code": " school-1 " } }), "SCHOOL-1");
+  assert.equal(
+    getTenantCodeFromHeaders({ headers: { "x-tenant-code": " school-1 " } }),
+    "SCHOOL-1",
+  );
   assert.equal(getTenantSubdomain({ hostname: "tenant.example.com" }), "tenant");
 });
 
 test("requireTenant rejects missing tenantId", () => {
-  assert.throws(() => requireTenant(createTenantContext({ source: "unknown" })), /tenant context is required/i);
+  assert.throws(
+    () => requireTenant(createTenantContext({ source: "unknown" })),
+    /tenant context is required/i,
+  );
 });

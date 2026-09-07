@@ -1,11 +1,6 @@
 import type { PermissionAction } from "@school-erp/types";
 
-export type TenantPermissionAction =
-  | "LIST"
-  | "READ"
-  | "CREATE"
-  | "UPDATE"
-  | "DEACTIVATE";
+export type TenantPermissionAction = "LIST" | "READ" | "CREATE" | "UPDATE" | "DEACTIVATE";
 
 export interface TenantPermissionDefinition {
   action: PermissionAction | TenantPermissionAction;

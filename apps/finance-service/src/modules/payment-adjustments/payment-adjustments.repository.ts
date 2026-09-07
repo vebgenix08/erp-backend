@@ -1,24 +1,17 @@
 import { ConflictError } from "@school-erp/errors";
 import {
+  createTenantMongoCollection,
   getMongoConnection,
   type MongoEnvLike,
+  type TenantFilter,
+  type TenantMongoCollection,
   withTransaction,
 } from "@school-erp/mongodb";
-import type { Collection, Filter } from "mongodb";
 import type { FeeOrderRecord } from "../fee-orders/fee-orders.model";
-import {
-  feeOrderRepository,
-  type FeeOrderRepository,
-} from "../fee-orders/fee-orders.repository";
+import { feeOrderRepository, type FeeOrderRepository } from "../fee-orders/fee-orders.repository";
 import type { PaymentRecord } from "../payments/payments.model";
-import {
-  paymentRepository,
-  type PaymentRepository,
-} from "../payments/payments.repository";
-import type {
-  PaymentAdjustmentFilter,
-  PaymentAdjustmentRecord,
-} from "./payment-adjustments.model";
+import { paymentRepository, type PaymentRepository } from "../payments/payments.repository";
+import type { PaymentAdjustmentFilter, PaymentAdjustmentRecord } from "./payment-adjustments.model";
 
 interface PaymentDocument extends PaymentRecord {
   _id: string;
@@ -30,6 +23,7 @@ interface FeeOrderDocument {
 }
 interface SequenceDocument {
   _id: string;
+  tenantId: string;
   value: number;
 }
 type AdjustmentDocument = PaymentAdjustmentRecord & { _id: string };
@@ -41,18 +35,9 @@ export interface AdjustmentCommit {
   adjustment: Omit<PaymentAdjustmentRecord, "id" | "adjustmentNumber">;
 }
 export interface PaymentAdjustmentRepository {
-  getByIdempotencyKey(
-    tenantId: string,
-    key: string,
-  ): Promise<PaymentAdjustmentRecord | null>;
-  list(
-    tenantId: string,
-    filter?: PaymentAdjustmentFilter,
-  ): Promise<PaymentAdjustmentRecord[]>;
-  commit(
-    tenantId: string,
-    input: AdjustmentCommit,
-  ): Promise<PaymentAdjustmentRecord>;
+  getByIdempotencyKey(tenantId: string, key: string): Promise<PaymentAdjustmentRecord | null>;
+  list(tenantId: string, filter?: PaymentAdjustmentFilter): Promise<PaymentAdjustmentRecord[]>;
+  commit(tenantId: string, input: AdjustmentCommit): Promise<PaymentAdjustmentRecord>;
 }
 const clone = (record: PaymentAdjustmentRecord): PaymentAdjustmentRecord => ({
   ...record,
@@ -64,18 +49,13 @@ const number = (academicYearId: string, value: number) =>
     .replace(/[^A-Za-z0-9]/g, "")
     .slice(-8)
     .toUpperCase()}-${String(value).padStart(6, "0")}`;
-const matches = (
-  record: PaymentAdjustmentRecord,
-  filter: PaymentAdjustmentFilter,
-) =>
+const matches = (record: PaymentAdjustmentRecord, filter: PaymentAdjustmentFilter) =>
   (!filter.paymentId || record.paymentId === filter.paymentId) &&
   (!filter.campusId || record.campusId === filter.campusId) &&
   (!filter.academicYearId || record.academicYearId === filter.academicYearId) &&
   (!filter.type || record.type === filter.type);
 
-export class InMemoryPaymentAdjustmentRepository
-  implements PaymentAdjustmentRepository
-{
+export class InMemoryPaymentAdjustmentRepository implements PaymentAdjustmentRepository {
   private readonly records = new Map<string, PaymentAdjustmentRecord>();
   private readonly sequences = new Map<string, number>();
   constructor(
@@ -95,33 +75,24 @@ export class InMemoryPaymentAdjustmentRepository
       .map(clone);
   }
   async commit(tenantId: string, input: AdjustmentCommit) {
-    const existing = await this.getByIdempotencyKey(
-      tenantId,
-      input.adjustment.idempotencyKey,
-    );
+    const existing = await this.getByIdempotencyKey(tenantId, input.adjustment.idempotencyKey);
     if (existing) return existing;
-    const currentPayment = await this.payments.getById(
-      tenantId,
-      input.payment.id,
-    );
+    const currentPayment = await this.payments.getById(tenantId, input.payment.id);
     if (
       !currentPayment ||
-      currentPayment.updatedAt.getTime() !==
-        input.expectedPaymentUpdatedAt.getTime()
+      currentPayment.updatedAt.getTime() !== input.expectedPaymentUpdatedAt.getTime()
     )
       throw new ConflictError("payment changed during adjustment");
     for (const order of input.orders) {
       const current = await this.orders.getById(tenantId, order.id);
       if (
         !current ||
-        current.updatedAt.getTime() !==
-          input.expectedOrderUpdatedAt.get(order.id)?.getTime()
+        current.updatedAt.getTime() !== input.expectedOrderUpdatedAt.get(order.id)?.getTime()
       )
         throw new ConflictError("fee order changed during adjustment");
     }
     const sequence =
-      (this.sequences.get(`${tenantId}:${input.adjustment.academicYearId}`) ??
-        0) + 1;
+      (this.sequences.get(`${tenantId}:${input.adjustment.academicYearId}`) ?? 0) + 1;
     const record: PaymentAdjustmentRecord = {
       ...input.adjustment,
       id: `payment_adjustment_${crypto.randomUUID()}`,
@@ -132,10 +103,7 @@ export class InMemoryPaymentAdjustmentRepository
         throw new ConflictError("fee order changed during adjustment");
     if (!(await this.payments.replace(tenantId, input.payment)))
       throw new ConflictError("payment changed during adjustment");
-    this.sequences.set(
-      `${tenantId}:${input.adjustment.academicYearId}`,
-      sequence,
-    );
+    this.sequences.set(`${tenantId}:${input.adjustment.academicYearId}`, sequence);
     this.records.set(record.id, clone(record));
     return clone(record);
   }
@@ -143,10 +111,10 @@ export class InMemoryPaymentAdjustmentRepository
 
 class MongoPaymentAdjustmentRepository implements PaymentAdjustmentRepository {
   constructor(
-    private readonly adjustments: Collection<AdjustmentDocument>,
-    private readonly payments: Collection<PaymentDocument>,
-    private readonly orders: Collection<FeeOrderDocument>,
-    private readonly sequences: Collection<SequenceDocument>,
+    private readonly adjustments: TenantMongoCollection<AdjustmentDocument>,
+    private readonly payments: TenantMongoCollection<PaymentDocument>,
+    private readonly orders: TenantMongoCollection<FeeOrderDocument>,
+    private readonly sequences: TenantMongoCollection<SequenceDocument>,
     private readonly env: MongoEnvLike,
   ) {}
   async getByIdempotencyKey(tenantId: string, key: string) {
@@ -157,24 +125,17 @@ class MongoPaymentAdjustmentRepository implements PaymentAdjustmentRepository {
     return record ? clone(record) : null;
   }
   async list(tenantId: string, filter: PaymentAdjustmentFilter = {}) {
-    const query: Record<string, unknown> = { tenantId };
+    const query: TenantFilter<AdjustmentDocument> = { tenantId };
     if (filter.paymentId) query.paymentId = filter.paymentId;
     if (filter.campusId) query.campusId = filter.campusId;
     if (filter.academicYearId) query.academicYearId = filter.academicYearId;
     if (filter.type) query.type = filter.type;
-    return (
-      await this.adjustments
-        .find(query)
-        .sort({ createdAt: -1 })
-        .limit(200)
-        .toArray()
-    ).map(clone);
+    return (await this.adjustments.find(query).sort({ createdAt: -1 }).limit(200).toArray()).map(
+      clone,
+    );
   }
   async commit(tenantId: string, input: AdjustmentCommit) {
-    const existing = await this.getByIdempotencyKey(
-      tenantId,
-      input.adjustment.idempotencyKey,
-    );
+    const existing = await this.getByIdempotencyKey(tenantId, input.adjustment.idempotencyKey);
     if (existing) return existing;
     try {
       return await withTransaction(
@@ -187,9 +148,10 @@ class MongoPaymentAdjustmentRepository implements PaymentAdjustmentRepository {
           if (retry) return clone(retry);
           const sequence = await this.sequences.findOneAndUpdate(
             {
+              tenantId,
               _id: `adjustment:${tenantId}:${input.adjustment.academicYearId}`,
             },
-            { $inc: { value: 1 } },
+            { $inc: { value: 1 }, $setOnInsert: { tenantId } },
             {
               upsert: true,
               returnDocument: "after",
@@ -203,10 +165,10 @@ class MongoPaymentAdjustmentRepository implements PaymentAdjustmentRepository {
               tenantId,
               _id: order.id,
               "record.updatedAt": expected,
-            } as unknown as Filter<FeeOrderDocument>;
+            } as TenantFilter<FeeOrderDocument>;
             const result = await this.orders.replaceOne(
               optimisticFilter,
-              { tenantId, record: order },
+              { _id: order.id, tenantId, record: order },
               options,
             );
             if (result.modifiedCount !== 1)
@@ -218,7 +180,7 @@ class MongoPaymentAdjustmentRepository implements PaymentAdjustmentRepository {
               _id: input.payment.id,
               updatedAt: input.expectedPaymentUpdatedAt,
             },
-            { ...input.payment },
+            { ...input.payment, _id: input.payment.id },
             options,
           );
           if (paymentResult.modifiedCount !== 1)
@@ -226,15 +188,9 @@ class MongoPaymentAdjustmentRepository implements PaymentAdjustmentRepository {
           const record: PaymentAdjustmentRecord = {
             ...input.adjustment,
             id: `payment_adjustment_${crypto.randomUUID()}`,
-            adjustmentNumber: number(
-              input.adjustment.academicYearId,
-              sequence?.value ?? 1,
-            ),
+            adjustmentNumber: number(input.adjustment.academicYearId, sequence?.value ?? 1),
           };
-          await this.adjustments.insertOne(
-            { ...record, _id: record.id },
-            options,
-          );
+          await this.adjustments.insertOne({ ...record, _id: record.id }, options);
           return clone(record);
         },
         {
@@ -243,27 +199,18 @@ class MongoPaymentAdjustmentRepository implements PaymentAdjustmentRepository {
         },
       );
     } catch (error) {
-      const retry = await this.getByIdempotencyKey(
-        tenantId,
-        input.adjustment.idempotencyKey,
-      );
+      const retry = await this.getByIdempotencyKey(tenantId, input.adjustment.idempotencyKey);
       if (retry) return retry;
       throw error;
     }
   }
 }
 function runtimeEnv(): MongoEnvLike {
-  return (
-    (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process
-      ?.env ?? {}
-  );
+  return (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
 }
 function hasMongo(env: MongoEnvLike) {
   return Boolean(
-    env.MONGODB_URI ||
-      env.MONGODB_URI_DEV ||
-      env.MONGODB_URI_PROD ||
-      env.MONGODB_URI_TEST,
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
   );
 }
 export async function createPaymentAdjustmentRepository(
@@ -276,22 +223,17 @@ export async function createPaymentAdjustmentRepository(
     );
   const connection = await getMongoConnection(env);
   const db = connection.client.db(connection.dbName);
-  const adjustments = db.collection<AdjustmentDocument>(
-    "finance_payment_adjustments",
-  );
+  const adjustments = db.collection<AdjustmentDocument>("finance_payment_adjustments");
   const payments = db.collection<PaymentDocument>("finance_payments");
   const orders = db.collection<FeeOrderDocument>("finance_fee_orders");
   const sequences = db.collection<SequenceDocument>("finance_sequences");
-  await adjustments.createIndex(
-    { tenantId: 1, idempotencyKey: 1 },
-    { unique: true },
-  );
+  await adjustments.createIndex({ tenantId: 1, idempotencyKey: 1 }, { unique: true });
   await adjustments.createIndex({ tenantId: 1, paymentId: 1, createdAt: -1 });
   return new MongoPaymentAdjustmentRepository(
-    adjustments,
-    payments,
-    orders,
-    sequences,
+    createTenantMongoCollection(adjustments),
+    createTenantMongoCollection(payments),
+    createTenantMongoCollection(orders),
+    createTenantMongoCollection(sequences),
     env,
   );
 }

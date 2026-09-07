@@ -1,6 +1,12 @@
 import type { ApiRouter, RequestContext } from "@school-erp/api";
 import { jsonResponse } from "@school-erp/api";
-import { createTenantUseCase, deactivateTenantUseCase, getTenantUseCase, listTenantsUseCase, updateTenantUseCase } from "./use-cases";
+import {
+  createTenantUseCase,
+  deactivateTenantUseCase,
+  getTenantUseCase,
+  listTenantsUseCase,
+  updateTenantUseCase,
+} from "./use-cases";
 import type { TenantServiceDeps } from "./tenants.service";
 
 function tenantId(context: RequestContext): string {
@@ -19,12 +25,21 @@ export function registerTenantRoutes(router: ApiRouter, deps: TenantServiceDeps 
   });
 
   router.route("POST", "/tenants", async (context: RequestContext) => {
-    const result = await createTenantUseCase(context.body as Record<string, unknown>, context, deps);
+    const result = await createTenantUseCase(
+      context.body as Record<string, unknown>,
+      context,
+      deps,
+    );
     return jsonResponse(201, result);
   });
 
   router.route("PUT", "/tenants/:id", async (context: RequestContext) => {
-    const result = await updateTenantUseCase(tenantId(context), context.body as Record<string, unknown>, context, deps);
+    const result = await updateTenantUseCase(
+      tenantId(context),
+      context.body as Record<string, unknown>,
+      context,
+      deps,
+    );
     return jsonResponse(result ? 200 : 404, result ?? { message: "tenant not found" });
   });
 

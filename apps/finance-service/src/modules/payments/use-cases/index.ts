@@ -4,17 +4,12 @@ import { NotFoundError } from "@school-erp/errors";
 import { toPaymentView, toReceiptView } from "../payments.mapper";
 import { paymentPermissions } from "../payments.permissions";
 import type { PaymentDependencies } from "../payments.shared";
+import { actorId, repository, requirePermission, tenantId } from "../payments.shared";
+import { validateCollectPayment, validatePaymentFilter } from "../payments.validator";
 import {
-  actorId,
-  repository,
-  requirePermission,
-  tenantId,
-} from "../payments.shared";
-import {
-  validateCollectPayment,
-  validatePaymentFilter,
-} from "../payments.validator";
-import { defaultReceiptTemplate, receiptTemplateRepository } from "../../receipt-template/receipt-template.repository";
+  defaultReceiptTemplate,
+  receiptTemplateRepository,
+} from "../../receipt-template/receipt-template.repository";
 import { feeOrderRepository } from "../../fee-orders/fee-orders.repository";
 import { getReceiptBranding } from "../receipt-branding.repository";
 import { renderReceiptPdf } from "../receipt-pdf.renderer";
@@ -31,19 +26,21 @@ async function loadReceipt(paymentId: string, context: RequestContext, deps?: Pa
   ]);
   const [template, receiptOrders] = await Promise.all([
     templates.get(tenant),
-    Promise.all(payment.allocations.map((allocation) => orders.getById(tenant, allocation.feeOrderId)))
-      .then((records) => records.filter((order) => order !== null)),
+    Promise.all(
+      payment.allocations.map((allocation) => orders.getById(tenant, allocation.feeOrderId)),
+    ).then((records) => records.filter((order) => order !== null)),
   ]);
   const firstOrder = receiptOrders[0];
-  const branding = await (deps?.receiptBranding ?? getReceiptBranding(
-    tenant,
-    payment.campusId,
-    payment.academicYearId,
-    firstOrder?.classId,
-    firstOrder?.sectionId,
-    payment.studentId,
-    payment.collectedBy,
-  ));
+  const branding = await (deps?.receiptBranding ??
+    getReceiptBranding(
+      tenant,
+      payment.campusId,
+      payment.academicYearId,
+      firstOrder?.classId,
+      firstOrder?.sectionId,
+      payment.studentId,
+      payment.collectedBy,
+    ));
   return { payment, template: template ?? defaultReceiptTemplate(tenant), receiptOrders, branding };
 }
 
@@ -56,11 +53,7 @@ export async function collectPayment(
   return toPaymentView(
     await (
       await repository(deps)
-    ).collect(
-      tenantId(context),
-      actorId(context),
-      validateCollectPayment(input),
-    ),
+    ).collect(tenantId(context), actorId(context), validateCollectPayment(input)),
   );
 }
 export async function getReceipt(
@@ -97,14 +90,18 @@ export async function listPayments(
 ) {
   requirePermission(context, paymentPermissions.read as Permission);
   return (
-    await (
-      await repository(deps)
-    ).list(tenantId(context), validatePaymentFilter(filter))
+    await (await repository(deps)).list(tenantId(context), validatePaymentFilter(filter))
   ).map(toPaymentView);
 }
 
-export async function listPaymentPage(filter: unknown, context: RequestContext, deps?: PaymentDependencies) {
+export async function listPaymentPage(
+  filter: unknown,
+  context: RequestContext,
+  deps?: PaymentDependencies,
+) {
   requirePermission(context, paymentPermissions.read as Permission);
-  const page = await (await repository(deps)).listPage(tenantId(context), validatePaymentFilter(filter));
+  const page = await (
+    await repository(deps)
+  ).listPage(tenantId(context), validatePaymentFilter(filter));
   return { ...page, items: page.items.map(toPaymentView) };
 }

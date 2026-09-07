@@ -1,4 +1,7 @@
-import type { CampusAcademicUnitCreateInput, CampusAcademicUnitRecord } from "../campus-academic-units/campus-academic-units.model";
+import type {
+  CampusAcademicUnitCreateInput,
+  CampusAcademicUnitRecord,
+} from "../campus-academic-units/campus-academic-units.model";
 import type { CampusCreateInput, CampusRecord } from "../campuses/campuses.model";
 
 export interface CampusSetupCreateInput extends CampusCreateInput {
@@ -16,9 +19,11 @@ export interface CampusSetupView {
     updatedAt: string;
     deactivatedAt?: string | undefined;
   };
-  academicUnits: Array<Omit<CampusAcademicUnitRecord, "createdAt" | "updatedAt" | "deactivatedAt"> & {
-    createdAt: string;
-    updatedAt: string;
-    deactivatedAt?: string | undefined;
-  }>;
+  academicUnits: Array<
+    Omit<CampusAcademicUnitRecord, "createdAt" | "updatedAt" | "deactivatedAt"> & {
+      createdAt: string;
+      updatedAt: string;
+      deactivatedAt?: string | undefined;
+    }
+  >;
 }

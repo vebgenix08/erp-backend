@@ -8,7 +8,13 @@ import { createSectionContext } from "./fixtures";
 test("create section stores a tenant-scoped active record", async () => {
   const repository = new InMemorySectionRepository();
   const result = await createSectionUseCase(
-    { campusId: "campus_1", programId: "program_1", classId: "class_1", code: "A", name: "Section A" },
+    {
+      campusId: "campus_1",
+      programId: "program_1",
+      classId: "class_1",
+      code: "A",
+      name: "Section A",
+    },
     createSectionContext(),
     { repository, ...academicHierarchyFixture() },
   );

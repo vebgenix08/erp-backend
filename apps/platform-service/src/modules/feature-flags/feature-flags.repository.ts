@@ -1,7 +1,11 @@
 import { ConflictError } from "@school-erp/errors";
-import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
-import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { FeatureFlagCreateInput, FeatureFlagRecord, FeatureFlagUpdateInput } from "./feature-flags.model";
+import type { MongoEnvLike, PlatformCollectionAdapter } from "@school-erp/mongodb";
+import { createPlatformMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
+import type {
+  FeatureFlagCreateInput,
+  FeatureFlagRecord,
+  FeatureFlagUpdateInput,
+} from "./feature-flags.model";
 
 export interface FeatureFlagRepository {
   list(): Promise<FeatureFlagRecord[]>;
@@ -50,7 +54,9 @@ export class InMemoryFeatureFlagRepository implements FeatureFlagRepository {
   private readonly records = new Map<string, FeatureFlagRecord>();
 
   async list() {
-    return [...this.records.values()].map(clone).sort((left, right) => left.code.localeCompare(right.code));
+    return [...this.records.values()]
+      .map(clone)
+      .sort((left, right) => left.code.localeCompare(right.code));
   }
 
   async getById(id: string) {
@@ -85,18 +91,30 @@ export class InMemoryFeatureFlagRepository implements FeatureFlagRepository {
   async update(id: string, input: FeatureFlagUpdateInput) {
     const existing = this.records.get(id);
     if (!existing) return null;
-    if (input.name === undefined && input.description === undefined && input.isEnabled === undefined && input.status === undefined) {
+    if (
+      input.name === undefined &&
+      input.description === undefined &&
+      input.isEnabled === undefined &&
+      input.status === undefined
+    ) {
       return clone(existing);
     }
     const nextStatus = input.status ?? existing.status;
     const updated: FeatureFlagRecord = clone({
       ...existing,
       name: input.name ? input.name.trim() : existing.name,
-      description: input.description !== undefined ? input.description?.trim() || undefined : existing.description,
+      description:
+        input.description !== undefined
+          ? input.description?.trim() || undefined
+          : existing.description,
       isEnabled: input.isEnabled ?? existing.isEnabled,
       status: nextStatus,
       deactivatedAt:
-        nextStatus === "INACTIVE" ? existing.deactivatedAt ?? now() : nextStatus === "ACTIVE" ? undefined : existing.deactivatedAt,
+        nextStatus === "INACTIVE"
+          ? (existing.deactivatedAt ?? now())
+          : nextStatus === "ACTIVE"
+            ? undefined
+            : existing.deactivatedAt,
       updatedAt: now(),
     });
     this.records.set(id, updated);
@@ -105,10 +123,13 @@ export class InMemoryFeatureFlagRepository implements FeatureFlagRepository {
 }
 
 class MongoFeatureFlagRepository implements FeatureFlagRepository {
-  constructor(private readonly collection: CollectionAdapter<FeatureFlagDocument>) {}
+  constructor(private readonly collection: PlatformCollectionAdapter<FeatureFlagDocument>) {}
   async list() {
     const records = await this.collection.findMany({});
-    return records.map((record) => fromDocument(record)).filter((record): record is FeatureFlagRecord => record !== null).sort((left, right) => left.code.localeCompare(right.code));
+    return records
+      .map((record) => fromDocument(record))
+      .filter((record): record is FeatureFlagRecord => record !== null)
+      .sort((left, right) => left.code.localeCompare(right.code));
   }
   async getById(id: string) {
     return fromDocument(await this.collection.findOne({ _id: id }));
@@ -140,11 +161,18 @@ class MongoFeatureFlagRepository implements FeatureFlagRepository {
     const updated: FeatureFlagRecord = clone({
       ...existing,
       name: input.name ? input.name.trim() : existing.name,
-      description: input.description !== undefined ? input.description?.trim() || undefined : existing.description,
+      description:
+        input.description !== undefined
+          ? input.description?.trim() || undefined
+          : existing.description,
       isEnabled: input.isEnabled ?? existing.isEnabled,
       status: nextStatus,
       deactivatedAt:
-        nextStatus === "INACTIVE" ? existing.deactivatedAt ?? now() : nextStatus === "ACTIVE" ? undefined : existing.deactivatedAt,
+        nextStatus === "INACTIVE"
+          ? (existing.deactivatedAt ?? now())
+          : nextStatus === "ACTIVE"
+            ? undefined
+            : existing.deactivatedAt,
       updatedAt: now(),
     });
     const replaced = await this.collection.replaceOne({ _id: id }, toDocument(updated));
@@ -153,7 +181,9 @@ class MongoFeatureFlagRepository implements FeatureFlagRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -161,11 +191,13 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createFeatureFlagRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<FeatureFlagRepository> {
+export async function createFeatureFlagRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<FeatureFlagRepository> {
   if (!hasMongoEnv(env)) return new InMemoryFeatureFlagRepository();
   const collection = await getCollection<FeatureFlagDocument>("platform_feature_flags", env);
   await collection.createIndex({ code: 1 }, { unique: true });
-  return new MongoFeatureFlagRepository(createMongoCollectionAdapter(collection));
+  return new MongoFeatureFlagRepository(createPlatformMongoCollectionAdapter(collection));
 }
 
 export const featureFlagRepository = createFeatureFlagRepository();

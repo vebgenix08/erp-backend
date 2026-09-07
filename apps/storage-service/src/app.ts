@@ -1,4 +1,4 @@
-import { createRouter, type ApiRouter } from "@school-erp/api";
+import type { ApiRouter } from "@school-erp/api";
 import { createStorageRouter } from "./routes";
 import type { StorageServiceDeps } from "./modules/files/files.service";
 

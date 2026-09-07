@@ -11,17 +11,22 @@ import {
 
 interface SampleDocument extends Document {
   _id: ObjectId;
-  tenantId?: string;
+  tenantId: string;
   name: string;
 }
 
-class SamplePlatformRepository extends BaseRepository<SampleDocument> {
-  constructor(collection = createInMemoryCollection<SampleDocument>("samples")) {
+interface SamplePlatformDocument extends Document {
+  _id: ObjectId;
+  name: string;
+}
+
+class SamplePlatformRepository extends BaseRepository<SamplePlatformDocument> {
+  constructor(collection = createInMemoryCollection<SamplePlatformDocument>("samples")) {
     super(collection);
   }
 
   async createSample(name: string) {
-    const document: SampleDocument = { _id: new ObjectId(), name };
+    const document: SamplePlatformDocument = { _id: new ObjectId(), name };
     return this.insertOne(document);
   }
 
@@ -30,31 +35,49 @@ class SamplePlatformRepository extends BaseRepository<SampleDocument> {
   }
 }
 
-class SampleTenantRepository extends TenantScopedBaseRepository<SampleDocument, { name: string }, { name: string }, SampleDocument> {
+class SampleTenantRepository extends TenantScopedBaseRepository<
+  SampleDocument,
+  { name: string },
+  { name: string },
+  SampleDocument
+> {
   constructor(collection = createInMemoryCollection<SampleDocument>("tenant-samples")) {
     super(collection);
   }
 
   async list(tenantId: string) {
-    return this.findMany(this.tenantFilter(this.requireTenantId(tenantId)));
+    return this.tenantCollection.findMany(this.tenantFilter(this.requireTenantId(tenantId)));
   }
 
   async getById(tenantId: string, id: string) {
-    return this.findOne(this.tenantFilter(this.requireTenantId(tenantId), { _id: new ObjectId(id) }));
+    return this.tenantCollection.findOne(
+      this.tenantFilter(this.requireTenantId(tenantId), {
+        _id: new ObjectId(id),
+      }),
+    );
   }
 
   async create(tenantId: string, input: { name: string }) {
-    const document: SampleDocument = { _id: new ObjectId(), tenantId: this.requireTenantId(tenantId), name: input.name };
-    return this.insertOne(document);
+    const document: SampleDocument = {
+      _id: new ObjectId(),
+      tenantId: this.requireTenantId(tenantId),
+      name: input.name,
+    };
+    return this.tenantCollection.insertOne(document);
   }
 
   async update(tenantId: string, id: string, input: { name: string }) {
     const existing = await this.getById(tenantId, id);
     if (!existing) return null;
-    return this.replaceOne(this.tenantFilter(this.requireTenantId(tenantId), { _id: new ObjectId(id) }), {
-      ...existing,
-      name: input.name,
-    });
+    return this.tenantCollection.replaceOne(
+      this.tenantFilter(this.requireTenantId(tenantId), {
+        _id: new ObjectId(id),
+      }),
+      {
+        ...existing,
+        name: input.name,
+      },
+    );
   }
 }
 

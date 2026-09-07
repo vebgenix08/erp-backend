@@ -3,10 +3,7 @@ import { jsonResponse } from "@school-erp/api";
 import { requireTenant } from "@school-erp/tenancy";
 import { requirePermission } from "@school-erp/auth";
 import { permissionPermissions } from "./permissions.permissions";
-import {
-  getPermissionUseCase,
-  listPermissionsUseCase,
-} from "./use-cases";
+import { getPermissionUseCase, listPermissionsUseCase } from "./use-cases";
 import type { PermissionServiceDeps } from "./permissions.service";
 
 function tenantContext(context: RequestContext) {
@@ -17,7 +14,10 @@ function permissionId(context: RequestContext) {
   return context.params.id ?? "";
 }
 
-export function registerPermissionsRoutes(router: ApiRouter, deps: PermissionServiceDeps = {}): ApiRouter {
+export function registerPermissionsRoutes(
+  router: ApiRouter,
+  deps: PermissionServiceDeps = {},
+): ApiRouter {
   router.route("GET", "/permissions", async (context: RequestContext) => {
     requirePermission(context.authContext, permissionPermissions.list);
     const result = await listPermissionsUseCase(tenantContext(context), deps);

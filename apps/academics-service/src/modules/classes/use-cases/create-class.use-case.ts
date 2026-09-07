@@ -3,7 +3,11 @@ import { toClassView } from "../classes.mapper";
 import { validateClassCreateInput } from "../classes.validator";
 import type { ClassServiceDeps } from "../classes.shared";
 import type { ClassView } from "../classes.model";
-import { requireClassPermission, requireClassTenantId, resolveClassRepository } from "../classes.shared";
+import {
+  requireClassPermission,
+  requireClassTenantId,
+  resolveClassRepository,
+} from "../classes.shared";
 import { classPermissions } from "../classes.permissions";
 import type { Permission } from "@school-erp/auth";
 import { requireProgramInCampus } from "../../academic-hierarchy.policy";

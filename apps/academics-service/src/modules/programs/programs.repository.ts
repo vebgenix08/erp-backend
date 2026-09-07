@@ -1,7 +1,21 @@
 import { BadRequestError, ConflictError } from "@school-erp/errors";
-import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
-import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { ProgramCreateInput, ProgramListFilter, ProgramRecord, ProgramUpdateInput } from "./programs.model";
+import type {
+  CollectionAdapter,
+  MongoEnvLike,
+  PlatformCollectionAdapter,
+} from "@school-erp/mongodb";
+import {
+  createMongoCollectionAdapter,
+  createPlatformMongoCollectionAdapter,
+  getCollection,
+} from "@school-erp/mongodb";
+import { academicSequenceFilter } from "../academic-sequence";
+import type {
+  ProgramCreateInput,
+  ProgramListFilter,
+  ProgramRecord,
+  ProgramUpdateInput,
+} from "./programs.model";
 
 export interface ProgramRepository {
   list(tenantId: string, filter: ProgramListFilter): Promise<ProgramRecord[]>;
@@ -95,7 +109,10 @@ export class InMemoryProgramRepository implements ProgramRepository {
 
   async getByCode(tenantId: string, campusId: string, code: string) {
     const normalized = normalizeCode(code);
-    const record = [...this.bucket(normalizeTenantId(tenantId)).values()].find((item) => item.campusId === campusId && item.code === normalized) ?? null;
+    const record =
+      [...this.bucket(normalizeTenantId(tenantId)).values()].find(
+        (item) => item.campusId === campusId && item.code === normalized,
+      ) ?? null;
     return record ? clone(record) : null;
   }
 
@@ -130,11 +147,14 @@ export class InMemoryProgramRepository implements ProgramRepository {
     const updated: ProgramRecord = clone({
       ...existing,
       name: input.name ? input.name.trim() : existing.name,
-      description: input.description !== undefined ? input.description?.trim() || undefined : existing.description,
+      description:
+        input.description !== undefined
+          ? input.description?.trim() || undefined
+          : existing.description,
       status: nextStatus,
       deactivatedAt:
         nextStatus === "INACTIVE"
-          ? existing.deactivatedAt ?? now()
+          ? (existing.deactivatedAt ?? now())
           : nextStatus === "ACTIVE"
             ? undefined
             : existing.deactivatedAt,
@@ -149,17 +169,33 @@ export class InMemoryProgramRepository implements ProgramRepository {
   }
 }
 
-interface SequenceDocument { _id: string; value: number; }
+interface SequenceDocument {
+  _id: string;
+  tenantId: string;
+  value: number;
+}
 class MongoProgramRepository implements ProgramRepository {
-  constructor(private readonly collection: CollectionAdapter<ProgramDocument>, private readonly sequences: Awaited<ReturnType<typeof getCollection<SequenceDocument>>>) {}
+  constructor(
+    private readonly collection: CollectionAdapter<ProgramDocument>,
+    private readonly sequences: PlatformCollectionAdapter<SequenceDocument>,
+  ) {}
 
   async reserveNextCode(tenantId: string, campusId: string) {
-    const result = await this.sequences.findOneAndUpdate({ _id: `program:${normalizeTenantId(tenantId)}:${campusId}` }, { $inc: { value: 1 } }, { upsert: true, returnDocument: "after" });
+    const owner = normalizeTenantId(tenantId);
+    const result = await this.sequences.findOneAndUpdate(
+      academicSequenceFilter("program", owner, campusId),
+      { $inc: { value: 1 }, $setOnInsert: { tenantId: owner } },
+      { upsert: true, returnDocument: "after" },
+    );
     return `PROG-${String(result?.value ?? 1).padStart(3, "0")}`;
   }
 
   async list(tenantId: string, filter: ProgramListFilter) {
-    const records = await this.collection.findMany({ tenantId: normalizeTenantId(tenantId), campusId: filter.campusId, ...(filter.academicUnitId ? { academicUnitId: filter.academicUnitId } : {}) });
+    const records = await this.collection.findMany({
+      tenantId: normalizeTenantId(tenantId),
+      campusId: filter.campusId,
+      ...(filter.academicUnitId ? { academicUnitId: filter.academicUnitId } : {}),
+    });
     return records
       .map((record) => fromDocument(record))
       .filter((record): record is ProgramRecord => record !== null)
@@ -171,11 +207,22 @@ class MongoProgramRepository implements ProgramRepository {
   }
 
   async getById(tenantId: string, id: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }));
+    return fromDocument(
+      await this.collection.findOne({
+        tenantId: normalizeTenantId(tenantId),
+        _id: id,
+      }),
+    );
   }
 
   async getByCode(tenantId: string, campusId: string, code: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), campusId, code: normalizeCode(code) }));
+    return fromDocument(
+      await this.collection.findOne({
+        tenantId: normalizeTenantId(tenantId),
+        campusId,
+        code: normalizeCode(code),
+      }),
+    );
   }
 
   async create(tenantId: string, input: ProgramCreateInput & { code: string }) {
@@ -209,17 +256,23 @@ class MongoProgramRepository implements ProgramRepository {
     const updated: ProgramRecord = clone({
       ...existing,
       name: input.name ? input.name.trim() : existing.name,
-      description: input.description !== undefined ? input.description?.trim() || undefined : existing.description,
+      description:
+        input.description !== undefined
+          ? input.description?.trim() || undefined
+          : existing.description,
       status: nextStatus,
       deactivatedAt:
         nextStatus === "INACTIVE"
-          ? existing.deactivatedAt ?? now()
+          ? (existing.deactivatedAt ?? now())
           : nextStatus === "ACTIVE"
             ? undefined
             : existing.deactivatedAt,
       updatedAt: now(),
     });
-    const replaced = await this.collection.replaceOne({ tenantId: normalizedTenantId, _id: id }, toDocument(updated));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: normalizedTenantId, _id: id },
+      toDocument(updated),
+    );
     return replaced ? updated : null;
   }
 
@@ -229,7 +282,9 @@ class MongoProgramRepository implements ProgramRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -237,18 +292,26 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createProgramRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<ProgramRepository> {
+export async function createProgramRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<ProgramRepository> {
   if (!hasMongoEnv(env)) {
     return new InMemoryProgramRepository();
   }
   const collection = await getCollection<ProgramDocument>("academics_programs", env);
   const sequences = await getCollection<SequenceDocument>("academics_sequences", env);
   await collection.createIndex({ tenantId: 1, campusId: 1, code: 1 }, { unique: true });
-  return new MongoProgramRepository(createMongoCollectionAdapter(collection), sequences);
+  return new MongoProgramRepository(
+    createMongoCollectionAdapter(collection),
+    createPlatformMongoCollectionAdapter(sequences),
+  );
 }
 
 let defaultRepository: Promise<ProgramRepository> | undefined;
-function getDefaultRepository() { defaultRepository ??= createProgramRepository(); return defaultRepository; }
+function getDefaultRepository() {
+  defaultRepository ??= createProgramRepository();
+  return defaultRepository;
+}
 export const programRepository: ProgramRepository = {
   list: async (...args) => (await getDefaultRepository()).list(...args),
   getById: async (...args) => (await getDefaultRepository()).getById(...args),

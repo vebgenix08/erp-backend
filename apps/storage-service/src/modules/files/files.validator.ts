@@ -1,8 +1,22 @@
 import { BadRequestError } from "@school-erp/errors";
-import type { FileCreateUploadInput, FileDownloadUrlInput, FileListFilter, FileScopeType, FileStatus } from "./files.model";
+import type {
+  FileCreateUploadInput,
+  FileDownloadUrlInput,
+  FileListFilter,
+  FileScopeType,
+  FileStatus,
+} from "./files.model";
 
 const allowedStatuses: FileStatus[] = ["PENDING_UPLOAD", "AVAILABLE", "DELETED"];
-const allowedScopes: FileScopeType[] = ["TENANT", "CAMPUS", "ACADEMIC_YEAR", "CLASS", "SECTION", "STUDENT", "PUBLIC"];
+const allowedScopes: FileScopeType[] = [
+  "TENANT",
+  "CAMPUS",
+  "ACADEMIC_YEAR",
+  "CLASS",
+  "SECTION",
+  "STUDENT",
+  "PUBLIC",
+];
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -50,7 +64,8 @@ export function validateFileCreateUploadInput(input: unknown): FileCreateUploadI
 
   if (!fileName) throw new BadRequestError("fileName is required");
   if (!contentType) throw new BadRequestError("contentType is required");
-  if (value.scopeType !== undefined && !allowedScopes.includes(scopeType)) throw new BadRequestError("scopeType is invalid");
+  if (value.scopeType !== undefined && !allowedScopes.includes(scopeType))
+    throw new BadRequestError("scopeType is invalid");
 
   return {
     scopeType: value.scopeType !== undefined ? scopeType : "TENANT",

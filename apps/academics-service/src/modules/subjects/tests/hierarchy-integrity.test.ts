@@ -11,13 +11,34 @@ test("subject rejects a class owned by another campus", async () => {
   const repository = new InMemorySubjectRepository();
   const programRepository = new InMemoryProgramRepository();
   const classRepository = new InMemoryClassRepository();
-  const campusOneProgram = await programRepository.create("tenant_1", { campusId: "campus_1", academicUnitId: "unit_school", code: "PROG-001", name: "Primary" });
-  const campusTwoProgram = await programRepository.create("tenant_1", { campusId: "campus_2", academicUnitId: "unit_college", code: "PROG-001", name: "College" });
-  const campusTwoClass = await classRepository.create("tenant_1", { campusId: "campus_2", programId: campusTwoProgram.id, code: "CLASS-001", name: "Semester 1" });
+  const campusOneProgram = await programRepository.create("tenant_1", {
+    campusId: "campus_1",
+    academicUnitId: "unit_school",
+    code: "PROG-001",
+    name: "Primary",
+  });
+  const campusTwoProgram = await programRepository.create("tenant_1", {
+    campusId: "campus_2",
+    academicUnitId: "unit_college",
+    code: "PROG-001",
+    name: "College",
+  });
+  const campusTwoClass = await classRepository.create("tenant_1", {
+    campusId: "campus_2",
+    programId: campusTwoProgram.id,
+    code: "CLASS-001",
+    name: "Semester 1",
+  });
 
   await assert.rejects(
     createSubjectUseCase(
-      { campusId: "campus_1", programId: campusOneProgram.id, classId: campusTwoClass.id, name: "English", subjectType: "THEORY" },
+      {
+        campusId: "campus_1",
+        programId: campusOneProgram.id,
+        classId: campusTwoClass.id,
+        name: "English",
+        subjectType: "THEORY",
+      },
       createSubjectContext(),
       { repository, programRepository, classRepository },
     ),

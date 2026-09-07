@@ -70,6 +70,30 @@ export interface ChangeStudentEnrollmentInput {
   sectionId?: string;
   reason: string;
 }
+export interface UpdateStudentInput {
+  name: string;
+  dateOfBirth: string | null;
+  gender: StudentGender | null;
+  phone: string;
+  email: string | null;
+  address: string | null;
+  guardianName: string;
+  guardianPhone: string | null;
+  guardianRelation: string | null;
+}
+export interface UpdateStudentProfile {
+  name: string;
+  dateOfBirth: Date | null;
+  gender: StudentGender | null;
+  phone: string;
+  email: string | null;
+  address: string | null;
+  guardian: {
+    name: string;
+    phone: string | null;
+    relation: string | null;
+  };
+}
 export interface ClassRegistrationNumberingInput {
   campusId: string;
   academicYearId: string;
@@ -99,18 +123,21 @@ export interface StudentListFilter {
   sortBy?: StudentSortField;
   sortDirection?: SortDirection;
 }
-export type StudentSortField =
-  | "name"
-  | "admissionNumber"
-  | "registrationNumber"
-  | "createdAt";
+export type StudentSortField = "name" | "admissionNumber" | "registrationNumber" | "createdAt";
 export type SortDirection = "ASC" | "DESC";
 export interface StudentPage {
   items: StudentWithEnrollment[];
+  overall: StudentDirectorySummary;
   page: number;
   pageSize: number;
   total: number;
   totalPages: number;
   sortBy: StudentSortField;
   sortDirection: SortDirection;
+}
+export interface StudentDirectorySummary {
+  total: number;
+  active: number;
+  inactive: number;
+  missingSection: number;
 }

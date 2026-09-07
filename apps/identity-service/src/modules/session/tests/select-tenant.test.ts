@@ -7,6 +7,18 @@ import { selectTenantUseCase } from "../use-cases";
 test("select tenant persists the selected tenant", async () => {
   const repository = new InMemorySessionRepository();
   const context = createSessionContext();
-  const result = await selectTenantUseCase({ tenantId: "tenant_x" }, context, { repository });
-  assert.equal(result.selectedTenant?.tenantId, "tenant_x");
+  const result = await selectTenantUseCase({ tenantId: "tenant_test_1" }, context, { repository });
+  assert.equal(result.selectedTenant?.tenantId, "tenant_test_1");
+});
+
+test("select tenant rejects a tenant outside the authenticated membership", async () => {
+  const repository = new InMemorySessionRepository();
+  const context = createSessionContext();
+  await assert.rejects(
+    () =>
+      selectTenantUseCase({ tenantId: "tenant_other" }, context, {
+        repository,
+      }),
+    /not an authenticated membership/i,
+  );
 });

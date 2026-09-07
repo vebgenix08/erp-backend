@@ -20,7 +20,11 @@ export function toTemplateView(record: TemplateRecord | null): TemplateView | nu
     body: record.body,
     layout: record.layout,
     sections: (record.sections ?? []).map((section) => ({ ...section })),
-    fields: record.fields.map((field) => ({ ...field, rules: field.rules ? { ...field.rules } : undefined, options: field.options ? [...field.options] : undefined })),
+    fields: record.fields.map((field) => ({
+      ...field,
+      rules: field.rules ? { ...field.rules } : undefined,
+      options: field.options ? [...field.options] : undefined,
+    })),
     requiredSystemKeys: [...record.requiredSystemKeys],
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),

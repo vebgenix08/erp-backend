@@ -1,13 +1,10 @@
 import {
-  createMongoCollectionAdapter,
+  createPlatformMongoCollectionAdapter,
   getCollection,
-  type CollectionAdapter,
+  type PlatformCollectionAdapter,
   type MongoEnvLike,
 } from "@school-erp/mongodb";
-import type {
-  PlatformIntegrationInput,
-  PlatformIntegrationRecord,
-} from "./integrations.model";
+import type { PlatformIntegrationInput, PlatformIntegrationRecord } from "./integrations.model";
 interface Document extends PlatformIntegrationRecord {
   _id: string;
 }
@@ -21,9 +18,7 @@ const clone = (x: PlatformIntegrationRecord) => ({
   createdAt: new Date(x.createdAt),
   updatedAt: new Date(x.updatedAt),
 });
-export class InMemoryPlatformIntegrationRepository
-  implements PlatformIntegrationRepository
-{
+export class InMemoryPlatformIntegrationRepository implements PlatformIntegrationRepository {
   private records = new Map<string, PlatformIntegrationRecord>();
   async list() {
     return [...this.records.values()].map(clone);
@@ -42,13 +37,11 @@ export class InMemoryPlatformIntegrationRepository
     return clone(record);
   }
 }
-export class MongoPlatformIntegrationRepository
-  implements PlatformIntegrationRepository
-{
-  constructor(private collection: CollectionAdapter<Document>) {}
+export class MongoPlatformIntegrationRepository implements PlatformIntegrationRepository {
+  constructor(private collection: PlatformCollectionAdapter<Document>) {}
   async list() {
-    return (await this.collection.findMany({}, { sort: { code: 1 } })).map(
-      ({ _id, ...x }) => clone({ ...x, id: x.id || _id }),
+    return (await this.collection.findMany({}, { sort: { code: 1 } })).map(({ _id, ...x }) =>
+      clone({ ...x, id: x.id || _id }),
     );
   }
   async upsert(input: PlatformIntegrationInput) {
@@ -68,23 +61,14 @@ export class MongoPlatformIntegrationRepository
   }
 }
 function env(): MongoEnvLike {
-  return (
-    (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process
-      ?.env ?? {}
-  );
+  return (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
 }
 export async function createPlatformIntegrationRepository(
   runtime = env(),
 ): Promise<PlatformIntegrationRepository> {
-  if (
-    !runtime.MONGODB_URI &&
-    !runtime.MONGODB_URI_DEV &&
-    !runtime.MONGODB_URI_PROD
-  )
+  if (!runtime.MONGODB_URI && !runtime.MONGODB_URI_DEV && !runtime.MONGODB_URI_PROD)
     return new InMemoryPlatformIntegrationRepository();
   const c = await getCollection<Document>("platform_integrations", runtime);
   await c.createIndex({ code: 1 }, { unique: true });
-  return new MongoPlatformIntegrationRepository(
-    createMongoCollectionAdapter(c),
-  );
+  return new MongoPlatformIntegrationRepository(createPlatformMongoCollectionAdapter(c));
 }

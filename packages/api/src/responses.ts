@@ -1,7 +1,11 @@
 import { mapErrorToResponse } from "@school-erp/errors";
 import type { ApiResponse } from "./types";
 
-export function jsonResponse<TBody>(statusCode: number, body: TBody, headers: Record<string, string> = {}): ApiResponse<TBody> {
+export function jsonResponse<TBody>(
+  statusCode: number,
+  body: TBody,
+  headers: Record<string, string> = {},
+): ApiResponse<TBody> {
   return {
     statusCode,
     headers: {

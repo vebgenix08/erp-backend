@@ -1,6 +1,18 @@
 import { BadRequestError } from "@school-erp/errors";
-import { createTenantContext, resolveTenantFromRequest as resolveTenantContextFromRequest, type TenantContext, type TenantRequestLike } from "@school-erp/tenancy";
-import type { AuthJwtClaimsPlaceholder, AuthRequestLike, AuthUser, CognitoIntegrationConfig, CognitoVerificationResult, Permission } from "./types";
+import {
+  createTenantContext,
+  resolveTenantFromRequest as resolveTenantContextFromRequest,
+  type TenantContext,
+  type TenantRequestLike,
+} from "@school-erp/tenancy";
+import type {
+  AuthJwtClaimsPlaceholder,
+  AuthRequestLike,
+  AuthUser,
+  CognitoIntegrationConfig,
+  CognitoVerificationResult,
+  Permission,
+} from "./types";
 import { verifyCognitoJwt } from "./cognito";
 
 const USER_ID_HEADERS = ["x-user-id"];
@@ -53,15 +65,22 @@ export function normalizePermissions(value: unknown): Permission[] {
   return [];
 }
 
-export function normalizeAuthClaims(value: AuthJwtClaimsPlaceholder | undefined): AuthJwtClaimsPlaceholder | undefined {
+export function normalizeAuthClaims(
+  value: AuthJwtClaimsPlaceholder | undefined,
+): AuthJwtClaimsPlaceholder | undefined {
   if (!value) return undefined;
   return {
     sub: typeof value.sub === "string" ? value.sub.trim() || undefined : undefined,
     email: typeof value.email === "string" ? value.email.trim() || undefined : undefined,
     role: typeof value.role === "string" ? value.role.trim() || undefined : undefined,
-    permissions: Array.isArray(value.permissions) ? value.permissions : typeof value.permissions === "string" ? value.permissions.split(/[,\s]+/g) : undefined,
+    permissions: Array.isArray(value.permissions)
+      ? value.permissions
+      : typeof value.permissions === "string"
+        ? value.permissions.split(/[,\s]+/g)
+        : undefined,
     tenantId: typeof value.tenantId === "string" ? value.tenantId.trim() || undefined : undefined,
-    tenantCode: typeof value.tenantCode === "string" ? value.tenantCode.trim() || undefined : undefined,
+    tenantCode:
+      typeof value.tenantCode === "string" ? value.tenantCode.trim() || undefined : undefined,
   };
 }
 
@@ -109,7 +128,10 @@ export function buildTenantContext(request: AuthRequestLike): TenantContext | un
   return undefined;
 }
 
-export function buildAuthUser(request: AuthRequestLike, claims: AuthJwtClaimsPlaceholder | undefined): AuthUser | undefined {
+export function buildAuthUser(
+  request: AuthRequestLike,
+  claims: AuthJwtClaimsPlaceholder | undefined,
+): AuthUser | undefined {
   const id = claims?.sub ?? getUserIdFromHeaders(request) ?? request.userId;
   if (!id) {
     return undefined;
@@ -144,7 +166,12 @@ export function ensurePermissionFormat(permission: string): Permission {
 export async function verifyAuthToken(
   token: string,
   config: CognitoIntegrationConfig,
-  verifier?: ((token: string, config: CognitoIntegrationConfig) => Promise<CognitoVerificationResult> | CognitoVerificationResult) | undefined,
+  verifier?:
+    | ((
+        token: string,
+        config: CognitoIntegrationConfig,
+      ) => Promise<CognitoVerificationResult> | CognitoVerificationResult)
+    | undefined,
 ): Promise<AuthJwtClaimsPlaceholder | undefined> {
   if (!token.trim()) return undefined;
   const result = verifier ? await verifier(token, config) : await verifyCognitoJwt(token, config);

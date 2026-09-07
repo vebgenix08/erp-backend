@@ -1,5 +1,10 @@
 import { BadRequestError } from "@school-erp/errors";
-import type { CognitoSyncCreateInput, CognitoSyncListFilter, CognitoSyncUpdateInput, CognitoSyncStatus } from "./cognito-sync.model";
+import type {
+  CognitoSyncCreateInput,
+  CognitoSyncListFilter,
+  CognitoSyncUpdateInput,
+  CognitoSyncStatus,
+} from "./cognito-sync.model";
 
 const allowedStatuses: CognitoSyncStatus[] = ["PENDING", "SYNCED", "FAILED", "DISABLED"];
 

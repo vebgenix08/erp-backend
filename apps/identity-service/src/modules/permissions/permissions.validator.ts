@@ -19,7 +19,9 @@ function validatePermissionCode(value: unknown, field = "code") {
   return result;
 }
 
-export function validatePermissionCreateInput(input: Record<string, unknown>): PermissionCreateInput {
+export function validatePermissionCreateInput(
+  input: Record<string, unknown>,
+): PermissionCreateInput {
   const code = validatePermissionCode(input.code);
   const errors: Array<{ field: string; message: string }> = [];
 
@@ -37,13 +39,16 @@ export function validatePermissionCreateInput(input: Record<string, unknown>): P
   };
 }
 
-export function validatePermissionUpdateInput(input: Record<string, unknown>): PermissionUpdateInput {
+export function validatePermissionUpdateInput(
+  input: Record<string, unknown>,
+): PermissionUpdateInput {
   const update: PermissionUpdateInput = {};
   const errors: Array<{ field: string; message: string }> = [];
 
   if (input.code !== undefined) {
     const code = validatePermissionCode(input.code);
-    if (!code.success) errors.push({ field: "code", message: code.errors[0] ?? "code cannot be empty" });
+    if (!code.success)
+      errors.push({ field: "code", message: code.errors[0] ?? "code cannot be empty" });
     else update.code = code.success ? code.value : "";
   }
 

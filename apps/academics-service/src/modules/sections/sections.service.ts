@@ -8,7 +8,11 @@ import { deactivateSectionUseCase } from "./use-cases/deactivate-section.use-cas
 
 export type { SectionServiceDeps } from "./sections.shared";
 
-export async function createSection(input: unknown, context: RequestContext, deps?: SectionServiceDeps) {
+export async function createSection(
+  input: unknown,
+  context: RequestContext,
+  deps?: SectionServiceDeps,
+) {
   return createSectionUseCase(input, context, deps);
 }
 
@@ -16,14 +20,27 @@ export async function getSection(id: string, context: RequestContext, deps?: Sec
   return getSectionUseCase(id, context, deps);
 }
 
-export async function listSections(context: RequestContext, deps?: SectionServiceDeps, filter?: unknown) {
+export async function listSections(
+  context: RequestContext,
+  deps?: SectionServiceDeps,
+  filter?: unknown,
+) {
   return listSectionsUseCase(context, deps, filter);
 }
 
-export async function updateSection(id: string, input: unknown, context: RequestContext, deps?: SectionServiceDeps) {
+export async function updateSection(
+  id: string,
+  input: unknown,
+  context: RequestContext,
+  deps?: SectionServiceDeps,
+) {
   return updateSectionUseCase(id, input, context, deps);
 }
 
-export async function deactivateSection(id: string, context: RequestContext, deps?: SectionServiceDeps) {
+export async function deactivateSection(
+  id: string,
+  context: RequestContext,
+  deps?: SectionServiceDeps,
+) {
   return deactivateSectionUseCase(id, context, deps);
 }

@@ -4,7 +4,9 @@ function iso(value: Date | undefined): string | undefined {
   return value ? value.toISOString() : undefined;
 }
 
-export function toFirstAdminBootstrapView(record: FirstAdminBootstrapRecord | null): FirstAdminBootstrapView | null {
+export function toFirstAdminBootstrapView(
+  record: FirstAdminBootstrapRecord | null,
+): FirstAdminBootstrapView | null {
   if (!record) return null;
   return {
     id: record.id,

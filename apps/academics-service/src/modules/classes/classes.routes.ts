@@ -1,7 +1,13 @@
 import type { ApiRouter, RequestContext } from "@school-erp/api";
 import { jsonResponse } from "@school-erp/api";
 import type { ClassServiceDeps } from "./classes.shared";
-import { createClass, deactivateClass, getClass, listClasses, updateClass } from "./classes.service";
+import {
+  createClass,
+  deactivateClass,
+  getClass,
+  listClasses,
+  updateClass,
+} from "./classes.service";
 import { validateClassListFilter } from "./classes.validator";
 
 function classId(context: RequestContext): string {

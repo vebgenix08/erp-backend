@@ -29,7 +29,9 @@ export function getHeaderValue(headers: ApiRequest["headers"], name: string): st
   return undefined;
 }
 
-function normalizeHeaders(headers: ApiRequest["headers"]): Record<string, string | string[] | undefined> {
+function normalizeHeaders(
+  headers: ApiRequest["headers"],
+): Record<string, string | string[] | undefined> {
   return Object.fromEntries(
     Object.entries(headers ?? {}).map(([key, value]) => [key.toLowerCase(), value]),
   );
@@ -50,7 +52,10 @@ export function parseJsonBody(body: string | undefined): unknown {
   }
 }
 
-export function createRequestContext(request: ApiRequest, options: CreateRequestContextOptions = {}): RequestContext {
+export function createRequestContext(
+  request: ApiRequest,
+  options: CreateRequestContextOptions = {},
+): RequestContext {
   const method = normalizeMethod(request.method, options.defaultMethod);
   return {
     requestId: request.requestId ?? options.requestId ?? `req_${Date.now()}`,

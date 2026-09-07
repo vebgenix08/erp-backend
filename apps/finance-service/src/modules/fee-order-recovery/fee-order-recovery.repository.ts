@@ -6,10 +6,7 @@ import {
   type MongoEnvLike,
 } from "@school-erp/mongodb";
 import type { StudentEnrolledEventData } from "@school-erp/events";
-import type {
-  FeeOrderRecoveryFilter,
-  FeeOrderRecoveryRecord,
-} from "./fee-order-recovery.model";
+import type { FeeOrderRecoveryFilter, FeeOrderRecoveryRecord } from "./fee-order-recovery.model";
 interface Document extends Record<string, unknown> {
   _id: string;
   tenantId: string;
@@ -37,10 +34,7 @@ export interface FeeOrderRecoveryRepository {
     at: Date,
   ): Promise<FeeOrderRecoveryRecord>;
   getById(tenantId: string, id: string): Promise<FeeOrderRecoveryRecord | null>;
-  list(
-    tenantId: string,
-    filter?: FeeOrderRecoveryFilter,
-  ): Promise<FeeOrderRecoveryRecord[]>;
+  list(tenantId: string, filter?: FeeOrderRecoveryFilter): Promise<FeeOrderRecoveryRecord[]>;
   resolve(
     tenantId: string,
     id: string,
@@ -50,14 +44,8 @@ export interface FeeOrderRecoveryRepository {
 }
 abstract class BaseRepository implements FeeOrderRecoveryRepository {
   protected abstract documents(tenantId: string): Promise<Document[]>;
-  protected abstract find(
-    tenantId: string,
-    id: string,
-  ): Promise<Document | null>;
-  protected abstract findByEvent(
-    tenantId: string,
-    eventId: string,
-  ): Promise<Document | null>;
+  protected abstract find(tenantId: string, id: string): Promise<Document | null>;
+  protected abstract findByEvent(tenantId: string, eventId: string): Promise<Document | null>;
   protected abstract save(document: Document): Promise<void>;
   protected abstract replace(document: Document): Promise<boolean>;
   async recordFailure(
@@ -110,8 +98,7 @@ abstract class BaseRepository implements FeeOrderRecoveryRepository {
       .filter(
         (item) =>
           (!filter.campusId || item.campusId === filter.campusId) &&
-          (!filter.academicYearId ||
-            item.academicYearId === filter.academicYearId) &&
+          (!filter.academicYearId || item.academicYearId === filter.academicYearId) &&
           (!filter.status || item.status === filter.status) &&
           (!filter.search ||
             `${item.studentName} ${item.registrationNumber} ${item.lastError}`
@@ -144,9 +131,7 @@ export class InMemoryFeeOrderRecoveryRepository extends BaseRepository {
   }
   protected async find(tenantId: string, id: string) {
     const item = this.store.get(id);
-    return item?.tenantId === tenantId
-      ? { ...item, record: clone(item.record) }
-      : null;
+    return item?.tenantId === tenantId ? { ...item, record: clone(item.record) } : null;
   }
   protected async findByEvent(tenantId: string, eventId: string) {
     return (
@@ -193,31 +178,19 @@ class MongoRepository extends BaseRepository {
   }
 }
 function env(): MongoEnvLike {
-  return (
-    (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process
-      ?.env ?? {}
-  );
+  return (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
 }
 function hasMongo(value: MongoEnvLike) {
   return Boolean(
-    value.MONGODB_URI ||
-      value.MONGODB_URI_DEV ||
-      value.MONGODB_URI_PROD ||
-      value.MONGODB_URI_TEST,
+    value.MONGODB_URI || value.MONGODB_URI_DEV || value.MONGODB_URI_PROD || value.MONGODB_URI_TEST,
   );
 }
 export async function createFeeOrderRecoveryRepository(
   value: MongoEnvLike = env(),
 ): Promise<FeeOrderRecoveryRepository> {
   if (!hasMongo(value)) return new InMemoryFeeOrderRecoveryRepository();
-  const collection = await getCollection<Document>(
-    "finance_fee_order_recoveries",
-    value,
-  );
-  await collection.createIndex(
-    { tenantId: 1, "record.eventId": 1 },
-    { unique: true },
-  );
+  const collection = await getCollection<Document>("finance_fee_order_recoveries", value);
+  await collection.createIndex({ tenantId: 1, "record.eventId": 1 }, { unique: true });
   await collection.createIndex({
     tenantId: 1,
     "record.status": 1,

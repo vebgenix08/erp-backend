@@ -1,9 +1,6 @@
 import type { AuthContext } from "@school-erp/auth";
 import type { TenantContext } from "@school-erp/tenancy";
-import type {
-  AdmissionConfirmedEvent,
-  AdmissionConfirmedEventData,
-} from "@school-erp/events";
+import type { AdmissionConfirmedEvent } from "@school-erp/events";
 
 export type ApplicationStatus =
   | "DRAFT"
@@ -100,10 +97,7 @@ export interface ApplicationCreateInput {
 }
 
 export type ApplicationUpdateInput = Partial<
-  Omit<
-    ApplicationCreateInput,
-    "campusId" | "academicYearId" | "templateId" | "templateVersion"
-  >
+  Omit<ApplicationCreateInput, "campusId" | "academicYearId" | "templateId" | "templateVersion">
 >;
 
 export interface ApplicationListFilter {
@@ -111,6 +105,11 @@ export interface ApplicationListFilter {
   campusId?: string | undefined;
   academicYearId?: string | undefined;
   academicTargetId?: string | undefined;
+  sectionId?: string | undefined;
+  createdFrom?: Date | undefined;
+  createdTo?: Date | undefined;
+  confirmedFrom?: Date | undefined;
+  confirmedTo?: Date | undefined;
   search?: string | undefined;
   page?: number | undefined;
   pageSize?: number | undefined;
@@ -124,10 +123,7 @@ export interface ApplicationPage {
   totalPages: number;
 }
 
-export type ApplicationDuplicateReason =
-  | "PHONE"
-  | "EMAIL"
-  | "NAME_AND_DATE_OF_BIRTH";
+export type ApplicationDuplicateReason = "PHONE" | "EMAIL" | "NAME_AND_DATE_OF_BIRTH";
 
 export interface ApplicationDuplicateMatch {
   applicationId: string;
@@ -174,8 +170,6 @@ export interface ApplicationView
   rejectedAt?: string | undefined;
   confirmedAt?: string | undefined;
   cancelledAt?: string | undefined;
-  reviews: Array<
-    Omit<ApplicationReview, "reviewedAt"> & { reviewedAt: string }
-  >;
+  reviews: Array<Omit<ApplicationReview, "reviewedAt"> & { reviewedAt: string }>;
   stageHistory: Array<Omit<ApplicationStageEntry, "at"> & { at: string }>;
 }

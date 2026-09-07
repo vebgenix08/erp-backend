@@ -6,10 +6,7 @@ const root = new URL("../schema/root.graphql", import.meta.url);
 const platform = new URL("../schema/modules/platform.graphql", import.meta.url);
 const settings = new URL("../schema/modules/settings.graphql", import.meta.url);
 const academics = new URL("../schema/modules/academics.graphql", import.meta.url);
-const admissions = new URL(
-  "../schema/modules/admissions.graphql",
-  import.meta.url,
-);
+const admissions = new URL("../schema/modules/admissions.graphql", import.meta.url);
 
 test("schema keeps authenticated platform operations in GraphQL", async () => {
   const schema = `${await readFile(root, "utf8")}\n${await readFile(platform, "utf8")}`;
@@ -31,23 +28,14 @@ test("schema keeps authenticated platform operations in GraphQL", async () => {
 test("critical tenant mutations require idempotency", async () => {
   const schema = await readFile(platform, "utf8");
   assert.match(schema, /clientRequestId: ID!/);
-  assert.match(
-    schema,
-    /deactivateTenant\(tenantId: ID!, clientRequestId: ID!\)/,
-  );
-  assert.match(
-    schema,
-    /tenants\(first: Int = 25, after: String\): TenantConnection!/,
-  );
+  assert.match(schema, /deactivateTenant\(tenantId: ID!, clientRequestId: ID!\)/);
+  assert.match(schema, /tenants\(first: Int = 25, after: String\): TenantConnection!/);
 });
 
 test("every tenant subscription source exists as a mutation", async () => {
   const schema = `${await readFile(root, "utf8")}\n${await readFile(platform, "utf8")}`;
-  const sourceList =
-    schema.match(/@aws_subscribe\(mutations: \[([^\]]+)\]\)/)?.[1] ?? "";
-  const sources = [...sourceList.matchAll(/"([A-Za-z0-9_]+)"/g)].map(
-    (match) => match[1],
-  );
+  const sourceList = schema.match(/@aws_subscribe\(mutations: \[([^\]]+)\]\)/)?.[1] ?? "";
+  const sources = [...sourceList.matchAll(/"([A-Za-z0-9_]+)"/g)].map((match) => match[1]);
   assert.ok(sources.length > 0);
   for (const source of sources)
     assert.ok(schema.includes(`${source}(`), `missing mutation ${source}`);
@@ -83,8 +71,7 @@ test("tenant settings operations are exposed through the canonical root contract
 test("academic-year lifecycle fields belong only to AcademicYear", async () => {
   const schema = await readFile(settings, "utf8");
   const campus = schema.match(/type Campus \{([\s\S]*?)\n\}/)?.[1] ?? "";
-  const academicYear =
-    schema.match(/type AcademicYear \{([\s\S]*?)\n\}/)?.[1] ?? "";
+  const academicYear = schema.match(/type AcademicYear \{([\s\S]*?)\n\}/)?.[1] ?? "";
 
   assert.doesNotMatch(campus, /closedAt|reopenedAt|lifecycleReason/);
   for (const field of ["closedAt", "reopenedAt", "lifecycleReason"]) {
@@ -110,10 +97,7 @@ test("admission application exposes the canonical lifecycle through AppSync", as
     schema,
     /applications\s*\(\s*filter:\s*ApplicationFilter\s*\):\s*\[AdmissionApplication!\]!/,
   );
-  assert.match(
-    schema,
-    /submitApplication\s*\(\s*id:\s*ID!\s*\):\s*AdmissionApplication!/,
-  );
+  assert.match(schema, /submitApplication\s*\(\s*id:\s*ID!\s*\):\s*AdmissionApplication!/);
   assert.match(
     schema,
     /approveApplication\s*\(\s*id:\s*ID!\s*,?\s*input:\s*ApplicationReviewInput\s*\):\s*AdmissionApplication!/,
@@ -138,8 +122,7 @@ test("tenant admin dashboard exposes one complete aggregate contract", async () 
     schema,
     /tenantAdminDashboard\(input: TenantAdminDashboardInput!\): TenantAdminDashboard!/,
   );
-  const dashboard =
-    schema.match(/type TenantAdminDashboard \{([\s\S]*?)\n\}/)?.[1] ?? "";
+  const dashboard = schema.match(/type TenantAdminDashboard \{([\s\S]*?)\n\}/)?.[1] ?? "";
   for (const field of [
     "applicationStatusDistribution",
     "studentClassDistribution",
@@ -156,17 +139,44 @@ test("tenant admin dashboard exposes one complete aggregate contract", async () 
 
 test("timetable editing mutations remain in the canonical contract", async () => {
   const schema = await readFile(platform, "utf8");
-  for (const operation of ["addTimetableEntry", "updateTimetableEntry", "deactivateTimetableEntry", "createTimetableRevision"]) {
-    assert.match(schema, new RegExp(`\\b${operation}\\b`), `${operation} is missing from the canonical schema`);
+  for (const operation of [
+    "addTimetableEntry",
+    "updateTimetableEntry",
+    "deactivateTimetableEntry",
+    "createTimetableRevision",
+  ]) {
+    assert.match(
+      schema,
+      new RegExp(`\\b${operation}\\b`),
+      `${operation} is missing from the canonical schema`,
+    );
   }
 });
 
 test("Class Setup exposes one canonical aggregate and page-owned mutations", async () => {
   const schema = `${await readFile(platform, "utf8")}\n${await readFile(academics, "utf8")}`;
-  assert.match(schema, /classSetupWorkspace\(input: ClassSetupContextInput!\): ClassSetupWorkspace!/);
-  assert.match(schema, /generateClassTimetable\(input: ClassSetupContextInput!\): ClassTimetableGenerationResult!/);
-  assert.match(schema, /updateClassSetupSubject\(input: UpdateClassSetupSubjectInput!\): ClassSetupWorkspace!/);
-  assert.match(schema, /removeClassSetupSubject\(input: RemoveClassSetupSubjectInput!\): ClassSetupWorkspace!/);
-  assert.match(schema, /saveClassSetupTiming\(input: SaveClassSetupTimingInput!\): ClassSetupWorkspace!/);
-  assert.doesNotMatch(schema, /academicScheduleWorkspace|prepareAndGenerateAcademicSchedule|AcademicScheduleContextInput/);
+  assert.match(
+    schema,
+    /classSetupWorkspace\(input: ClassSetupContextInput!\): ClassSetupWorkspace!/,
+  );
+  assert.match(
+    schema,
+    /generateClassTimetable\(input: ClassSetupContextInput!\): ClassTimetableGenerationResult!/,
+  );
+  assert.match(
+    schema,
+    /updateClassSetupSubject\(input: UpdateClassSetupSubjectInput!\): ClassSetupWorkspace!/,
+  );
+  assert.match(
+    schema,
+    /removeClassSetupSubject\(input: RemoveClassSetupSubjectInput!\): ClassSetupWorkspace!/,
+  );
+  assert.match(
+    schema,
+    /saveClassSetupTiming\(input: SaveClassSetupTimingInput!\): ClassSetupWorkspace!/,
+  );
+  assert.doesNotMatch(
+    schema,
+    /academicScheduleWorkspace|prepareAndGenerateAcademicSchedule|AcademicScheduleContextInput/,
+  );
 });

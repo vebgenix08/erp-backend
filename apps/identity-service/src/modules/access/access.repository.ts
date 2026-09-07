@@ -1,42 +1,282 @@
 import { ConflictError } from "@school-erp/errors";
-import { createMongoCollectionAdapter, getCollection, type CollectionAdapter, type MongoEnvLike } from "@school-erp/mongodb";
-import type { AccessScope, AssignmentPage, AssignmentPageFilter, RolePermissionBinding, UserRoleAssignment } from "./access.model";
-interface AssignmentDocument extends UserRoleAssignment { _id:string }
-interface BindingDocument extends RolePermissionBinding { _id:string }
-export interface AccessRepository {
-  listAssignments(tenantId:string):Promise<UserRoleAssignment[]>;
-  listAssignmentPage(tenantId:string,filter?:AssignmentPageFilter):Promise<AssignmentPage>;
-  assignRole(tenantId:string,userId:string,roleId:string,scope:AccessScope):Promise<UserRoleAssignment>;
-  updateAssignmentScope(tenantId:string,id:string,scope:AccessScope):Promise<UserRoleAssignment|null>;
-  revokeAssignment(tenantId:string,id:string):Promise<UserRoleAssignment|null>;
-  listRolePermissions(tenantId:string):Promise<RolePermissionBinding[]>;
-  setRolePermissions(tenantId:string,roleId:string,permissions:string[]):Promise<RolePermissionBinding[]>;
+import {
+  createMongoCollectionAdapter,
+  getCollection,
+  type CollectionAdapter,
+  type MongoEnvLike,
+} from "@school-erp/mongodb";
+import type {
+  AccessScope,
+  AssignmentPage,
+  AssignmentPageFilter,
+  RolePermissionBinding,
+  UserRoleAssignment,
+} from "./access.model";
+interface AssignmentDocument extends UserRoleAssignment {
+  _id: string;
 }
-const cloneScope=(scope:AccessScope):AccessScope=>({scopeType:scope.scopeType,...(scope.campusIds?{campusIds:[...scope.campusIds]}:{}),...(scope.programIds?{programIds:[...scope.programIds]}:{}),...(scope.classIds?{classIds:[...scope.classIds]}:{}),...(scope.sectionIds?{sectionIds:[...scope.sectionIds]}:{})});
-const cloneAssignment=(value:UserRoleAssignment):UserRoleAssignment=>({...value,scope:cloneScope(value.scope),createdAt:new Date(value.createdAt),updatedAt:new Date(value.updatedAt)});
-function paging(rows:UserRoleAssignment[],filter:AssignmentPageFilter={}):AssignmentPage{const filtered=rows.filter(item=>(!filter.userId||item.userId===filter.userId)&&(!filter.userIds?.length||filter.userIds.includes(item.userId))&&(!filter.roleId||item.roleId===filter.roleId)&&(filter.isActive===undefined||item.isActive===filter.isActive)).sort((a,b)=>b.updatedAt.getTime()-a.updatedAt.getTime());const page=Math.max(1,filter.page??1),pageSize=Math.min(100,Math.max(1,filter.pageSize??25)),total=filtered.length;return{items:filtered.slice((page-1)*pageSize,page*pageSize).map(cloneAssignment),page,pageSize,total,totalPages:Math.ceil(total/pageSize)}}
+interface BindingDocument extends RolePermissionBinding {
+  _id: string;
+}
+export interface AccessRepository {
+  listAssignments(tenantId: string): Promise<UserRoleAssignment[]>;
+  listAssignmentPage(tenantId: string, filter?: AssignmentPageFilter): Promise<AssignmentPage>;
+  assignRole(
+    tenantId: string,
+    userId: string,
+    roleId: string,
+    scope: AccessScope,
+  ): Promise<UserRoleAssignment>;
+  updateAssignmentScope(
+    tenantId: string,
+    id: string,
+    scope: AccessScope,
+  ): Promise<UserRoleAssignment | null>;
+  revokeAssignment(tenantId: string, id: string): Promise<UserRoleAssignment | null>;
+  listRolePermissions(tenantId: string): Promise<RolePermissionBinding[]>;
+  setRolePermissions(
+    tenantId: string,
+    roleId: string,
+    permissions: string[],
+  ): Promise<RolePermissionBinding[]>;
+}
+const cloneScope = (scope: AccessScope): AccessScope => ({
+  scopeType: scope.scopeType,
+  ...(scope.campusIds ? { campusIds: [...scope.campusIds] } : {}),
+  ...(scope.programIds ? { programIds: [...scope.programIds] } : {}),
+  ...(scope.classIds ? { classIds: [...scope.classIds] } : {}),
+  ...(scope.sectionIds ? { sectionIds: [...scope.sectionIds] } : {}),
+});
+const cloneAssignment = (value: UserRoleAssignment): UserRoleAssignment => ({
+  ...value,
+  scope: cloneScope(value.scope),
+  createdAt: new Date(value.createdAt),
+  updatedAt: new Date(value.updatedAt),
+});
+function paging(rows: UserRoleAssignment[], filter: AssignmentPageFilter = {}): AssignmentPage {
+  const filtered = rows
+    .filter(
+      (item) =>
+        (!filter.userId || item.userId === filter.userId) &&
+        (!filter.userIds?.length || filter.userIds.includes(item.userId)) &&
+        (!filter.roleId || item.roleId === filter.roleId) &&
+        (filter.isActive === undefined || item.isActive === filter.isActive),
+    )
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+  const page = Math.max(1, filter.page ?? 1),
+    pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 25)),
+    total = filtered.length;
+  return {
+    items: filtered.slice((page - 1) * pageSize, page * pageSize).map(cloneAssignment),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
+  };
+}
 export class InMemoryAccessRepository implements AccessRepository {
-  private assignments=new Map<string,UserRoleAssignment>();private bindings=new Map<string,RolePermissionBinding>();
-  async listAssignments(tenantId:string){return[...this.assignments.values()].filter(item=>item.tenantId===tenantId).map(cloneAssignment)}
-  async listAssignmentPage(tenantId:string,filter:AssignmentPageFilter={}){return paging(await this.listAssignments(tenantId),filter)}
-  async assignRole(tenantId:string,userId:string,roleId:string,scope:AccessScope){if([...this.assignments.values()].some(item=>item.tenantId===tenantId&&item.userId===userId&&item.roleId===roleId&&item.isActive))throw new ConflictError("active role assignment already exists");const now=new Date(),value:UserRoleAssignment={id:crypto.randomUUID(),tenantId,userId,roleId,scope:cloneScope(scope),isActive:true,createdAt:now,updatedAt:now};this.assignments.set(value.id,value);return cloneAssignment(value)}
-  async updateAssignmentScope(tenantId:string,id:string,scope:AccessScope){const value=this.assignments.get(id);if(!value||value.tenantId!==tenantId)return null;const next={...value,scope:cloneScope(scope),updatedAt:new Date()};this.assignments.set(id,next);return cloneAssignment(next)}
-  async revokeAssignment(tenantId:string,id:string){const value=this.assignments.get(id);if(!value||value.tenantId!==tenantId)return null;const next={...value,isActive:false,updatedAt:new Date()};this.assignments.set(id,next);return cloneAssignment(next)}
-  async listRolePermissions(tenantId:string){return[...this.bindings.values()].filter(item=>item.tenantId===tenantId).map(item=>({...item,createdAt:new Date(item.createdAt),updatedAt:new Date(item.updatedAt)}))}
-  async setRolePermissions(tenantId:string,roleId:string,permissions:string[]){for(const[id,value]of this.bindings)if(value.tenantId===tenantId&&value.roleId===roleId)this.bindings.delete(id);const now=new Date(),result=permissions.map(permission=>({id:crypto.randomUUID(),tenantId,roleId,permission,createdAt:now,updatedAt:now}));result.forEach(value=>this.bindings.set(value.id,value));return result}
+  private assignments = new Map<string, UserRoleAssignment>();
+  private bindings = new Map<string, RolePermissionBinding>();
+  async listAssignments(tenantId: string) {
+    return [...this.assignments.values()]
+      .filter((item) => item.tenantId === tenantId)
+      .map(cloneAssignment);
+  }
+  async listAssignmentPage(tenantId: string, filter: AssignmentPageFilter = {}) {
+    return paging(await this.listAssignments(tenantId), filter);
+  }
+  async assignRole(tenantId: string, userId: string, roleId: string, scope: AccessScope) {
+    if (
+      [...this.assignments.values()].some(
+        (item) =>
+          item.tenantId === tenantId &&
+          item.userId === userId &&
+          item.roleId === roleId &&
+          item.isActive,
+      )
+    )
+      throw new ConflictError("active role assignment already exists");
+    const now = new Date(),
+      value: UserRoleAssignment = {
+        id: crypto.randomUUID(),
+        tenantId,
+        userId,
+        roleId,
+        scope: cloneScope(scope),
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      };
+    this.assignments.set(value.id, value);
+    return cloneAssignment(value);
+  }
+  async updateAssignmentScope(tenantId: string, id: string, scope: AccessScope) {
+    const value = this.assignments.get(id);
+    if (!value || value.tenantId !== tenantId) return null;
+    const next = { ...value, scope: cloneScope(scope), updatedAt: new Date() };
+    this.assignments.set(id, next);
+    return cloneAssignment(next);
+  }
+  async revokeAssignment(tenantId: string, id: string) {
+    const value = this.assignments.get(id);
+    if (!value || value.tenantId !== tenantId) return null;
+    const next = { ...value, isActive: false, updatedAt: new Date() };
+    this.assignments.set(id, next);
+    return cloneAssignment(next);
+  }
+  async listRolePermissions(tenantId: string) {
+    return [...this.bindings.values()]
+      .filter((item) => item.tenantId === tenantId)
+      .map((item) => ({
+        ...item,
+        createdAt: new Date(item.createdAt),
+        updatedAt: new Date(item.updatedAt),
+      }));
+  }
+  async setRolePermissions(tenantId: string, roleId: string, permissions: string[]) {
+    for (const [id, value] of this.bindings)
+      if (value.tenantId === tenantId && value.roleId === roleId) this.bindings.delete(id);
+    const now = new Date(),
+      result = permissions.map((permission) => ({
+        id: crypto.randomUUID(),
+        tenantId,
+        roleId,
+        permission,
+        createdAt: now,
+        updatedAt: now,
+      }));
+    result.forEach((value) => this.bindings.set(value.id, value));
+    return result;
+  }
 }
 export class MongoAccessRepository implements AccessRepository {
-  constructor(private assignments:CollectionAdapter<AssignmentDocument>,private bindings:CollectionAdapter<BindingDocument>){}
-  async listAssignments(tenantId:string){return(await this.assignments.findMany({tenantId})).map(({_id,...value})=>cloneAssignment({...value,id:value.id||_id}))}
-  async listAssignmentPage(tenantId:string,filter:AssignmentPageFilter={}){const query:Record<string,unknown>={tenantId};if(filter.userId)query.userId=filter.userId;else if(filter.userIds?.length)query.userId={$in:filter.userIds};if(filter.roleId)query.roleId=filter.roleId;if(filter.isActive!==undefined)query.isActive=filter.isActive;const page=Math.max(1,filter.page??1),pageSize=Math.min(100,Math.max(1,filter.pageSize??25));const[documents,total]=await Promise.all([this.assignments.findMany(query as never,{sort:{updatedAt:-1,_id:1},skip:(page-1)*pageSize,limit:pageSize}),this.assignments.count(query as never)]);return{items:documents.map(({_id,...value})=>cloneAssignment({...value,id:value.id||_id})),page,pageSize,total,totalPages:Math.ceil(total/pageSize)}}
-  async assignRole(tenantId:string,userId:string,roleId:string,scope:AccessScope){if(await this.assignments.findOne({tenantId,userId,roleId,isActive:true}))throw new ConflictError("active role assignment already exists");const now=new Date(),value:UserRoleAssignment={id:crypto.randomUUID(),tenantId,userId,roleId,scope:cloneScope(scope),isActive:true,createdAt:now,updatedAt:now};await this.assignments.insertOne({...value,_id:value.id});return cloneAssignment(value)}
-  async updateAssignmentScope(tenantId:string,id:string,scope:AccessScope){const document=await this.assignments.findOne({tenantId,_id:id});if(!document)return null;const next={...document,scope:cloneScope(scope),updatedAt:new Date()};await this.assignments.replaceOne({tenantId,_id:id},next);const{_id,...value}=next;return cloneAssignment({...value,id:value.id||_id})}
-  async revokeAssignment(tenantId:string,id:string){const document=await this.assignments.findOne({tenantId,_id:id});if(!document)return null;const next={...document,isActive:false,updatedAt:new Date()};await this.assignments.replaceOne({tenantId,_id:id},next);const{_id,...value}=next;return cloneAssignment({...value,id:value.id||_id})}
-  async listRolePermissions(tenantId:string){return(await this.bindings.findMany({tenantId})).map(({_id,...value})=>({...value,id:value.id||_id}))}
-  async setRolePermissions(tenantId:string,roleId:string,permissions:string[]){const old=await this.bindings.findMany({tenantId,roleId});for(const item of old)await this.bindings.deleteOne({tenantId,_id:item._id});const now=new Date(),result=permissions.map(permission=>({id:crypto.randomUUID(),tenantId,roleId,permission,createdAt:now,updatedAt:now}));for(const value of result)await this.bindings.insertOne({...value,_id:value.id});return result}
+  constructor(
+    private assignments: CollectionAdapter<AssignmentDocument>,
+    private bindings: CollectionAdapter<BindingDocument>,
+  ) {}
+  async listAssignments(tenantId: string) {
+    return (await this.assignments.findMany({ tenantId })).map(({ _id, ...value }) =>
+      cloneAssignment({ ...value, id: value.id || _id }),
+    );
+  }
+  async listAssignmentPage(tenantId: string, filter: AssignmentPageFilter = {}) {
+    const query: Record<string, unknown> = { tenantId };
+    if (filter.userId) query.userId = filter.userId;
+    else if (filter.userIds?.length) query.userId = { $in: filter.userIds };
+    if (filter.roleId) query.roleId = filter.roleId;
+    if (filter.isActive !== undefined) query.isActive = filter.isActive;
+    const page = Math.max(1, filter.page ?? 1),
+      pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 25));
+    const [documents, total] = await Promise.all([
+      this.assignments.findMany(query as never, {
+        sort: { updatedAt: -1, _id: 1 },
+        skip: (page - 1) * pageSize,
+        limit: pageSize,
+      }),
+      this.assignments.count(query as never),
+    ]);
+    return {
+      items: documents.map(({ _id, ...value }) =>
+        cloneAssignment({ ...value, id: value.id || _id }),
+      ),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+  async assignRole(tenantId: string, userId: string, roleId: string, scope: AccessScope) {
+    if (await this.assignments.findOne({ tenantId, userId, roleId, isActive: true }))
+      throw new ConflictError("active role assignment already exists");
+    const now = new Date(),
+      value: UserRoleAssignment = {
+        id: crypto.randomUUID(),
+        tenantId,
+        userId,
+        roleId,
+        scope: cloneScope(scope),
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      };
+    await this.assignments.insertOne({ ...value, _id: value.id });
+    return cloneAssignment(value);
+  }
+  async updateAssignmentScope(tenantId: string, id: string, scope: AccessScope) {
+    const document = await this.assignments.findOne({ tenantId, _id: id });
+    if (!document) return null;
+    const next = { ...document, scope: cloneScope(scope), updatedAt: new Date() };
+    await this.assignments.replaceOne({ tenantId, _id: id }, next);
+    const { _id, ...value } = next;
+    return cloneAssignment({ ...value, id: value.id || _id });
+  }
+  async revokeAssignment(tenantId: string, id: string) {
+    const document = await this.assignments.findOne({ tenantId, _id: id });
+    if (!document) return null;
+    const next = { ...document, isActive: false, updatedAt: new Date() };
+    await this.assignments.replaceOne({ tenantId, _id: id }, next);
+    const { _id, ...value } = next;
+    return cloneAssignment({ ...value, id: value.id || _id });
+  }
+  async listRolePermissions(tenantId: string) {
+    return (await this.bindings.findMany({ tenantId })).map(({ _id, ...value }) => ({
+      ...value,
+      id: value.id || _id,
+    }));
+  }
+  async setRolePermissions(tenantId: string, roleId: string, permissions: string[]) {
+    const old = await this.bindings.findMany({ tenantId, roleId });
+    for (const item of old) await this.bindings.deleteOne({ tenantId, _id: item._id });
+    const now = new Date(),
+      result = permissions.map((permission) => ({
+        id: crypto.randomUUID(),
+        tenantId,
+        roleId,
+        permission,
+        createdAt: now,
+        updatedAt: now,
+      }));
+    for (const value of result) await this.bindings.insertOne({ ...value, _id: value.id });
+    return result;
+  }
 }
-function env():MongoEnvLike{return(globalThis as unknown as{process?:{env?:MongoEnvLike}}).process?.env??{}}
-let singleton:Promise<AccessRepository>|undefined;
-export async function createAccessRepository(environment:MongoEnvLike=env()){if(!environment.MONGODB_URI&&!environment.MONGODB_URI_DEV&&!environment.MONGODB_URI_PROD&&!environment.MONGODB_URI_TEST)return new InMemoryAccessRepository();const assignments=await getCollection<AssignmentDocument>("identity_user_role_assignments",environment),bindings=await getCollection<BindingDocument>("identity_role_permissions",environment);await assignments.createIndex({tenantId:1,userId:1,roleId:1,isActive:1},{unique:true,partialFilterExpression:{isActive:true}});await assignments.createIndex({tenantId:1,updatedAt:-1});await bindings.createIndex({tenantId:1,roleId:1,permission:1},{unique:true});return new MongoAccessRepository(createMongoCollectionAdapter(assignments),createMongoCollectionAdapter(bindings))}
-async function repo(){return singleton??=createAccessRepository()}
-export const accessRepository:AccessRepository={listAssignments:async(...args)=>(await repo()).listAssignments(...args),listAssignmentPage:async(...args)=>(await repo()).listAssignmentPage(...args),assignRole:async(...args)=>(await repo()).assignRole(...args),updateAssignmentScope:async(...args)=>(await repo()).updateAssignmentScope(...args),revokeAssignment:async(...args)=>(await repo()).revokeAssignment(...args),listRolePermissions:async(...args)=>(await repo()).listRolePermissions(...args),setRolePermissions:async(...args)=>(await repo()).setRolePermissions(...args)};
+function env(): MongoEnvLike {
+  return (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
+}
+let singleton: Promise<AccessRepository> | undefined;
+export async function createAccessRepository(environment: MongoEnvLike = env()) {
+  if (
+    !environment.MONGODB_URI &&
+    !environment.MONGODB_URI_DEV &&
+    !environment.MONGODB_URI_PROD &&
+    !environment.MONGODB_URI_TEST
+  )
+    return new InMemoryAccessRepository();
+  const assignments = await getCollection<AssignmentDocument>(
+      "identity_user_role_assignments",
+      environment,
+    ),
+    bindings = await getCollection<BindingDocument>("identity_role_permissions", environment);
+  await assignments.createIndex(
+    { tenantId: 1, userId: 1, roleId: 1, isActive: 1 },
+    { unique: true, partialFilterExpression: { isActive: true } },
+  );
+  await assignments.createIndex({ tenantId: 1, updatedAt: -1 });
+  await bindings.createIndex({ tenantId: 1, roleId: 1, permission: 1 }, { unique: true });
+  return new MongoAccessRepository(
+    createMongoCollectionAdapter(assignments),
+    createMongoCollectionAdapter(bindings),
+  );
+}
+async function repo() {
+  return (singleton ??= createAccessRepository());
+}
+export const accessRepository: AccessRepository = {
+  listAssignments: async (...args) => (await repo()).listAssignments(...args),
+  listAssignmentPage: async (...args) => (await repo()).listAssignmentPage(...args),
+  assignRole: async (...args) => (await repo()).assignRole(...args),
+  updateAssignmentScope: async (...args) => (await repo()).updateAssignmentScope(...args),
+  revokeAssignment: async (...args) => (await repo()).revokeAssignment(...args),
+  listRolePermissions: async (...args) => (await repo()).listRolePermissions(...args),
+  setRolePermissions: async (...args) => (await repo()).setRolePermissions(...args),
+};

@@ -1,7 +1,7 @@
 import { BadRequestError, ConflictError } from "@school-erp/errors";
 import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
 import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { FileCreateUploadInput, FileListFilter, FileRecord, FileStatus } from "./files.model";
+import type { FileCreateUploadInput, FileListFilter, FileRecord } from "./files.model";
 
 export interface FileRepository {
   list(tenantId: string, filter?: FileListFilter): Promise<FileRecord[]>;
@@ -67,7 +67,12 @@ function matchesSearch(record: FileRecord, search: string): boolean {
   );
 }
 
-function createRecord(input: FileCreateUploadInput & { tenantId: string }, storageKey: string, bucket: string, createdBy: string): FileRecord {
+function createRecord(
+  input: FileCreateUploadInput & { tenantId: string },
+  storageKey: string,
+  bucket: string,
+  createdBy: string,
+): FileRecord {
   const timestamp = now();
   return {
     id: makeId(),
@@ -118,7 +123,10 @@ export class InMemoryFileRepository implements FileRepository {
   }
 
   async getByStorageKey(tenantId: string, storageKey: string) {
-    const record = [...this.bucket(normalizeTenantId(tenantId)).values()].find((item) => item.storageKey === storageKey) ?? null;
+    const record =
+      [...this.bucket(normalizeTenantId(tenantId)).values()].find(
+        (item) => item.storageKey === storageKey,
+      ) ?? null;
     return record ? clone(record) : null;
   }
 
@@ -171,11 +179,15 @@ export class MongoFileRepository implements FileRepository {
   }
 
   async getById(tenantId: string, id: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }));
+    return fromDocument(
+      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }),
+    );
   }
 
   async getByStorageKey(tenantId: string, storageKey: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), storageKey }));
+    return fromDocument(
+      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), storageKey }),
+    );
   }
 
   async create(input: FileRecord) {
@@ -196,7 +208,10 @@ export class MongoFileRepository implements FileRepository {
       tenantId: normalizeTenantId(tenantId),
       updatedAt: now(),
     });
-    const replaced = await this.collection.replaceOne({ tenantId: normalizeTenantId(tenantId), _id: id }, toDocument(updated));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: normalizeTenantId(tenantId), _id: id },
+      toDocument(updated),
+    );
     return replaced ? updated : null;
   }
 
@@ -206,7 +221,9 @@ export class MongoFileRepository implements FileRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -214,7 +231,9 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createFileRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<FileRepository> {
+export async function createFileRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<FileRepository> {
   if (!hasMongoEnv(env)) {
     return new InMemoryFileRepository();
   }

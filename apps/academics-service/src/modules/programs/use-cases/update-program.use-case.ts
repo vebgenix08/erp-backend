@@ -15,5 +15,7 @@ export async function updateProgramUseCase(
 ): Promise<ProgramView | null> {
   requirePermission(context, academicsPermissions.programs.update as Permission);
   const repository = await resolveProgramRepository(deps);
-  return toProgramView(await repository.update(requireTenantId(context), id, validateProgramUpdateInput(input)));
+  return toProgramView(
+    await repository.update(requireTenantId(context), id, validateProgramUpdateInput(input)),
+  );
 }

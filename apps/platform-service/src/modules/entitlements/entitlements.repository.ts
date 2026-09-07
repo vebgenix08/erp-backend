@@ -1,13 +1,10 @@
 import {
-  createMongoCollectionAdapter,
+  createPlatformMongoCollectionAdapter,
   getCollection,
-  type CollectionAdapter,
+  type PlatformCollectionAdapter,
   type MongoEnvLike,
 } from "@school-erp/mongodb";
-import type {
-  TenantEntitlementInput,
-  TenantEntitlementRecord,
-} from "./entitlements.model";
+import type { TenantEntitlementInput, TenantEntitlementRecord } from "./entitlements.model";
 interface Document extends TenantEntitlementRecord {
   _id: string;
 }
@@ -21,9 +18,7 @@ const clone = (record: TenantEntitlementRecord) => ({
   createdAt: new Date(record.createdAt),
   updatedAt: new Date(record.updatedAt),
 });
-export class InMemoryTenantEntitlementRepository
-  implements TenantEntitlementRepository
-{
+export class InMemoryTenantEntitlementRepository implements TenantEntitlementRepository {
   private records = new Map<string, TenantEntitlementRecord>();
   async list(tenantId?: string) {
     return [...this.records.values()]
@@ -44,10 +39,8 @@ export class InMemoryTenantEntitlementRepository
     return clone(record);
   }
 }
-export class MongoTenantEntitlementRepository
-  implements TenantEntitlementRepository
-{
-  constructor(private collection: CollectionAdapter<Document>) {}
+export class MongoTenantEntitlementRepository implements TenantEntitlementRepository {
+  constructor(private collection: PlatformCollectionAdapter<Document>) {}
   async list(tenantId?: string) {
     return (
       await this.collection.findMany(tenantId ? { tenantId } : {}, {
@@ -72,29 +65,14 @@ export class MongoTenantEntitlementRepository
   }
 }
 function env(): MongoEnvLike {
-  return (
-    (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process
-      ?.env ?? {}
-  );
+  return (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
 }
 export async function createTenantEntitlementRepository(
   runtime = env(),
 ): Promise<TenantEntitlementRepository> {
-  if (
-    !runtime.MONGODB_URI &&
-    !runtime.MONGODB_URI_DEV &&
-    !runtime.MONGODB_URI_PROD
-  )
+  if (!runtime.MONGODB_URI && !runtime.MONGODB_URI_DEV && !runtime.MONGODB_URI_PROD)
     return new InMemoryTenantEntitlementRepository();
-  const collection = await getCollection<Document>(
-    "platform_tenant_entitlements",
-    runtime,
-  );
-  await collection.createIndex(
-    { tenantId: 1, featureCode: 1 },
-    { unique: true },
-  );
-  return new MongoTenantEntitlementRepository(
-    createMongoCollectionAdapter(collection),
-  );
+  const collection = await getCollection<Document>("platform_tenant_entitlements", runtime);
+  await collection.createIndex({ tenantId: 1, featureCode: 1 }, { unique: true });
+  return new MongoTenantEntitlementRepository(createPlatformMongoCollectionAdapter(collection));
 }

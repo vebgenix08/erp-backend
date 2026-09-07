@@ -18,6 +18,8 @@ if (tests.length === 0) process.exit(0);
 
 await new Promise((resolve, reject) => {
   const child = spawn(process.execPath, ["--test", ...tests], { stdio: "inherit" });
-  child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(`Tests exited with code ${code ?? 1}`)));
+  child.on("exit", (code) =>
+    code === 0 ? resolve() : reject(new Error(`Tests exited with code ${code ?? 1}`)),
+  );
   child.on("error", reject);
 });

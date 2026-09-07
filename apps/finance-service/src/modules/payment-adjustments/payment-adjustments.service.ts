@@ -1,25 +1,13 @@
 import type { RequestContext } from "@school-erp/api";
 import type { Permission } from "@school-erp/auth";
-import {
-  BadRequestError,
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
-} from "@school-erp/errors";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@school-erp/errors";
 import type { FeeOrderRecord } from "../fee-orders/fee-orders.model";
-import {
-  feeOrderRepository,
-  type FeeOrderRepository,
-} from "../fee-orders/fee-orders.repository";
-import {
-  paymentRepository,
-  type PaymentRepository,
-} from "../payments/payments.repository";
+import { feeOrderRepository, type FeeOrderRepository } from "../fee-orders/fee-orders.repository";
+import { paymentRepository, type PaymentRepository } from "../payments/payments.repository";
 import { toPaymentAdjustmentView } from "./payment-adjustments.mapper";
 import type {
   PaymentAdjustmentAllocation,
   PaymentAdjustmentFilter,
-  PaymentAdjustmentRecord,
 } from "./payment-adjustments.model";
 import { paymentAdjustmentPermissions } from "./payment-adjustments.permissions";
 import {
@@ -34,9 +22,7 @@ import {
 export interface PaymentAdjustmentDependencies {
   payments?: PaymentRepository | Promise<PaymentRepository>;
   orders?: FeeOrderRepository | Promise<FeeOrderRepository>;
-  adjustments?:
-    | PaymentAdjustmentRepository
-    | Promise<PaymentAdjustmentRepository>;
+  adjustments?: PaymentAdjustmentRepository | Promise<PaymentAdjustmentRepository>;
   now?: () => Date;
 }
 const tenantId = (context: RequestContext) => {
@@ -74,28 +60,17 @@ export async function createPaymentAdjustment(
   );
   const tenant = tenantId(context);
   const adjustmentStore = await adjustments(deps);
-  const idempotent = await adjustmentStore.getByIdempotencyKey(
-    tenant,
-    value.idempotencyKey,
-  );
+  const idempotent = await adjustmentStore.getByIdempotencyKey(tenant, value.idempotencyKey);
   if (idempotent) return toPaymentAdjustmentView(idempotent);
   const payment = await (await payments(deps)).getById(tenant, value.paymentId);
   if (!payment) throw new NotFoundError("payment was not found");
   const reversedMinor = payment.reversedMinor ?? 0;
   const remainingMinor = payment.amountMinor - reversedMinor;
-  if (
-    remainingMinor <= 0 ||
-    payment.status === "VOIDED" ||
-    payment.status === "REFUNDED"
-  )
+  if (remainingMinor <= 0 || payment.status === "VOIDED" || payment.status === "REFUNDED")
     throw new ConflictError("payment has already been fully reversed");
   if (value.type === "VOID" && reversedMinor > 0)
     throw new ConflictError("a partially refunded payment cannot be voided");
-  if (
-    payment.allocations.some(
-      (allocation) => !allocation.chargeAllocations?.length,
-    )
-  )
+  if (payment.allocations.some((allocation) => !allocation.chargeAllocations?.length))
     throw new ConflictError(
       "this legacy payment has no charge-level ledger and requires manual finance review",
     );
@@ -103,8 +78,7 @@ export async function createPaymentAdjustment(
   const orderMap = new Map<string, FeeOrderRecord>();
   for (const allocation of payment.allocations) {
     const order = await orderRepository.getById(tenant, allocation.feeOrderId);
-    if (!order)
-      throw new ConflictError("payment references a missing fee order");
+    if (!order) throw new ConflictError("payment references a missing fee order");
     orderMap.set(order.id, order);
   }
   const prior = await adjustmentStore.list(tenant, { paymentId: payment.id });
@@ -113,16 +87,14 @@ export async function createPaymentAdjustment(
     for (const allocation of record.allocations)
       alreadyReversed.set(
         allocation.chargeId,
-        (alreadyReversed.get(allocation.chargeId) ?? 0) +
-          allocation.amountMinor,
+        (alreadyReversed.get(allocation.chargeId) ?? 0) + allocation.amountMinor,
       );
   const candidates = payment.allocations
     .flatMap((allocation) =>
       allocation.chargeAllocations.map((charge) => ({
         ...charge,
         feeOrderId: allocation.feeOrderId,
-        remainingMinor:
-          charge.amountMinor - (alreadyReversed.get(charge.chargeId) ?? 0),
+        remainingMinor: charge.amountMinor - (alreadyReversed.get(charge.chargeId) ?? 0),
       })),
     )
     .filter((item) => item.remainingMinor > 0)
@@ -132,17 +104,11 @@ export async function createPaymentAdjustment(
       ? candidates
       : candidates.filter(
           (item) =>
-            orderMap
-              .get(item.feeOrderId)
-              ?.charges.find((charge) => charge.id === item.chargeId)
+            orderMap.get(item.feeOrderId)?.charges.find((charge) => charge.id === item.chargeId)
               ?.refundable === true,
         );
-  const requestedMinor =
-    value.type === "VOID" ? remainingMinor : value.amountMinor!;
-  const eligibleMinor = eligible.reduce(
-    (sum, item) => sum + item.remainingMinor,
-    0,
-  );
+  const requestedMinor = value.type === "VOID" ? remainingMinor : value.amountMinor!;
+  const eligibleMinor = eligible.reduce((sum, item) => sum + item.remainingMinor, 0);
   if (requestedMinor > eligibleMinor)
     throw new ConflictError(
       value.type === "REFUND"
@@ -163,8 +129,7 @@ export async function createPaymentAdjustment(
       amountMinor,
     });
   }
-  if (remaining)
-    throw new ConflictError("adjustment could not be fully allocated");
+  if (remaining) throw new ConflictError("adjustment could not be fully allocated");
   const now = deps.now?.() ?? new Date();
   const expectedOrderUpdatedAt = new Map<string, Date>();
   const updatedOrders = [...orderMap.values()].map((order) => {
@@ -177,19 +142,14 @@ export async function createPaymentAdjustment(
     const charges = order.charges.map((charge) => {
       const amount = byCharge.get(charge.id) ?? 0;
       if (amount > charge.paidMinor)
-        throw new ConflictError(
-          "adjustment exceeds the charge payment balance",
-        );
+        throw new ConflictError("adjustment exceeds the charge payment balance");
       return {
         ...charge,
         paidMinor: charge.paidMinor - amount,
         balanceMinor: charge.balanceMinor + amount,
       };
     });
-    const paidMinor = charges.reduce(
-      (sum, charge) => sum + charge.paidMinor,
-      0,
-    );
+    const paidMinor = charges.reduce((sum, charge) => sum + charge.paidMinor, 0);
     const balanceMinor = order.totalMinor - paidMinor;
     return {
       ...order,
@@ -250,9 +210,6 @@ export async function listPaymentAdjustments(
   return (
     await (
       await adjustments(deps)
-    ).list(
-      tenantId(context),
-      validatePaymentAdjustmentFilter(filter) as PaymentAdjustmentFilter,
-    )
+    ).list(tenantId(context), validatePaymentAdjustmentFilter(filter) as PaymentAdjustmentFilter)
   ).map(toPaymentAdjustmentView);
 }

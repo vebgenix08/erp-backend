@@ -3,7 +3,13 @@ import { jsonResponse } from "@school-erp/api";
 import { requireTenant } from "@school-erp/tenancy";
 import { requirePermission } from "@school-erp/auth";
 import { rolePermissions } from "./roles.permissions";
-import { createRoleUseCase, deleteRoleUseCase, getRoleUseCase, listRolesUseCase, updateRoleUseCase } from "./use-cases";
+import {
+  createRoleUseCase,
+  deleteRoleUseCase,
+  getRoleUseCase,
+  listRolesUseCase,
+  updateRoleUseCase,
+} from "./use-cases";
 import type { RoleServiceDeps } from "./roles.service";
 
 function tenantContext(context: RequestContext) {
@@ -29,13 +35,22 @@ export function registerRolesRoutes(router: ApiRouter, deps: RoleServiceDeps = {
 
   router.route("POST", "/roles", async (context: RequestContext) => {
     requirePermission(context.authContext, rolePermissions.create);
-    const result = await createRoleUseCase(tenantContext(context), context.body as Record<string, unknown>, deps);
+    const result = await createRoleUseCase(
+      tenantContext(context),
+      context.body as Record<string, unknown>,
+      deps,
+    );
     return jsonResponse(201, result);
   });
 
   router.route("PUT", "/roles/:id", async (context: RequestContext) => {
     requirePermission(context.authContext, rolePermissions.update);
-    const result = await updateRoleUseCase(tenantContext(context), roleId(context), context.body as Record<string, unknown>, deps);
+    const result = await updateRoleUseCase(
+      tenantContext(context),
+      roleId(context),
+      context.body as Record<string, unknown>,
+      deps,
+    );
     return jsonResponse(result ? 200 : 404, result ?? { message: "role not found" });
   });
 

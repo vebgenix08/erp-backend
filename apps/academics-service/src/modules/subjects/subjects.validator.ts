@@ -1,5 +1,11 @@
 import { BadRequestError } from "@school-erp/errors";
-import type { SubjectCreateInput, SubjectListFilter, SubjectStatus, SubjectType, SubjectUpdateInput } from "./subjects.model";
+import type {
+  SubjectCreateInput,
+  SubjectListFilter,
+  SubjectStatus,
+  SubjectType,
+  SubjectUpdateInput,
+} from "./subjects.model";
 
 const allowedStatuses: SubjectStatus[] = ["ACTIVE", "INACTIVE"];
 const allowedTypes: SubjectType[] = ["THEORY", "PRACTICAL", "MIXED"];

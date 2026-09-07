@@ -6,7 +6,16 @@ import { createCognitoSyncContext } from "./fixtures";
 
 test("update cognito sync changes status", async () => {
   const repository = new InMemoryCognitoSyncRepository();
-  const created = await createCognitoSyncUseCase({ userId: "user_abc", email: "teacher@example.test" }, createCognitoSyncContext(), { repository });
-  const updated = await updateCognitoSyncUseCase(created.id, { status: "SYNCED" }, createCognitoSyncContext(), { repository });
+  const created = await createCognitoSyncUseCase(
+    { userId: "user_abc", email: "teacher@example.test" },
+    createCognitoSyncContext(),
+    { repository },
+  );
+  const updated = await updateCognitoSyncUseCase(
+    created.id,
+    { status: "SYNCED" },
+    createCognitoSyncContext(),
+    { repository },
+  );
   assert.equal(updated?.status, "SYNCED");
 });

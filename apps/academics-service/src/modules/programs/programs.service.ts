@@ -8,7 +8,11 @@ import { deactivateProgramUseCase } from "./use-cases/deactivate-program.use-cas
 
 export type { ProgramServiceDeps } from "./programs.shared";
 
-export async function createProgram(input: unknown, context: RequestContext, deps?: ProgramServiceDeps) {
+export async function createProgram(
+  input: unknown,
+  context: RequestContext,
+  deps?: ProgramServiceDeps,
+) {
   return createProgramUseCase(input, context, deps);
 }
 
@@ -16,14 +20,27 @@ export async function getProgram(id: string, context: RequestContext, deps?: Pro
   return getProgramUseCase(id, context, deps);
 }
 
-export async function listPrograms(context: RequestContext, deps?: ProgramServiceDeps, filter?: unknown) {
+export async function listPrograms(
+  context: RequestContext,
+  deps?: ProgramServiceDeps,
+  filter?: unknown,
+) {
   return listProgramsUseCase(context, deps, filter);
 }
 
-export async function updateProgram(id: string, input: unknown, context: RequestContext, deps?: ProgramServiceDeps) {
+export async function updateProgram(
+  id: string,
+  input: unknown,
+  context: RequestContext,
+  deps?: ProgramServiceDeps,
+) {
   return updateProgramUseCase(id, input, context, deps);
 }
 
-export async function deactivateProgram(id: string, context: RequestContext, deps?: ProgramServiceDeps) {
+export async function deactivateProgram(
+  id: string,
+  context: RequestContext,
+  deps?: ProgramServiceDeps,
+) {
   return deactivateProgramUseCase(id, context, deps);
 }

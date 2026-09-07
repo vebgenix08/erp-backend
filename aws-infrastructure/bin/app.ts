@@ -1,19 +1,19 @@
-import { App } from 'aws-cdk-lib';
-import { loadInfrastructureConfig } from '../lib/config';
-import { GithubOidcRoleStack } from '../lib/stacks/github-oidc-role-stack';
-import { CognitoStack } from '../lib/stacks/cognito-stack';
-import { StorageStack } from '../lib/stacks/storage-stack';
-import { EventBridgeStack } from '../lib/stacks/eventbridge-stack';
-import { SecretsStack } from '../lib/stacks/secrets-stack';
-import { LambdaServicesStack } from '../lib/stacks/lambda-services-stack';
-import { AppSyncStack } from '../lib/stacks/appsync-stack';
-import { ApiGatewayHttpStack } from '../lib/stacks/api-gateway-http-stack';
-import { ApiGatewayRestStack } from '../lib/stacks/api-gateway-rest-stack';
-import { FrontendHostingStack } from '../lib/stacks/frontend-hosting-stack';
-import { EmailEventsStack } from '../lib/stacks/email-events-stack';
+import { App } from "aws-cdk-lib";
+import { loadInfrastructureConfig } from "../lib/config";
+import { GithubOidcRoleStack } from "../lib/stacks/github-oidc-role-stack";
+import { CognitoStack } from "../lib/stacks/cognito-stack";
+import { StorageStack } from "../lib/stacks/storage-stack";
+import { EventBridgeStack } from "../lib/stacks/eventbridge-stack";
+import { SecretsStack } from "../lib/stacks/secrets-stack";
+import { LambdaServicesStack } from "../lib/stacks/lambda-services-stack";
+import { AppSyncStack } from "../lib/stacks/appsync-stack";
+import { ApiGatewayHttpStack } from "../lib/stacks/api-gateway-http-stack";
+import { ApiGatewayRestStack } from "../lib/stacks/api-gateway-rest-stack";
+import { FrontendHostingStack } from "../lib/stacks/frontend-hosting-stack";
+import { EmailEventsStack } from "../lib/stacks/email-events-stack";
 
 const app = new App();
-const config = loadInfrastructureConfig({ environment: app.node.tryGetContext('environment') });
+const config = loadInfrastructureConfig({ environment: app.node.tryGetContext("environment") });
 
 const frontendStack = new FrontendHostingStack(app, `frontend-hosting-${config.environment}`, {
   env: config.cdkEnvironment,
@@ -21,7 +21,10 @@ const frontendStack = new FrontendHostingStack(app, `frontend-hosting-${config.e
 });
 const runtimeConfig = {
   ...config,
-  allowedOrigins: [...config.allowedOrigins, `https://${frontendStack.distribution.distributionDomainName}`],
+  allowedOrigins: [
+    ...config.allowedOrigins,
+    `https://${frontendStack.distribution.distributionDomainName}`,
+  ],
 };
 
 const githubOidcRoleStack = new GithubOidcRoleStack(app, `github-oidc-role-${config.environment}`, {
@@ -88,6 +91,7 @@ new ApiGatewayHttpStack(app, `http-api-${config.environment}`, {
   storageFunction: lambdaServicesStack.storageOperationalFunction,
   financeReceiptFunction: lambdaServicesStack.financeReceiptFunction,
   academicsDocumentFunction: lambdaServicesStack.academicsDocumentFunction,
+  identitySessionFunction: lambdaServicesStack.identityGraphqlFunction,
   cognitoUserPoolId: cognitoStack.userPoolId,
   cognitoUserPoolClientId: cognitoStack.userPoolClientId,
 });

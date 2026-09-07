@@ -5,7 +5,9 @@ export interface InMemoryRepositoryStore<TEntity extends { id: string }> {
   getById(id: string): TEntity | null;
 }
 
-export function createInMemoryRepositoryStore<TEntity extends { id: string }>(): InMemoryRepositoryStore<TEntity> {
+export function createInMemoryRepositoryStore<
+  TEntity extends { id: string },
+>(): InMemoryRepositoryStore<TEntity> {
   const records = new Map<string, TEntity>();
 
   return {

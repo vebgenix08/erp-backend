@@ -1,8 +1,5 @@
 import { BadRequestError } from "@school-erp/errors";
-import type {
-  EmailDeliveryEventRecord,
-  EmailDeliveryEventType,
-} from "./delivery-events.model";
+import type { EmailDeliveryEventRecord, EmailDeliveryEventType } from "./delivery-events.model";
 import {
   createEmailDeliveryEventRepository,
   type EmailDeliveryEventRepository,
@@ -24,6 +21,20 @@ export interface SesEventBridgeEvent {
   "detail-type"?: string;
   detail?: Record<string, unknown>;
 }
+
+function mailTag(mail: Record<string, unknown>, name: string): string | undefined {
+  const tags = mail.tags;
+  if (!tags || typeof tags !== "object" || Array.isArray(tags)) return undefined;
+  const value = (tags as Record<string, unknown>)[name];
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (Array.isArray(value)) {
+    const first = value.find(
+      (item): item is string => typeof item === "string" && Boolean(item.trim()),
+    );
+    return first?.trim();
+  }
+  return undefined;
+}
 export async function recordSesDeliveryEvent(
   event: SesEventBridgeEvent,
   repository?: EmailDeliveryEventRepository,
@@ -39,12 +50,12 @@ export async function recordSesDeliveryEvent(
       ? (event.detail.mail as Record<string, unknown>)
       : {};
   const destination = Array.isArray(mail.destination)
-    ? mail.destination.filter(
-        (value): value is string => typeof value === "string",
-      )
+    ? mail.destination.filter((value): value is string => typeof value === "string")
     : [];
+  const tenantId = mailTag(mail, "tenantId");
   const record: EmailDeliveryEventRecord = {
     id: event.id,
+    ...(tenantId ? { tenantId } : {}),
     messageId: typeof mail.messageId === "string" ? mail.messageId : "unknown",
     eventType,
     occurredAt: event.time ? new Date(event.time) : new Date(),
@@ -58,14 +69,17 @@ export async function recordSesDeliveryEvent(
 
 export async function listSesDeliveryEvents(
   email: string,
+  tenantId?: string,
   repository?: EmailDeliveryEventRepository,
 ) {
   const normalized = email.trim().toLowerCase();
   if (!normalized || !normalized.includes("@"))
     throw new BadRequestError("valid email is required");
   const target = repository ?? (await createEmailDeliveryEventRepository());
-  return (await target.listByRecipient(normalized)).map((record) => ({
+  const normalizedTenantId = tenantId?.trim();
+  return (await target.listByRecipient(normalized, normalizedTenantId)).map((record) => ({
     id: record.id,
+    ...(record.tenantId ? { tenantId: record.tenantId } : {}),
     messageId: record.messageId,
     eventType: record.eventType,
     occurredAt: record.occurredAt.toISOString(),

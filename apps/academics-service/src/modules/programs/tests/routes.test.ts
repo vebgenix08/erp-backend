@@ -17,7 +17,12 @@ test("program routes handle create and list requests", async () => {
     path: "/programs",
     headers: context.headers,
     query: { ...context.query, campusId: "campus_1" },
-    body: { campusId: "campus_1", academicUnitId: "unit_degree", code: "BCOM", name: "Bachelor of Commerce" },
+    body: {
+      campusId: "campus_1",
+      academicUnitId: "unit_degree",
+      code: "BCOM",
+      name: "Bachelor of Commerce",
+    },
     tenantContext: context.tenantContext,
     authContext: context.authContext,
   });
@@ -36,5 +41,5 @@ test("program routes handle create and list requests", async () => {
 
   assert.equal(listed.statusCode, 200);
   assert.equal(Array.isArray(listed.body), true);
-  assert.equal((listed.body as Array<{ campusId: "campus_1", code: string }>).length, 1);
+  assert.equal((listed.body as Array<{ campusId: "campus_1"; code: string }>).length, 1);
 });

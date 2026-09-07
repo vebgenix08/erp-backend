@@ -6,7 +6,10 @@ import { createUserFixture } from "./fixtures";
 
 test("get user returns tenant-scoped user", async () => {
   const context = createTenantContext({ tenantId: "tenant-1", source: "request" });
-  const created = await createUserUseCase(context, createUserFixture({ email: "read@example.com" }));
+  const created = await createUserUseCase(
+    context,
+    createUserFixture({ email: "read@example.com" }),
+  );
 
   const found = await getUserUseCase(context, String(created?.id ?? ""));
   assert.equal(found?.email, "read@example.com");

@@ -4,9 +4,7 @@
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "dependencies": {
-    "@school-erp/errors": "workspace:*",
-    "@school-erp/mongodb": "workspace:*",
-    "mongodb": "^6.19.0"
+    "@school-erp/errors": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -1,12 +1,28 @@
 import { BadRequestError } from "@school-erp/errors";
-import { getMongoConnection, type MongoEnvLike } from "@school-erp/mongodb";
-import type { Collection } from "mongodb";
-import type { CreateGeneralChargeInput, GeneralChargeFilter, GeneralChargeRecord } from "./general-charges.model";
+import {
+  createTenantMongoCollection,
+  getMongoConnection,
+  type MongoEnvLike,
+  type TenantFilter,
+  type TenantMongoCollection,
+} from "@school-erp/mongodb";
+import type {
+  CreateGeneralChargeInput,
+  GeneralChargeFilter,
+  GeneralChargeRecord,
+} from "./general-charges.model";
 
-interface Document extends GeneralChargeRecord { _id: string }
+interface Document extends GeneralChargeRecord {
+  _id: string;
+}
 
 export interface GeneralChargeRepository {
-  reserve(tenantId: string, actorId: string, feeHeadCode: string, input: CreateGeneralChargeInput): Promise<GeneralChargeRecord>;
+  reserve(
+    tenantId: string,
+    actorId: string,
+    feeHeadCode: string,
+    input: CreateGeneralChargeInput,
+  ): Promise<GeneralChargeRecord>;
   update(tenantId: string, record: GeneralChargeRecord): Promise<GeneralChargeRecord>;
   list(tenantId: string, filter?: GeneralChargeFilter): Promise<GeneralChargeRecord[]>;
 }
@@ -22,7 +38,12 @@ const clone = (record: GeneralChargeRecord): GeneralChargeRecord => ({
   createdAt: new Date(record.createdAt),
   updatedAt: new Date(record.updatedAt),
 });
-const recordFor = (tenantId: string, actorId: string, feeHeadCode: string, input: CreateGeneralChargeInput): GeneralChargeRecord => {
+const recordFor = (
+  tenantId: string,
+  actorId: string,
+  feeHeadCode: string,
+  input: CreateGeneralChargeInput,
+): GeneralChargeRecord => {
   const now = new Date();
   return {
     ...input,
@@ -43,9 +64,16 @@ const matches = (record: GeneralChargeRecord, filter: GeneralChargeFilter) =>
 
 export class InMemoryGeneralChargeRepository implements GeneralChargeRepository {
   private readonly records = new Map<string, GeneralChargeRecord>();
-  async reserve(tenantId: string, actorId: string, feeHeadCode: string, input: CreateGeneralChargeInput) {
+  async reserve(
+    tenantId: string,
+    actorId: string,
+    feeHeadCode: string,
+    input: CreateGeneralChargeInput,
+  ) {
     const id = tenant(tenantId);
-    const existing = [...this.records.values()].find((item) => item.tenantId === id && item.idempotencyKey === input.idempotencyKey);
+    const existing = [...this.records.values()].find(
+      (item) => item.tenantId === id && item.idempotencyKey === input.idempotencyKey,
+    );
     if (existing) return clone(existing);
     const record = recordFor(id, actorId, feeHeadCode, input);
     this.records.set(record.id, clone(record));
@@ -59,20 +87,38 @@ export class InMemoryGeneralChargeRepository implements GeneralChargeRepository 
   }
   async list(tenantId: string, filter: GeneralChargeFilter = {}) {
     const id = tenant(tenantId);
-    return [...this.records.values()].filter((item) => item.tenantId === id && matches(item, filter)).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).map(clone);
+    return [...this.records.values()]
+      .filter((item) => item.tenantId === id && matches(item, filter))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map(clone);
   }
 }
 
 class MongoGeneralChargeRepository implements GeneralChargeRepository {
-  constructor(private readonly collection: Collection<Document>) {}
-  async reserve(tenantId: string, actorId: string, feeHeadCode: string, input: CreateGeneralChargeInput) {
+  constructor(private readonly collection: TenantMongoCollection<Document>) {}
+  async reserve(
+    tenantId: string,
+    actorId: string,
+    feeHeadCode: string,
+    input: CreateGeneralChargeInput,
+  ) {
     const id = tenant(tenantId);
-    const existing = await this.collection.findOne({ tenantId: id, idempotencyKey: input.idempotencyKey });
+    const existing = await this.collection.findOne({
+      tenantId: id,
+      idempotencyKey: input.idempotencyKey,
+    });
     if (existing) return clone(existing);
     const record = recordFor(id, actorId, feeHeadCode, input);
-    try { await this.collection.insertOne({ ...record, _id: record.id } as Document); }
-    catch (error) {
-      const current = await this.collection.findOne({ tenantId: id, idempotencyKey: input.idempotencyKey });
+    try {
+      await this.collection.insertOne({
+        ...record,
+        _id: record.id,
+      } as Document);
+    } catch (error) {
+      const current = await this.collection.findOne({
+        tenantId: id,
+        idempotencyKey: input.idempotencyKey,
+      });
       if (current) return clone(current);
       throw error;
     }
@@ -87,7 +133,7 @@ class MongoGeneralChargeRepository implements GeneralChargeRepository {
     return clone(record);
   }
   async list(tenantId: string, filter: GeneralChargeFilter = {}) {
-    const query: Record<string, unknown> = { tenantId: tenant(tenantId) };
+    const query: TenantFilter<Document> = { tenantId: tenant(tenantId) };
     if (filter.campusId) query.campusId = filter.campusId;
     if (filter.academicYearId) query.academicYearId = filter.academicYearId;
     if (filter.status) query.status = filter.status;
@@ -95,18 +141,31 @@ class MongoGeneralChargeRepository implements GeneralChargeRepository {
   }
 }
 
-const env = (): MongoEnvLike => (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
+const env = (): MongoEnvLike =>
+  (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
 let singleton: Promise<GeneralChargeRepository> | undefined;
 export function generalChargeRepository(): Promise<GeneralChargeRepository> {
   singleton ??= (async () => {
     const runtime = env();
-    if (!runtime.MONGODB_URI && !runtime.MONGODB_URI_DEV && !runtime.MONGODB_URI_PROD && !runtime.MONGODB_URI_TEST)
+    if (
+      !runtime.MONGODB_URI &&
+      !runtime.MONGODB_URI_DEV &&
+      !runtime.MONGODB_URI_PROD &&
+      !runtime.MONGODB_URI_TEST
+    )
       return new InMemoryGeneralChargeRepository();
     const connection = await getMongoConnection(runtime);
-    const collection = connection.client.db(connection.dbName).collection<Document>("finance_general_charges");
+    const collection = connection.client
+      .db(connection.dbName)
+      .collection<Document>("finance_general_charges");
     await collection.createIndex({ tenantId: 1, idempotencyKey: 1 }, { unique: true });
-    await collection.createIndex({ tenantId: 1, campusId: 1, academicYearId: 1, createdAt: -1 });
-    return new MongoGeneralChargeRepository(collection);
+    await collection.createIndex({
+      tenantId: 1,
+      campusId: 1,
+      academicYearId: 1,
+      createdAt: -1,
+    });
+    return new MongoGeneralChargeRepository(createTenantMongoCollection(collection));
   })();
   return singleton;
 }

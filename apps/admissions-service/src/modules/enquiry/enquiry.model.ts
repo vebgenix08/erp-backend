@@ -1,5 +1,4 @@
 import type { AuthContext } from "@school-erp/auth";
-import type { Permission } from "@school-erp/auth";
 import type { TenantContext } from "@school-erp/tenancy";
 
 export type EnquiryStatus = "NEW" | "CONTACTED" | "FOLLOW_UP" | "CONVERTED" | "CLOSED";
@@ -8,13 +7,21 @@ export type EnquiryGender = "MALE" | "FEMALE" | "OTHER";
 export interface EnquiryListFilter {
   campusId?: string | undefined;
   academicYearId?: string | undefined;
+  academicTargetId?: string | undefined;
   status?: EnquiryStatus | undefined;
   source?: string | undefined;
+  createdFrom?: Date | undefined;
+  createdTo?: Date | undefined;
   search?: string | undefined;
   limit?: number | undefined;
   offset?: number | undefined;
 }
-export interface EnquiryPage { items: EnquiryRecord[]; total: number; limit: number; offset: number; }
+export interface EnquiryPage {
+  items: EnquiryRecord[];
+  total: number;
+  limit: number;
+  offset: number;
+}
 
 export interface EnquiryRecord {
   id: string;

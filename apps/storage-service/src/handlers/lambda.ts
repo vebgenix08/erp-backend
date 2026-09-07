@@ -2,8 +2,12 @@ import { filePermissions } from "../modules/files/files.permissions";
 import { createS3StorageUrlPort } from "../modules/files/s3-storage-url.port";
 import { createStorageApp } from "../app";
 import { hydrateStorageRuntimeConfig } from "./runtime-config";
+import { fileRepository } from "../modules/files/files.repository";
 
 interface HttpApiEvent {
+  source?: string;
+  operation?: string;
+  payload?: Record<string, unknown>;
   rawPath?: string;
   rawQueryString?: string;
   headers?: Record<string, string | undefined>;
@@ -25,8 +29,9 @@ function parseBody(event: HttpApiEvent): unknown {
   if (!event.body) return undefined;
   const text = event.isBase64Encoded
     ? decodeURIComponent(
-        Array.from(atob(event.body), (character) =>
-          `%${character.charCodeAt(0).toString(16).padStart(2, "0")}`,
+        Array.from(
+          atob(event.body),
+          (character) => `%${character.charCodeAt(0).toString(16).padStart(2, "0")}`,
         ).join(""),
       )
     : event.body;
@@ -40,11 +45,32 @@ function claims(event: HttpApiEvent): Record<string, string | undefined> {
 export async function handler(event: HttpApiEvent) {
   try {
     await hydrateStorageRuntimeConfig();
+    if (event.source === "erp.internal" && event.operation === "GET_FILE_METADATA") {
+      const tenantId = event.payload?.tenantId;
+      const fileId = event.payload?.fileId;
+      if (typeof tenantId !== "string" || typeof fileId !== "string") {
+        return { error: "tenantId and fileId are required" };
+      }
+      const file = await (await fileRepository()).getById(tenantId.trim(), fileId.trim());
+      if (!file || file.status !== "AVAILABLE") return { result: null };
+      return {
+        result: {
+          id: file.id,
+          bucket: file.bucket,
+          storageKey: file.storageKey,
+          contentType: file.contentType,
+        },
+      };
+    }
     const identity = claims(event);
     const tenantId = identity["custom:tenantId"]?.trim();
     const userId = identity.sub?.trim();
     if (!tenantId || !userId) {
-      return { statusCode: 403, headers: { "content-type": "application/json" }, body: JSON.stringify({ message: "tenant identity is required" }) };
+      return {
+        statusCode: 403,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: "tenant identity is required" }),
+      };
     }
     const role = identity["custom:role"] || identity["cognito:groups"];
     const permissions = role?.includes("TENANT_ADMIN") ? Object.values(filePermissions) : [];
@@ -74,15 +100,25 @@ export async function handler(event: HttpApiEvent) {
     });
     return {
       statusCode: response.statusCode,
-      headers: { "content-type": "application/json", ...(response.headers as Record<string, string> | undefined) },
+      headers: {
+        "content-type": "application/json",
+        ...(response.headers as Record<string, string> | undefined),
+      },
       body: response.body === undefined ? "" : JSON.stringify(response.body),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "internal error";
-    return { statusCode: 500, headers: { "content-type": "application/json" }, body: JSON.stringify({ message }) };
+    return {
+      statusCode: 500,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ message }),
+    };
   }
 }
 
 function runtimeEnv(): Record<string, string | undefined> {
-  return (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env ?? {};
+  return (
+    (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process
+      ?.env ?? {}
+  );
 }

@@ -4,6 +4,7 @@ import { ForbiddenError, ValidationError, toErrorResponse } from "@school-erp/er
 import { getReceiptDocument } from "../modules/payments/payments.service";
 import { paymentPermissions } from "../modules/payments/payments.permissions";
 import { hydrateFinanceRuntimeConfig } from "./runtime-config";
+import { hydrateConfiguredAuthorization } from "@school-erp/service-client";
 
 interface HttpApiEvent {
   pathParameters?: { paymentId?: string };
@@ -20,7 +21,7 @@ function claim(claims: Record<string, unknown>, name: string): string | undefine
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function requestContext(event: HttpApiEvent): RequestContext {
+async function requestContext(event: HttpApiEvent): Promise<RequestContext> {
   const claims = event.requestContext?.authorizer?.jwt?.claims ?? {};
   const userId = claim(claims, "sub");
   const tenantId = claim(claims, "custom:tenantId");
@@ -30,7 +31,7 @@ function requestContext(event: HttpApiEvent): RequestContext {
     ...(role?.includes("TENANT_ADMIN") ? [paymentPermissions.readReceipt] : []),
     ...normalizePermissions(claims["custom:permissions"] ?? claims.permissions),
   ]);
-  return {
+  return hydrateConfiguredAuthorization({
     requestId: event.requestContext?.requestId ?? `receipt_${crypto.randomUUID()}`,
     path: event.requestContext?.http?.path ?? "/v1/payments/:paymentId/receipt.pdf",
     method: "GET",
@@ -44,7 +45,7 @@ function requestContext(event: HttpApiEvent): RequestContext {
       authenticatedAt: new Date(),
       user: { id: userId, role, permissions, source: "jwt-claims" },
     },
-  };
+  });
 }
 
 export async function handler(event: HttpApiEvent) {
@@ -52,9 +53,11 @@ export async function handler(event: HttpApiEvent) {
   try {
     await hydrateFinanceRuntimeConfig();
     const paymentId = event.pathParameters?.paymentId?.trim();
-    if (!paymentId) throw new ValidationError([{ field: "paymentId", message: "paymentId is required" }]);
+    if (!paymentId)
+      throw new ValidationError([{ field: "paymentId", message: "paymentId is required" }]);
     const copyMode = event.queryStringParameters?.copies === "both" ? "BOTH" : "STUDENT";
-    const document = await getReceiptDocument(paymentId, requestContext(event), undefined, copyMode);
+    const context = await requestContext(event);
+    const document = await getReceiptDocument(paymentId, context, undefined, copyMode);
     return {
       statusCode: 200,
       headers: {

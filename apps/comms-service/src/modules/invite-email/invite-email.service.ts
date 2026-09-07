@@ -1,11 +1,25 @@
 import { requireAuth, requirePermission } from "@school-erp/auth";
 import { requireTenantId } from "@school-erp/tenancy";
-import { inviteEmailRepository as runtimeRepository, type InviteEmailRepository } from "./invite-email.repository";
-import { createRuntimeInviteEmailProvider, type InviteEmailProvider } from "./invite-email.provider";
+import {
+  inviteEmailRepository as runtimeRepository,
+  type InviteEmailRepository,
+} from "./invite-email.repository";
+import {
+  createRuntimeInviteEmailProvider,
+  type InviteEmailProvider,
+} from "./invite-email.provider";
 import { inviteEmailPermissions } from "./invite-email.permissions";
 import { toInviteEmailView } from "./invite-email.mapper";
-import { validateInviteEmailCreateInput, validateInviteEmailListFilter } from "./invite-email.validator";
-import type { InviteEmailCreateInput, InviteEmailListFilter, InviteEmailServiceContext, InviteEmailView } from "./invite-email.model";
+import {
+  validateInviteEmailCreateInput,
+  validateInviteEmailListFilter,
+} from "./invite-email.validator";
+import type {
+  InviteEmailCreateInput,
+  InviteEmailListFilter,
+  InviteEmailServiceContext,
+  InviteEmailView,
+} from "./invite-email.model";
 import type { EmailDeliveryEventType } from "../delivery-events/delivery-events.model";
 
 export interface InviteEmailServiceDeps {
@@ -75,11 +89,21 @@ export async function sendInviteEmail(
     const provider = deps?.provider ?? createRuntimeInviteEmailProvider();
     const result = await provider.send(payload);
     const now = new Date();
-    const sent = await repository.update(tenantId, queued.id, { status: "SENT", messageId: result.messageId, sentAt: now, updatedAt: now, errorMessage: undefined });
+    const sent = await repository.update(tenantId, queued.id, {
+      status: "SENT",
+      messageId: result.messageId,
+      sentAt: now,
+      updatedAt: now,
+      errorMessage: undefined,
+    });
     return toInviteEmailView(sent) as InviteEmailView;
   } catch (error) {
     const now = new Date();
-    await repository.update(tenantId, queued.id, { status: "FAILED", updatedAt: now, errorMessage: error instanceof Error ? error.message : "email provider failed" });
+    await repository.update(tenantId, queued.id, {
+      status: "FAILED",
+      updatedAt: now,
+      errorMessage: error instanceof Error ? error.message : "email provider failed",
+    });
     throw error;
   }
 }
@@ -107,7 +131,9 @@ export async function getInviteEmail(
   return toInviteEmailView(await repository.getById(tenantId, id));
 }
 
-const providerStatus: Partial<Record<EmailDeliveryEventType, import("./invite-email.model").InviteEmailStatus>> = {
+const providerStatus: Partial<
+  Record<EmailDeliveryEventType, import("./invite-email.model").InviteEmailStatus>
+> = {
   SEND: "SENT",
   DELIVERY: "DELIVERED",
   DELIVERY_DELAY: "DELAYED",
@@ -117,10 +143,20 @@ const providerStatus: Partial<Record<EmailDeliveryEventType, import("./invite-em
   RENDERING_FAILURE: "FAILED",
 };
 
-export async function applyInviteEmailProviderEvent(messageId: string, eventType: EmailDeliveryEventType, deps?: InviteEmailServiceDeps): Promise<void> {
+export async function applyInviteEmailProviderEvent(
+  messageId: string,
+  eventType: EmailDeliveryEventType,
+  deps?: InviteEmailServiceDeps,
+): Promise<void> {
   if (!messageId || messageId === "unknown") return;
   const status = providerStatus[eventType];
   if (!status) return;
   const repository = await resolveRepository(deps);
-  await repository.updateByMessageId(messageId, { status, updatedAt: new Date(), errorMessage: ["BOUNCED", "COMPLAINED", "REJECTED", "FAILED"].includes(status) ? `SES reported ${eventType.toLowerCase()}` : undefined });
+  await repository.updateByMessageId(messageId, {
+    status,
+    updatedAt: new Date(),
+    errorMessage: ["BOUNCED", "COMPLAINED", "REJECTED", "FAILED"].includes(status)
+      ? `SES reported ${eventType.toLowerCase()}`
+      : undefined,
+  });
 }

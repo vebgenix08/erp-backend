@@ -12,6 +12,8 @@ test("get cognito sync returns the created record", async () => {
     { repository },
   );
 
-  const fetched = await getCognitoSyncUseCase(created.id, createCognitoSyncContext(), { repository });
+  const fetched = await getCognitoSyncUseCase(created.id, createCognitoSyncContext(), {
+    repository,
+  });
   assert.equal(fetched?.id, created.id);
 });

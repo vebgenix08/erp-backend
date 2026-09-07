@@ -1,6 +1,6 @@
-import type { ClientSession, Collection, Document, Filter, MongoClient, Sort } from "mongodb";
+import type { ClientSession, Document, Filter, MongoClient, Sort } from "mongodb";
 
-export interface CollectionQueryOptions<TDocument extends Document> {
+export interface CollectionQueryOptions {
   sort?: Sort;
   skip?: number;
   limit?: number;
@@ -47,15 +47,46 @@ export interface RepositoryContext {
   userId?: string | undefined;
 }
 
-export interface CollectionAdapter<TDocument extends Document> {
+export interface TenantOwnedDocument extends Document {
+  tenantId: string;
+}
+
+export type TenantFilter<TDocument extends TenantOwnedDocument> = Filter<TDocument> & {
+  tenantId: string;
+};
+
+export interface PlatformCollectionAdapter<TDocument extends Document> {
   readonly name: string;
   findOne(filter: Filter<TDocument>): Promise<TDocument | null>;
-  findMany(filter?: Filter<TDocument>, options?: CollectionQueryOptions<TDocument>): Promise<TDocument[]>;
+  findMany(filter?: Filter<TDocument>, options?: CollectionQueryOptions): Promise<TDocument[]>;
   count(filter?: Filter<TDocument>): Promise<number>;
   insertOne(document: TDocument): Promise<TDocument>;
   replaceOne(filter: Filter<TDocument>, document: TDocument): Promise<TDocument | null>;
-  findOneAndUpdate(filter: Filter<TDocument>, update: Document, options?: { upsert?: boolean; returnDocument?: "before" | "after" }): Promise<TDocument | null>;
+  findOneAndUpdate(
+    filter: Filter<TDocument>,
+    update: Document,
+    options?: { upsert?: boolean; returnDocument?: "before" | "after" },
+  ): Promise<TDocument | null>;
   deleteOne(filter: Filter<TDocument>): Promise<boolean>;
+}
+
+/**
+ * A tenant collection cannot be queried without an explicit top-level tenantId.
+ * Platform-owned repositories must use PlatformCollectionAdapter instead.
+ */
+export interface CollectionAdapter<TDocument extends TenantOwnedDocument> {
+  readonly name: string;
+  findOne(filter: TenantFilter<TDocument>): Promise<TDocument | null>;
+  findMany(filter: TenantFilter<TDocument>, options?: CollectionQueryOptions): Promise<TDocument[]>;
+  count(filter: TenantFilter<TDocument>): Promise<number>;
+  insertOne(document: TDocument): Promise<TDocument>;
+  replaceOne(filter: TenantFilter<TDocument>, document: TDocument): Promise<TDocument | null>;
+  findOneAndUpdate(
+    filter: TenantFilter<TDocument>,
+    update: Document,
+    options?: { upsert?: boolean; returnDocument?: "before" | "after" },
+  ): Promise<TDocument | null>;
+  deleteOne(filter: TenantFilter<TDocument>): Promise<boolean>;
 }
 
 export interface PlatformRepository<TEntity, TCreate, TUpdate> {
@@ -69,5 +100,10 @@ export interface TenantScopedRepository<TEntity, TCreate, TUpdate> {
   list(tenantId: string, context?: RepositoryContext): Promise<TEntity[]>;
   getById(tenantId: string, id: string, context?: RepositoryContext): Promise<TEntity | null>;
   create(tenantId: string, input: TCreate, context?: RepositoryContext): Promise<TEntity>;
-  update(tenantId: string, id: string, input: TUpdate, context?: RepositoryContext): Promise<TEntity | null>;
+  update(
+    tenantId: string,
+    id: string,
+    input: TUpdate,
+    context?: RepositoryContext,
+  ): Promise<TEntity | null>;
 }

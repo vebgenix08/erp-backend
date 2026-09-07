@@ -7,10 +7,22 @@ import { createClassContext } from "./fixtures";
 
 test("list classes returns tenant-only results", async () => {
   const repository = new InMemoryClassRepository();
-  await createClassUseCase({ campusId: "campus_1", programId: "program_1", code: "BSC-1", name: "First Year B.Sc" }, createClassContext(), { repository, ...academicHierarchyFixture() });
-  await createClassUseCase({ campusId: "campus_1", programId: "program_1", code: "BSC-2", name: "Second Year B.Sc" }, createClassContext(), { repository, ...academicHierarchyFixture() });
+  await createClassUseCase(
+    { campusId: "campus_1", programId: "program_1", code: "BSC-1", name: "First Year B.Sc" },
+    createClassContext(),
+    { repository, ...academicHierarchyFixture() },
+  );
+  await createClassUseCase(
+    { campusId: "campus_1", programId: "program_1", code: "BSC-2", name: "Second Year B.Sc" },
+    createClassContext(),
+    { repository, ...academicHierarchyFixture() },
+  );
 
-  const result = await listClassesUseCase(createClassContext(), { repository, ...academicHierarchyFixture() }, { campusId: "campus_1" });
+  const result = await listClassesUseCase(
+    createClassContext(),
+    { repository, ...academicHierarchyFixture() },
+    { campusId: "campus_1" },
+  );
 
   assert.equal(result.length, 2);
 });

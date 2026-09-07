@@ -6,8 +6,14 @@ import { createAuditLogContext } from "./fixtures";
 
 test("audit log append is append-only and listable", async () => {
   const repository = new InMemoryAuditLogRepository();
-  await appendAuditLog({ action: "TENANT_CREATED", entityType: "TENANT", entityId: "tenant_1" }, { repository });
-  await appendAuditLog({ action: "TENANT_UPDATED", entityType: "TENANT", entityId: "tenant_1" }, { repository });
+  await appendAuditLog(
+    { action: "TENANT_CREATED", entityType: "TENANT", entityId: "tenant_1" },
+    { repository },
+  );
+  await appendAuditLog(
+    { action: "TENANT_UPDATED", entityType: "TENANT", entityId: "tenant_1" },
+    { repository },
+  );
 
   const result = await listAuditLogs(createAuditLogContext(), { repository });
   assert.equal(result.length, 2);
@@ -18,7 +24,12 @@ test("audit log append is append-only and listable", async () => {
 test("audit list resolves tenant names without changing stored evidence", async () => {
   const repository = new InMemoryAuditLogRepository();
   await appendAuditLog(
-    { tenantId: "tenant_1", action: "TENANT_DELETION_CONFIRMED", entityType: "TENANT", entityId: "tenant_1" },
+    {
+      tenantId: "tenant_1",
+      action: "TENANT_DELETION_CONFIRMED",
+      entityType: "TENANT",
+      entityId: "tenant_1",
+    },
     { repository },
   );
 

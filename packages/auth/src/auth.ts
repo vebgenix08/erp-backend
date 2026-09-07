@@ -1,6 +1,20 @@
-import { BadRequestError, ForbiddenError, UnauthorizedError } from "@school-erp/errors";
-import { buildAuthUser, buildTenantContext, ensurePermissionFormat, getBearerToken, normalizeAuthClaims, verifyAuthToken } from "./helpers";
-import type { AuthContext, AuthContextOptions, AuthRequestLike, AuthResolutionSource, AuthUser, Permission } from "./types";
+import { ForbiddenError, UnauthorizedError } from "@school-erp/errors";
+import {
+  buildAuthUser,
+  buildTenantContext,
+  ensurePermissionFormat,
+  getBearerToken,
+  normalizeAuthClaims,
+  verifyAuthToken,
+} from "./helpers";
+import type {
+  AuthContext,
+  AuthContextOptions,
+  AuthRequestLike,
+  AuthResolutionSource,
+  AuthUser,
+  Permission,
+} from "./types";
 
 function createContext(
   partial: Partial<AuthContext> & Pick<AuthContext, "source" | "authenticatedAt">,
@@ -37,7 +51,13 @@ export function resolveAuthFromRequest(
     throw new Error("async token verification must use resolveAuthFromRequestAsync");
   }
 
-  if (request.userId || request.userEmail || request.userRole || request.userPermissions || request.headers) {
+  if (
+    request.userId ||
+    request.userEmail ||
+    request.userRole ||
+    request.userPermissions ||
+    request.headers
+  ) {
     return createContext({
       user,
       tenant,
@@ -100,7 +120,13 @@ export async function resolveAuthFromRequestAsync(
     });
   }
 
-  if (request.userId || request.userEmail || request.userRole || request.userPermissions || request.headers) {
+  if (
+    request.userId ||
+    request.userEmail ||
+    request.userRole ||
+    request.userPermissions ||
+    request.headers
+  ) {
     return createContext({
       user: buildAuthUser(request, claims),
       tenant: buildTenantContext(request),
@@ -134,7 +160,10 @@ export function hasPermission(context: AuthContext | undefined, permission: stri
   return permissions.includes(normalized as Permission) || permissions.includes("*" as Permission);
 }
 
-export function requirePermission(context: AuthContext | undefined, permission: string): AuthContext {
+export function requirePermission(
+  context: AuthContext | undefined,
+  permission: string,
+): AuthContext {
   requireAuth(context);
   if (!hasPermission(context, ensurePermissionFormat(permission))) {
     throw new ForbiddenError(`missing permission: ${permission}`);

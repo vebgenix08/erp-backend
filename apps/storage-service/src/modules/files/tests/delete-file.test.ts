@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { InMemoryFileRepository } from "../files.repository";
-import { completeFileUploadUseCase, createFileUploadUrlUseCase, deleteFileUseCase, getFileUseCase } from "../use-cases";
+import {
+  completeFileUploadUseCase,
+  createFileUploadUrlUseCase,
+  deleteFileUseCase,
+  getFileUseCase,
+} from "../use-cases";
 import { createStorageContext } from "./fixtures";
 
 test("delete file soft deletes the record", async () => {

@@ -1,11 +1,6 @@
 import type { RequestContext } from "@school-erp/api";
 import type { Permission } from "@school-erp/auth";
-import {
-  BadRequestError,
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
-} from "@school-erp/errors";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@school-erp/errors";
 import type { StudentEnrolledEventData } from "@school-erp/events";
 import {
   feeConfigurationRepository,
@@ -17,28 +12,18 @@ import type {
   FeeStructureRecord,
 } from "../fee-configuration/fee-configuration.model";
 import { toFeeOrderView } from "./fee-orders.mapper";
-import type {
-  FeeOrderCharge,
-  FeeOrderFilter,
-  GenerateFeeOrderInput,
-} from "./fee-orders.model";
+import type { FeeOrderCharge, GenerateFeeOrderInput } from "./fee-orders.model";
 import { feeOrderPermissions } from "./fee-orders.permissions";
-import {
-  feeOrderRepository,
-  type FeeOrderRepository,
-} from "./fee-orders.repository";
+import { feeOrderRepository, type FeeOrderRepository } from "./fee-orders.repository";
 import { validateFeeOrderFilter } from "./fee-orders.validator";
 
 export interface FeeOrderDependencies {
   orders?: FeeOrderRepository | Promise<FeeOrderRepository>;
-  configuration?:
-    | FeeConfigurationRepository
-    | Promise<FeeConfigurationRepository>;
+  configuration?: FeeConfigurationRepository | Promise<FeeConfigurationRepository>;
   now?: () => Date;
 }
 
-const orders = async (deps?: FeeOrderDependencies) =>
-  await (deps?.orders ?? feeOrderRepository());
+const orders = async (deps?: FeeOrderDependencies) => await (deps?.orders ?? feeOrderRepository());
 const configuration = async (deps?: FeeOrderDependencies) =>
   await (deps?.configuration ?? feeConfigurationRepository());
 function tenantFromContext(context: RequestContext) {
@@ -61,30 +46,21 @@ function selectMapping(
       mapping.campusId === input.campusId &&
       mapping.academicYearId === input.academicYearId &&
       mapping.target.classId === input.classId &&
-      (!mapping.target.programId ||
-        mapping.target.programId === input.programId) &&
-      (!mapping.target.sectionId ||
-        mapping.target.sectionId === input.sectionId),
+      (!mapping.target.programId || mapping.target.programId === input.programId) &&
+      (!mapping.target.sectionId || mapping.target.sectionId === input.sectionId),
   );
   const ranked = candidates.sort(
     (a, b) =>
-      Number(Boolean(b.target.sectionId)) -
-        Number(Boolean(a.target.sectionId)) ||
+      Number(Boolean(b.target.sectionId)) - Number(Boolean(a.target.sectionId)) ||
       Number(Boolean(b.target.programId)) - Number(Boolean(a.target.programId)),
   );
-  if (!ranked[0])
-    throw new NotFoundError(
-      "no active fee mapping exists for the enrolled class",
-    );
+  if (!ranked[0]) throw new NotFoundError("no active fee mapping exists for the enrolled class");
   const topRank = `${Boolean(ranked[0].target.sectionId)}:${Boolean(ranked[0].target.programId)}`;
   if (
     ranked[1] &&
-    `${Boolean(ranked[1].target.sectionId)}:${Boolean(ranked[1].target.programId)}` ===
-      topRank
+    `${Boolean(ranked[1].target.sectionId)}:${Boolean(ranked[1].target.programId)}` === topRank
   )
-    throw new ConflictError(
-      "multiple active fee mappings match this enrollment",
-    );
+    throw new ConflictError("multiple active fee mappings match this enrollment");
   return ranked[0];
 }
 
@@ -95,8 +71,7 @@ function buildCharges(
 ): FeeOrderCharge[] {
   return structure.components.map((component, index) => {
     const head = heads.get(component.feeHeadId);
-    if (!head)
-      throw new ConflictError("fee structure references a missing fee head");
+    if (!head) throw new ConflictError("fee structure references a missing fee head");
     return {
       id: `charge_${crypto.randomUUID()}`,
       feeHeadId: component.feeHeadId,
@@ -113,11 +88,13 @@ function buildCharges(
 
 function applyTransferCredit(charges: FeeOrderCharge[], creditMinor: number): FeeOrderCharge[] {
   let remaining = creditMinor;
-  return [...charges].sort((left, right) => left.sequence - right.sequence).map((charge) => {
-    const applied = Math.min(remaining, charge.amountMinor);
-    remaining -= applied;
-    return { ...charge, creditMinor: applied, balanceMinor: charge.amountMinor - applied };
-  });
+  return [...charges]
+    .sort((left, right) => left.sequence - right.sequence)
+    .map((charge) => {
+      const applied = Math.min(remaining, charge.amountMinor);
+      remaining -= applied;
+      return { ...charge, creditMinor: applied, balanceMinor: charge.amountMinor - applied };
+    });
 }
 
 export async function generateFeeOrderFromEnrollment(
@@ -127,10 +104,7 @@ export async function generateFeeOrderFromEnrollment(
 ) {
   const payload: GenerateFeeOrderInput = { ...input };
   const orderRepository = await orders(deps);
-  const existing = await orderRepository.getByEnrollmentId(
-    tenantId,
-    payload.enrollmentId,
-  );
+  const existing = await orderRepository.getByEnrollmentId(tenantId, payload.enrollmentId);
   if (existing) return toFeeOrderView(existing);
   const annualOrder = await orderRepository.getByStudentAcademicYear(
     tenantId,
@@ -139,8 +113,7 @@ export async function generateFeeOrderFromEnrollment(
   );
   if (
     annualOrder &&
-    (annualOrder.enrollmentId === payload.enrollmentId ||
-      annualOrder.campusId === payload.campusId)
+    (annualOrder.enrollmentId === payload.enrollmentId || annualOrder.campusId === payload.campusId)
   )
     return toFeeOrderView(annualOrder);
   if (annualOrder && annualOrder.campusId !== payload.campusId) {
@@ -179,16 +152,23 @@ export async function generateFeeOrderFromEnrollment(
   if (annualOrder && annualOrder.status !== "CANCELLED" && annualOrder.status !== "CLOSED") {
     transferCreditMinor = annualOrder.paidMinor;
     const closedAt = deps?.now?.() ?? new Date();
-    const closed = await orderRepository.replace(tenantId, { ...annualOrder, status: "CLOSED", ...(payload.transferId ? { transferId: payload.transferId } : {}), closureReason: "CAMPUS_TRANSFER", closedBalanceMinor: annualOrder.balanceMinor, balanceMinor: 0, closedAt, updatedAt: closedAt });
-    if (!closed) throw new ConflictError("existing annual fee order could not be closed for campus transfer");
+    const closed = await orderRepository.replace(tenantId, {
+      ...annualOrder,
+      status: "CLOSED",
+      ...(payload.transferId ? { transferId: payload.transferId } : {}),
+      closureReason: "CAMPUS_TRANSFER",
+      closedBalanceMinor: annualOrder.balanceMinor,
+      balanceMinor: 0,
+      closedAt,
+      updatedAt: closedAt,
+    });
+    if (!closed)
+      throw new ConflictError("existing annual fee order could not be closed for campus transfer");
   }
   const heads = new Map(
     snapshot.feeHeads
       .filter((item) => item.status === "ACTIVE")
-      .map((item) => [
-        item.id,
-        { code: item.code, name: item.name, refundable: item.refundable },
-      ]),
+      .map((item) => [item.id, { code: item.code, name: item.name, refundable: item.refundable }]),
   );
   const baseCharges = buildCharges(structure, schedule, heads);
   const appliedTransferCreditMinor = Math.min(transferCreditMinor, structure.totalAmountMinor);
@@ -229,15 +209,19 @@ export async function listFeeOrders(
 ) {
   requirePermission(context, feeOrderPermissions.read as Permission);
   return (
-    await (
-      await orders(deps)
-    ).list(tenantFromContext(context), validateFeeOrderFilter(filter))
+    await (await orders(deps)).list(tenantFromContext(context), validateFeeOrderFilter(filter))
   ).map(toFeeOrderView);
 }
 
-export async function listFeeOrderPage(filter: unknown, context: RequestContext, deps?: FeeOrderDependencies) {
+export async function listFeeOrderPage(
+  filter: unknown,
+  context: RequestContext,
+  deps?: FeeOrderDependencies,
+) {
   requirePermission(context, feeOrderPermissions.read as Permission);
-  const page = await (await orders(deps)).listPage(tenantFromContext(context), validateFeeOrderFilter(filter));
+  const page = await (
+    await orders(deps)
+  ).listPage(tenantFromContext(context), validateFeeOrderFilter(filter));
   return { ...page, items: page.items.map(toFeeOrderView) };
 }
 
@@ -247,9 +231,7 @@ export async function getFeeOrder(
   deps?: FeeOrderDependencies,
 ) {
   requirePermission(context, feeOrderPermissions.read as Permission);
-  const record = await (
-    await orders(deps)
-  ).getById(tenantFromContext(context), id.trim());
+  const record = await (await orders(deps)).getById(tenantFromContext(context), id.trim());
   if (!record) throw new NotFoundError("fee order was not found");
   return toFeeOrderView(record);
 }

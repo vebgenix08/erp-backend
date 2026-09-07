@@ -1,11 +1,12 @@
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
-import type { AuthJwtClaimsPlaceholder, CognitoIntegrationConfig, CognitoVerificationResult } from "./types";
+import type {
+  AuthJwtClaimsPlaceholder,
+  CognitoIntegrationConfig,
+  CognitoVerificationResult,
+} from "./types";
 
 function getIssuer(config: CognitoIntegrationConfig): string {
-  return (
-    config.issuer ??
-    `https://cognito-idp.${config.region}.amazonaws.com/${config.userPoolId}`
-  );
+  return config.issuer ?? `https://cognito-idp.${config.region}.amazonaws.com/${config.userPoolId}`;
 }
 
 function toClaims(payload: JWTPayload): AuthJwtClaimsPlaceholder {

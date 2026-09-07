@@ -18,7 +18,14 @@ test("subject routes handle create and list requests", async () => {
     path: "/subjects",
     headers: context.headers,
     query: { ...context.query, campusId: "campus_1" },
-    body: { campusId: "campus_1", programId: "program_1", classId: "class_1", code: "ENG", name: "English", subjectType: "THEORY" },
+    body: {
+      campusId: "campus_1",
+      programId: "program_1",
+      classId: "class_1",
+      code: "ENG",
+      name: "English",
+      subjectType: "THEORY",
+    },
     tenantContext: context.tenantContext,
     authContext: context.authContext,
   });

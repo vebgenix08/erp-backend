@@ -8,7 +8,14 @@ import { createSubjectContext } from "./fixtures";
 test("create subject stores a tenant-scoped active record", async () => {
   const repository = new InMemorySubjectRepository();
   const result = await createSubjectUseCase(
-    { campusId: "campus_1", programId: "program_1", classId: "class_1", code: "ENG", name: "English", subjectType: "THEORY" },
+    {
+      campusId: "campus_1",
+      programId: "program_1",
+      classId: "class_1",
+      code: "ENG",
+      name: "English",
+      subjectType: "THEORY",
+    },
     createSubjectContext(),
     { repository, ...academicHierarchyFixture() },
   );

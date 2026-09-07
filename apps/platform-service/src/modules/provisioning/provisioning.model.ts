@@ -5,7 +5,10 @@ export interface ProvisionTenantInput {
   primaryAdminEmail: string;
   clientRequestId: string;
 }
-export interface ProvisionTenantWarning { code: string; message: string; }
+export interface ProvisionTenantWarning {
+  code: string;
+  message: string;
+}
 export interface ProvisionTenantResult {
   tenantId: string;
   organizationName: string;

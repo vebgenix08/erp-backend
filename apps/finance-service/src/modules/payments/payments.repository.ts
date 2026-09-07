@@ -1,15 +1,13 @@
+import { BadRequestError, ConflictError, NotFoundError } from "@school-erp/errors";
 import {
-  BadRequestError,
-  ConflictError,
-  NotFoundError,
-} from "@school-erp/errors";
-import {
+  createTenantMongoCollection,
   getMongoConnection,
   type MongoEnvLike,
+  type TenantFilter,
+  type TenantMongoCollection,
   withTransaction,
 } from "@school-erp/mongodb";
-import { issueConfiguredNumber } from "@school-erp/numbering";
-import type { ClientSession, Collection, Filter } from "mongodb";
+import { issueConfiguredNumber } from "@school-erp/service-client";
 import type { FeeOrderRecord } from "../fee-orders/fee-orders.model";
 import {
   feeOrderRepository,
@@ -33,28 +31,13 @@ interface FeeOrderDocument {
   tenantId: string;
   record: FeeOrderRecord;
 }
-interface SequenceDocument {
-  _id: string;
-  value: number;
-}
-
 export interface PaymentRepository {
-  collect(
-    tenantId: string,
-    actorId: string,
-    input: CollectPaymentInput,
-  ): Promise<PaymentRecord>;
+  collect(tenantId: string, actorId: string, input: CollectPaymentInput): Promise<PaymentRecord>;
   getById(tenantId: string, id: string): Promise<PaymentRecord | null>;
-  getByReceiptNumber(
-    tenantId: string,
-    receiptNumber: string,
-  ): Promise<PaymentRecord | null>;
+  getByReceiptNumber(tenantId: string, receiptNumber: string): Promise<PaymentRecord | null>;
   list(tenantId: string, filter?: PaymentFilter): Promise<PaymentRecord[]>;
   listPage(tenantId: string, filter?: PaymentFilter): Promise<PaymentPage>;
-  replace(
-    tenantId: string,
-    record: PaymentRecord,
-  ): Promise<PaymentRecord | null>;
+  replace(tenantId: string, record: PaymentRecord): Promise<PaymentRecord | null>;
 }
 
 function tenant(value: string) {
@@ -92,16 +75,9 @@ function allocate(
   if (order.status === "CANCELLED" || order.status === "PAID")
     throw new ConflictError(`fee order ${order.orderNumber} is not payable`);
   if (amountMinor > order.balanceMinor)
-    throw new ConflictError(
-      `payment exceeds the balance for ${order.orderNumber}`,
-    );
-  if (
-    order.collectionPolicy === "FULL_ONLY" &&
-    amountMinor !== order.balanceMinor
-  )
-    throw new ConflictError(
-      `payment must clear the full balance for ${order.orderNumber}`,
-    );
+    throw new ConflictError(`payment exceeds the balance for ${order.orderNumber}`);
+  if (order.collectionPolicy === "FULL_ONLY" && amountMinor !== order.balanceMinor)
+    throw new ConflictError(`payment must clear the full balance for ${order.orderNumber}`);
   const manualByCharge = manualAllocations
     ? new Map(manualAllocations.map((item) => [item.chargeId, item.amountMinor]))
     : null;
@@ -127,9 +103,7 @@ function allocate(
             : Math.min(charge.balanceMinor, remaining)
           : requested;
       if (applied > charge.balanceMinor)
-        throw new ConflictError(
-          `manual allocation exceeds the balance for ${charge.label}`,
-        );
+        throw new ConflictError(`manual allocation exceeds the balance for ${charge.label}`);
       remaining -= applied;
       if (applied > 0)
         chargeAllocations.push({
@@ -145,9 +119,7 @@ function allocate(
       };
     });
   if (remaining !== 0)
-    throw new ConflictError(
-      `fee order ${order.orderNumber} has an inconsistent balance`,
-    );
+    throw new ConflictError(`fee order ${order.orderNumber} has an inconsistent balance`);
   const paidMinor = order.paidMinor + amountMinor;
   const balanceMinor = order.totalMinor - paidMinor;
   return {
@@ -175,16 +147,9 @@ function validateOrders(orders: FeeOrderRecord[], input: CollectPaymentInput) {
   if (!first) throw new BadRequestError("at least one allocation is required");
   for (const order of orders) {
     if (order.studentId !== input.studentId)
-      throw new ConflictError(
-        "all fee orders must belong to the selected student",
-      );
-    if (
-      order.campusId !== first.campusId ||
-      order.academicYearId !== first.academicYearId
-    )
-      throw new ConflictError(
-        "one payment cannot cross campus or academic-year boundaries",
-      );
+      throw new ConflictError("all fee orders must belong to the selected student");
+    if (order.campusId !== first.campusId || order.academicYearId !== first.academicYearId)
+      throw new ConflictError("one payment cannot cross campus or academic-year boundaries");
   }
   return first;
 }
@@ -192,15 +157,11 @@ function validateOrders(orders: FeeOrderRecord[], input: CollectPaymentInput) {
 export class InMemoryPaymentRepository implements PaymentRepository {
   private readonly records = new Map<string, PaymentRecord>();
   private readonly sequences = new Map<string, number>();
-  constructor(
-    private readonly orders: FeeOrderRepository = new InMemoryFeeOrderRepository(),
-  ) {}
+  constructor(private readonly orders: FeeOrderRepository = new InMemoryFeeOrderRepository()) {}
   async collect(tenantId: string, actorId: string, input: CollectPaymentInput) {
     const normalizedTenant = tenant(tenantId);
     const existing = [...this.records.values()].find(
-      (item) =>
-        item.tenantId === normalizedTenant &&
-        item.idempotencyKey === input.idempotencyKey,
+      (item) => item.tenantId === normalizedTenant && item.idempotencyKey === input.idempotencyKey,
     );
     if (existing) return clone(existing);
     const currentOrders = await Promise.all(
@@ -208,27 +169,20 @@ export class InMemoryPaymentRepository implements PaymentRepository {
         this.orders.getById(normalizedTenant, allocation.feeOrderId),
       ),
     );
-    const authoritative = currentOrders.filter((item): item is FeeOrderRecord =>
-      Boolean(item),
-    );
+    const authoritative = currentOrders.filter((item): item is FeeOrderRecord => Boolean(item));
     const first = validateOrders(authoritative, input);
     const at = input.paidAt ? new Date(input.paidAt) : new Date();
     const results = authoritative.map((order) =>
       allocate(
         order,
-        input.allocations.find((item) => item.feeOrderId === order.id)
-          ?.amountMinor ?? 0,
+        input.allocations.find((item) => item.feeOrderId === order.id)?.amountMinor ?? 0,
         at,
-        input.allocations.find((item) => item.feeOrderId === order.id)
-          ?.chargeAllocations,
+        input.allocations.find((item) => item.feeOrderId === order.id)?.chargeAllocations,
       ),
     );
     const updated = results.map((result) => result.order);
     const allocations = results.map((result) => result.allocation);
-    const amountMinor = allocations.reduce(
-      (sum, item) => sum + item.amountMinor,
-      0,
-    );
+    const amountMinor = allocations.reduce((sum, item) => sum + item.amountMinor, 0);
     const key = `${normalizedTenant}:${first.academicYearId}`;
     const sequence = (this.sequences.get(key) ?? 0) + 1;
     const now = new Date();
@@ -269,8 +223,7 @@ export class InMemoryPaymentRepository implements PaymentRepository {
   async getByReceiptNumber(tenantId: string, number: string) {
     const normalizedTenant = tenant(tenantId);
     const record = [...this.records.values()].find(
-      (item) =>
-        item.tenantId === normalizedTenant && item.receiptNumber === number,
+      (item) => item.tenantId === normalizedTenant && item.receiptNumber === number,
     );
     return record ? clone(record) : null;
   }
@@ -284,8 +237,7 @@ export class InMemoryPaymentRepository implements PaymentRepository {
         (item) =>
           item.tenantId === normalizedTenant &&
           (!filter.campusId || item.campusId === filter.campusId) &&
-          (!filter.academicYearId ||
-            item.academicYearId === filter.academicYearId) &&
+          (!filter.academicYearId || item.academicYearId === filter.academicYearId) &&
           (!filter.studentId || item.studentId === filter.studentId) &&
           (!filter.status || item.status === filter.status) &&
           (!filter.method || item.method === filter.method) &&
@@ -299,12 +251,16 @@ export class InMemoryPaymentRepository implements PaymentRepository {
       .sort((a, b) => b.paidAt.getTime() - a.paidAt.getTime());
     const offset = filter.offset ?? 0;
     const limit = filter.limit ?? 25;
-    return { items: rows.slice(offset, offset + limit).map(clone), total: rows.length, limit, offset };
+    return {
+      items: rows.slice(offset, offset + limit).map(clone),
+      total: rows.length,
+      limit,
+      offset,
+    };
   }
   async replace(tenantId: string, record: PaymentRecord) {
     const normalizedTenant = tenant(tenantId);
-    if (record.tenantId !== normalizedTenant || !this.records.has(record.id))
-      return null;
+    if (record.tenantId !== normalizedTenant || !this.records.has(record.id)) return null;
     this.records.set(record.id, clone(record));
     return clone(record);
   }
@@ -312,9 +268,8 @@ export class InMemoryPaymentRepository implements PaymentRepository {
 
 class MongoPaymentRepository implements PaymentRepository {
   constructor(
-    private readonly payments: Collection<PaymentDocument>,
-    private readonly orders: Collection<FeeOrderDocument>,
-    private readonly sequences: Collection<SequenceDocument>,
+    private readonly payments: TenantMongoCollection<PaymentDocument>,
+    private readonly orders: TenantMongoCollection<FeeOrderDocument>,
     private readonly env: MongoEnvLike,
   ) {}
   async collect(tenantId: string, actorId: string, input: CollectPaymentInput) {
@@ -343,31 +298,23 @@ class MongoPaymentRepository implements PaymentRepository {
           const results = authoritative.map((order) =>
             allocate(
               order,
-              input.allocations.find((item) => item.feeOrderId === order.id)
-                ?.amountMinor ?? 0,
+              input.allocations.find((item) => item.feeOrderId === order.id)?.amountMinor ?? 0,
               at,
-              input.allocations.find((item) => item.feeOrderId === order.id)
-                ?.chargeAllocations,
+              input.allocations.find((item) => item.feeOrderId === order.id)?.chargeAllocations,
             ),
           );
           const updated = results.map((result) => result.order);
           const allocations = results.map((result) => result.allocation);
-          const amountMinor = allocations.reduce(
-            (sum, item) => sum + item.amountMinor,
-            0,
-          );
+          const amountMinor = allocations.reduce((sum, item) => sum + item.amountMinor, 0);
           const now = new Date();
-          const configuredReceiptNumber = await issueConfiguredNumber(
-            {
-              tenantId: normalizedTenant,
-              stream: "RECEIPT",
-              idempotencyKey: input.idempotencyKey,
-              campusId: first.campusId,
-              academicYearId: first.academicYearId,
-              at,
-            },
-            this.env,
-          );
+          const configuredReceiptNumber = await issueConfiguredNumber({
+            tenantId: normalizedTenant,
+            stream: "RECEIPT",
+            idempotencyKey: input.idempotencyKey,
+            campusId: first.campusId,
+            academicYearId: first.academicYearId,
+            at,
+          });
           const record: PaymentRecord = {
             id: `payment_${crypto.randomUUID()}`,
             tenantId: normalizedTenant,
@@ -392,21 +339,17 @@ class MongoPaymentRepository implements PaymentRepository {
           };
           for (const order of updated) {
             const optimisticFilter = {
-                tenantId: normalizedTenant,
-                _id: order.id,
-                "record.updatedAt": documents.find(
-                  (item) => item._id === order.id,
-                )?.record.updatedAt,
-              } as unknown as Filter<FeeOrderDocument>;
+              tenantId: normalizedTenant,
+              _id: order.id,
+              "record.updatedAt": documents.find((item) => item._id === order.id)?.record.updatedAt,
+            } as TenantFilter<FeeOrderDocument>;
             const result = await this.orders.replaceOne(
               optimisticFilter,
-              { tenantId: normalizedTenant, record: order },
+              { _id: order.id, tenantId: normalizedTenant, record: order },
               options,
             );
             if (result.modifiedCount !== 1)
-              throw new ConflictError(
-                "fee order changed during payment collection",
-              );
+              throw new ConflictError("fee order changed during payment collection");
           }
           await this.payments.insertOne({ ...record, _id: record.id }, options);
           return clone(record);
@@ -442,7 +385,7 @@ class MongoPaymentRepository implements PaymentRepository {
     return (await this.listPage(tenantId, filter)).items;
   }
   async listPage(tenantId: string, filter: PaymentFilter = {}) {
-    const query: Record<string, unknown> = { tenantId: tenant(tenantId) };
+    const query: TenantFilter<PaymentDocument> = { tenantId: tenant(tenantId) };
     if (filter.campusId) query.campusId = filter.campusId;
     if (filter.academicYearId) query.academicYearId = filter.academicYearId;
     if (filter.studentId) query.studentId = filter.studentId;
@@ -462,12 +405,7 @@ class MongoPaymentRepository implements PaymentRepository {
     const offset = filter.offset ?? 0;
     const limit = filter.limit ?? 25;
     const [items, total] = await Promise.all([
-      this.payments
-        .find(query)
-        .sort({ paidAt: -1 })
-        .skip(offset)
-        .limit(limit)
-        .toArray(),
+      this.payments.find(query).sort({ paidAt: -1 }).skip(offset).limit(limit).toArray(),
       this.payments.countDocuments(query),
     ]);
     return { items: items.map(clone), total, limit, offset };
@@ -477,46 +415,36 @@ class MongoPaymentRepository implements PaymentRepository {
     if (record.tenantId !== normalizedTenant) return null;
     const result = await this.payments.replaceOne(
       { tenantId: normalizedTenant, _id: record.id },
-      { ...record },
+      { ...record, _id: record.id },
     );
     return result.modifiedCount === 1 ? clone(record) : null;
   }
 }
 
 function runtimeEnv(): MongoEnvLike {
-  return (
-    (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process
-      ?.env ?? {}
-  );
+  return (globalThis as unknown as { process?: { env?: MongoEnvLike } }).process?.env ?? {};
 }
 function hasMongo(env: MongoEnvLike) {
   return Boolean(
-    env.MONGODB_URI ||
-      env.MONGODB_URI_DEV ||
-      env.MONGODB_URI_PROD ||
-      env.MONGODB_URI_TEST,
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
   );
 }
 export async function createPaymentRepository(
   env: MongoEnvLike = runtimeEnv(),
 ): Promise<PaymentRepository> {
-  if (!hasMongo(env))
-    return new InMemoryPaymentRepository(await feeOrderRepository());
+  if (!hasMongo(env)) return new InMemoryPaymentRepository(await feeOrderRepository());
   const connection = await getMongoConnection(env);
   const db = connection.client.db(connection.dbName);
   const payments = db.collection<PaymentDocument>("finance_payments");
   const orders = db.collection<FeeOrderDocument>("finance_fee_orders");
-  const sequences = db.collection<SequenceDocument>("finance_sequences");
-  await payments.createIndex(
-    { tenantId: 1, idempotencyKey: 1 },
-    { unique: true },
-  );
-  await payments.createIndex(
-    { tenantId: 1, receiptNumber: 1 },
-    { unique: true },
-  );
+  await payments.createIndex({ tenantId: 1, idempotencyKey: 1 }, { unique: true });
+  await payments.createIndex({ tenantId: 1, receiptNumber: 1 }, { unique: true });
   await payments.createIndex({ tenantId: 1, studentId: 1, paidAt: -1 });
-  return new MongoPaymentRepository(payments, orders, sequences, env);
+  return new MongoPaymentRepository(
+    createTenantMongoCollection(payments),
+    createTenantMongoCollection(orders),
+    env,
+  );
 }
 let singleton: Promise<PaymentRepository> | undefined;
 export function paymentRepository() {

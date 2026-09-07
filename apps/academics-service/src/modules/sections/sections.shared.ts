@@ -10,7 +10,9 @@ export interface SectionServiceDeps extends AcademicHierarchyRepositories {
   repository?: SectionRepository | Promise<SectionRepository>;
 }
 
-export async function resolveSectionRepository(deps?: SectionServiceDeps): Promise<SectionRepository> {
+export async function resolveSectionRepository(
+  deps?: SectionServiceDeps,
+): Promise<SectionRepository> {
   return await (deps?.repository ?? defaultRepository);
 }
 
@@ -27,6 +29,9 @@ export function requireSectionPermission(context: RequestContext, permission: Pe
   }
 }
 
-export function requireSectionPermissions(context: RequestContext, permission: keyof typeof academicsPermissions.sections): void {
+export function requireSectionPermissions(
+  context: RequestContext,
+  permission: keyof typeof academicsPermissions.sections,
+): void {
   requireSectionPermission(context, academicsPermissions.sections[permission] as Permission);
 }

@@ -1,16 +1,35 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { InMemoryEnquiryRepository } from "../enquiry.repository";
-import { closeEnquiryUseCase, createEnquiryUseCase, listEnquiriesUseCase, updateEnquiryUseCase } from "../use-cases";
+import {
+  closeEnquiryUseCase,
+  createEnquiryUseCase,
+  listEnquiriesUseCase,
+  updateEnquiryUseCase,
+} from "../use-cases";
 import { createEnquiryInput, createEnquiryServiceContext } from "./fixtures";
 
 test("list enquiries returns only tenant enquiries in creation order", async () => {
   const repository = new InMemoryEnquiryRepository();
-  await createEnquiryUseCase(createEnquiryInput({ studentName: "Alpha" }), createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository });
-  await createEnquiryUseCase(createEnquiryInput({ studentName: "Beta" }), createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository });
-  await createEnquiryUseCase(createEnquiryInput({ studentName: "Gamma" }), createEnquiryServiceContext({ tenantId: "tenant_b" }), { repository });
+  await createEnquiryUseCase(
+    createEnquiryInput({ studentName: "Alpha" }),
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+  );
+  await createEnquiryUseCase(
+    createEnquiryInput({ studentName: "Beta" }),
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+  );
+  await createEnquiryUseCase(
+    createEnquiryInput({ studentName: "Gamma" }),
+    createEnquiryServiceContext({ tenantId: "tenant_b" }),
+    { repository },
+  );
 
-  const list = await listEnquiriesUseCase(createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository });
+  const list = await listEnquiriesUseCase(createEnquiryServiceContext({ tenantId: "tenant_a" }), {
+    repository,
+  });
 
   assert.equal(list.length, 2);
   assert.equal(list[0]?.studentName, "Alpha");
@@ -29,18 +48,43 @@ test("list enquiries supports status, source, and search filters", async () => {
     createEnquiryServiceContext({ tenantId: "tenant_a" }),
     { repository },
   );
-  await updateEnquiryUseCase(String(created?.id ?? ""), { status: "CONTACTED" }, createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository });
+  await updateEnquiryUseCase(
+    String(created?.id ?? ""),
+    { status: "CONTACTED" },
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+  );
   const closedRecord = await createEnquiryUseCase(
     createEnquiryInput({ studentName: "Closed Match", source: "Walk-In" }),
     createEnquiryServiceContext({ tenantId: "tenant_a" }),
     { repository },
   );
-  await closeEnquiryUseCase(String(closedRecord?.id ?? ""), createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository });
+  await closeEnquiryUseCase(
+    String(closedRecord?.id ?? ""),
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+  );
 
-  const byStatus = await listEnquiriesUseCase(createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository }, { status: "CONTACTED" });
-  const bySource = await listEnquiriesUseCase(createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository }, { source: "walk-in" });
-  const bySearch = await listEnquiriesUseCase(createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository }, { search: "filter" });
-  const byClosedStatus = await listEnquiriesUseCase(createEnquiryServiceContext({ tenantId: "tenant_a" }), { repository }, { status: "CLOSED" });
+  const byStatus = await listEnquiriesUseCase(
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+    { status: "CONTACTED" },
+  );
+  const bySource = await listEnquiriesUseCase(
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+    { source: "walk-in" },
+  );
+  const bySearch = await listEnquiriesUseCase(
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+    { search: "filter" },
+  );
+  const byClosedStatus = await listEnquiriesUseCase(
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+    { status: "CLOSED" },
+  );
 
   assert.equal(byStatus.length, 1);
   assert.equal(byStatus[0]?.studentName, "Filter Match");
@@ -70,7 +114,38 @@ test("list enquiries page returns stable tenant-scoped totals and boundaries", a
   const second = await repository.listPage("tenant_a", { limit: 2, offset: 2 });
 
   assert.equal(first.total, 3);
-  assert.deepEqual(first.items.map((item) => item.studentName), ["Aarav Rao", "Diya Shah"]);
+  assert.deepEqual(
+    first.items.map((item) => item.studentName),
+    ["Aarav Rao", "Diya Shah"],
+  );
   assert.equal(second.total, 3);
-  assert.deepEqual(second.items.map((item) => item.studentName), ["Ishaan Mehta"]);
+  assert.deepEqual(
+    second.items.map((item) => item.studentName),
+    ["Ishaan Mehta"],
+  );
+});
+
+test("list enquiries filters by target class and inclusive creation date range", async () => {
+  const repository = new InMemoryEnquiryRepository();
+  const beforeCreation = new Date(Date.now() - 1_000);
+  await createEnquiryUseCase(
+    createEnquiryInput({ studentName: "Aarav Rao", academicTargetId: "class_1" }),
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+  );
+  await createEnquiryUseCase(
+    createEnquiryInput({ studentName: "Diya Shah", academicTargetId: "class_2" }),
+    createEnquiryServiceContext({ tenantId: "tenant_a" }),
+    { repository },
+  );
+  const afterCreation = new Date(Date.now() + 1_000);
+
+  const page = await repository.listPage("tenant_a", {
+    academicTargetId: "class_1",
+    createdFrom: beforeCreation,
+    createdTo: afterCreation,
+  });
+
+  assert.equal(page.total, 1);
+  assert.equal(page.items[0]?.studentName, "Aarav Rao");
 });

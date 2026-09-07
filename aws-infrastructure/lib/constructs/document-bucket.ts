@@ -1,6 +1,6 @@
-import { RemovalPolicy, aws_s3 as s3 } from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-import type { EnvironmentConfig } from '../config';
+import { RemovalPolicy, aws_s3 as s3 } from "aws-cdk-lib";
+import { Construct } from "constructs";
+import type { EnvironmentConfig } from "../config";
 
 export interface DocumentBucketProps {
   config: EnvironmentConfig;
@@ -12,7 +12,7 @@ export class DocumentBucket extends Construct {
   constructor(scope: Construct, id: string, props: DocumentBucketProps) {
     super(scope, id);
 
-    this.bucket = new s3.Bucket(this, 'Bucket', {
+    this.bucket = new s3.Bucket(this, "Bucket", {
       bucketName: props.config.documentsBucketName,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       enforceSSL: true,
@@ -20,13 +20,15 @@ export class DocumentBucket extends Construct {
       removalPolicy: props.config.removalPolicy ?? RemovalPolicy.RETAIN,
       autoDeleteObjects: props.config.removalPolicy === RemovalPolicy.DESTROY,
       encryption: s3.BucketEncryption.S3_MANAGED,
-      cors: [{
-        allowedMethods: [s3.HttpMethods.PUT],
-        allowedOrigins: props.config.allowedOrigins,
-        allowedHeaders: ['content-type'],
-        exposedHeaders: ['etag'],
-        maxAge: 900,
-      }],
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.PUT],
+          allowedOrigins: props.config.allowedOrigins,
+          allowedHeaders: ["content-type"],
+          exposedHeaders: ["etag"],
+          maxAge: 900,
+        },
+      ],
     });
   }
 }

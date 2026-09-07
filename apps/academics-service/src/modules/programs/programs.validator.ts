@@ -1,5 +1,10 @@
 import { BadRequestError } from "@school-erp/errors";
-import type { ProgramCreateInput, ProgramListFilter, ProgramStatus, ProgramUpdateInput } from "./programs.model";
+import type {
+  ProgramCreateInput,
+  ProgramListFilter,
+  ProgramStatus,
+  ProgramUpdateInput,
+} from "./programs.model";
 
 const allowedStatuses: ProgramStatus[] = ["ACTIVE", "INACTIVE"];
 

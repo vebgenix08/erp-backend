@@ -40,7 +40,8 @@ export interface CurriculumListFilter {
   type?: CurriculumType | undefined;
 }
 
-export interface CurriculumView extends Omit<CurriculumRecord, "createdAt" | "updatedAt" | "deactivatedAt"> {
+export interface CurriculumView
+  extends Omit<CurriculumRecord, "createdAt" | "updatedAt" | "deactivatedAt"> {
   createdAt: string;
   updatedAt: string;
   deactivatedAt?: string | undefined;

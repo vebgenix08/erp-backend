@@ -1,5 +1,9 @@
 import { BadRequestError } from "@school-erp/errors";
-import type { FeatureFlagCreateInput, FeatureFlagStatus, FeatureFlagUpdateInput } from "./feature-flags.model";
+import type {
+  FeatureFlagCreateInput,
+  FeatureFlagStatus,
+  FeatureFlagUpdateInput,
+} from "./feature-flags.model";
 
 const allowedStatuses: FeatureFlagStatus[] = ["ACTIVE", "INACTIVE"];
 
@@ -40,7 +44,8 @@ export function validateFeatureFlagUpdateInput(input: unknown): FeatureFlagUpdat
     update.description = asString(value.description) || undefined;
   }
   if (value.isEnabled !== undefined) {
-    if (typeof value.isEnabled !== "boolean") throw new BadRequestError("isEnabled must be a boolean");
+    if (typeof value.isEnabled !== "boolean")
+      throw new BadRequestError("isEnabled must be a boolean");
     update.isEnabled = value.isEnabled;
   }
   if (value.status !== undefined) {

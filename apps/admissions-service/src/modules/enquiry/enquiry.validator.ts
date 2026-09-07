@@ -1,6 +1,16 @@
 import { ValidationError } from "@school-erp/errors";
-import { isNonEmptyString, optionalString, validateEmail, validateNonEmptyString, validatePhone } from "@school-erp/validation";
-import type { EnquiryCreateInput, EnquiryGender, EnquiryListFilter, EnquiryUpdateInput } from "./enquiry.model";
+import {
+  optionalString,
+  validateEmail,
+  validateNonEmptyString,
+  validatePhone,
+} from "@school-erp/validation";
+import type {
+  EnquiryCreateInput,
+  EnquiryGender,
+  EnquiryListFilter,
+  EnquiryUpdateInput,
+} from "./enquiry.model";
 
 const ALLOWED_GENDERS: EnquiryGender[] = ["MALE", "FEMALE", "OTHER"];
 const ALLOWED_STATUS_UPDATES = ["NEW", "CONTACTED", "FOLLOW_UP", "CONVERTED"] as const;
@@ -59,10 +69,17 @@ export function validateEnquiryCreateInput(input: unknown): EnquiryCreateInput {
   const phone = validatePhone(body.phone, "phone");
   const email = body.email === undefined ? undefined : validateEmail(body.email, "email");
 
-  if (!studentName.success) errors.push({ field: "studentName", message: studentName.errors[0] ?? "studentName is required" });
-  if (!parentName.success) errors.push({ field: "parentName", message: parentName.errors[0] ?? "parentName is required" });
-  if (!phone.success) errors.push({ field: "phone", message: phone.errors[0] ?? "phone is required" });
-  if (email !== undefined && !email.success) errors.push({ field: "email", message: email.errors[0] ?? "email is invalid" });
+  if (!studentName.success)
+    errors.push({
+      field: "studentName",
+      message: studentName.errors[0] ?? "studentName is required",
+    });
+  if (!parentName.success)
+    errors.push({ field: "parentName", message: parentName.errors[0] ?? "parentName is required" });
+  if (!phone.success)
+    errors.push({ field: "phone", message: phone.errors[0] ?? "phone is required" });
+  if (email !== undefined && !email.success)
+    errors.push({ field: "email", message: email.errors[0] ?? "email is invalid" });
 
   if (errors.length > 0) {
     throw new ValidationError(errors);
@@ -87,8 +104,18 @@ export function validateEnquiryCreateInput(input: unknown): EnquiryCreateInput {
     source: parseOptionalString(body.source),
     notes: parseOptionalString(body.notes),
     templateId: parseOptionalString(body.templateId),
-    templateVersion: typeof body.templateVersion === "number" && Number.isInteger(body.templateVersion) && body.templateVersion > 0 ? body.templateVersion : undefined,
-    customFields: body.customFields && typeof body.customFields === "object" && !Array.isArray(body.customFields) ? body.customFields as Record<string, unknown> : undefined,
+    templateVersion:
+      typeof body.templateVersion === "number" &&
+      Number.isInteger(body.templateVersion) &&
+      body.templateVersion > 0
+        ? body.templateVersion
+        : undefined,
+    customFields:
+      body.customFields &&
+      typeof body.customFields === "object" &&
+      !Array.isArray(body.customFields)
+        ? (body.customFields as Record<string, unknown>)
+        : undefined,
   };
 }
 
@@ -99,19 +126,28 @@ export function validateEnquiryUpdateInput(input: unknown): EnquiryUpdateInput {
 
   if (body.studentName !== undefined) {
     const value = validateNonEmptyString(body.studentName, "studentName");
-    if (!value.success) errors.push({ field: "studentName", message: value.errors[0] ?? "studentName cannot be empty" });
+    if (!value.success)
+      errors.push({
+        field: "studentName",
+        message: value.errors[0] ?? "studentName cannot be empty",
+      });
     else update.studentName = value.value;
   }
 
   if (body.parentName !== undefined) {
     const value = validateNonEmptyString(body.parentName, "parentName");
-    if (!value.success) errors.push({ field: "parentName", message: value.errors[0] ?? "parentName cannot be empty" });
+    if (!value.success)
+      errors.push({
+        field: "parentName",
+        message: value.errors[0] ?? "parentName cannot be empty",
+      });
     else update.parentName = value.value;
   }
 
   if (body.phone !== undefined) {
     const value = validatePhone(body.phone, "phone");
-    if (!value.success) errors.push({ field: "phone", message: value.errors[0] ?? "phone is invalid" });
+    if (!value.success)
+      errors.push({ field: "phone", message: value.errors[0] ?? "phone is invalid" });
     else update.phone = value.value;
   }
 
@@ -120,7 +156,8 @@ export function validateEnquiryUpdateInput(input: unknown): EnquiryUpdateInput {
       update.email = undefined;
     } else {
       const value = validateEmail(body.email, "email");
-      if (!value.success) errors.push({ field: "email", message: value.errors[0] ?? "email is invalid" });
+      if (!value.success)
+        errors.push({ field: "email", message: value.errors[0] ?? "email is invalid" });
       else update.email = value.value;
     }
   }
@@ -133,7 +170,10 @@ export function validateEnquiryUpdateInput(input: unknown): EnquiryUpdateInput {
     try {
       update.gender = parseGender(body.gender);
     } catch (error) {
-      errors.push({ field: "gender", message: error instanceof Error ? error.message : "gender is invalid" });
+      errors.push({
+        field: "gender",
+        message: error instanceof Error ? error.message : "gender is invalid",
+      });
     }
   }
 
@@ -155,7 +195,10 @@ export function validateEnquiryUpdateInput(input: unknown): EnquiryUpdateInput {
     } else {
       const normalized = body.status.trim().toUpperCase();
       if (!ALLOWED_STATUS_UPDATES.includes(normalized as (typeof ALLOWED_STATUS_UPDATES)[number])) {
-        errors.push({ field: "status", message: "status must be NEW, CONTACTED, FOLLOW_UP or CONVERTED" });
+        errors.push({
+          field: "status",
+          message: "status must be NEW, CONTACTED, FOLLOW_UP or CONVERTED",
+        });
       } else {
         update.status = normalized as Exclude<EnquiryUpdateInput["status"], undefined>;
       }
@@ -180,7 +223,7 @@ export function validateEnquiryListFilter(input: unknown): EnquiryListFilter {
   const body = input as Record<string, unknown>;
   const filter: EnquiryListFilter = {};
   const errors: Array<{ field: string; message: string }> = [];
-  for (const field of ["campusId", "academicYearId"] as const) {
+  for (const field of ["campusId", "academicYearId", "academicTargetId"] as const) {
     if (body[field] === undefined) continue;
     const value = optionalString(body[field]);
     if (value) filter[field] = value;
@@ -192,7 +235,10 @@ export function validateEnquiryListFilter(input: unknown): EnquiryListFilter {
     } else {
       const normalized = body.status.trim().toUpperCase();
       if (!ALLOWED_STATUS_FILTERS.includes(normalized as (typeof ALLOWED_STATUS_FILTERS)[number])) {
-        errors.push({ field: "status", message: "status must be NEW, CONTACTED, FOLLOW_UP, CONVERTED or CLOSED" });
+        errors.push({
+          field: "status",
+          message: "status must be NEW, CONTACTED, FOLLOW_UP, CONVERTED or CLOSED",
+        });
       } else {
         filter.status = normalized as EnquiryListFilter["status"];
       }
@@ -212,12 +258,35 @@ export function validateEnquiryListFilter(input: unknown): EnquiryListFilter {
       filter.search = value;
     }
   }
+  for (const field of ["createdFrom", "createdTo"] as const) {
+    if (body[field] === undefined) continue;
+    try {
+      const value = parseDate(body[field], field);
+      if (value) filter[field] = value;
+    } catch (error) {
+      if (error instanceof ValidationError) errors.push(...error.details.fields);
+      else throw error;
+    }
+  }
+  if (
+    filter.createdFrom &&
+    filter.createdTo &&
+    filter.createdFrom.getTime() > filter.createdTo.getTime()
+  ) {
+    errors.push({ field: "createdTo", message: "createdTo must be on or after createdFrom" });
+  }
   for (const field of ["limit", "offset"] as const) {
     if (body[field] === undefined) continue;
-    if (typeof body[field] !== "number" || !Number.isSafeInteger(body[field]) || Number(body[field]) < 0) errors.push({ field, message: `${field} must be a non-negative integer` });
+    if (
+      typeof body[field] !== "number" ||
+      !Number.isSafeInteger(body[field]) ||
+      Number(body[field]) < 0
+    )
+      errors.push({ field, message: `${field} must be a non-negative integer` });
     else filter[field] = Number(body[field]);
   }
-  if ((filter.limit ?? 25) > 100) errors.push({ field: "limit", message: "limit cannot exceed 100" });
+  if ((filter.limit ?? 25) > 100)
+    errors.push({ field: "limit", message: "limit cannot exceed 100" });
 
   if (errors.length > 0) {
     throw new ValidationError(errors);

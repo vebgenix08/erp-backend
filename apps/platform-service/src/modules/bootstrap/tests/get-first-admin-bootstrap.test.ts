@@ -16,7 +16,9 @@ test("get first admin bootstrap returns tenant scoped record", async () => {
     { repository },
   );
 
-  const result = await getFirstAdminBootstrapUseCase("tenant_1", createBootstrapContext(), { repository });
+  const result = await getFirstAdminBootstrapUseCase("tenant_1", createBootstrapContext(), {
+    repository,
+  });
   assert.equal(result?.tenantId, "tenant_1");
   assert.equal(result?.status, "PENDING");
 });

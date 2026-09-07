@@ -1,14 +1,23 @@
 import type { ApiRouter, RequestContext } from "@school-erp/api";
 import { jsonResponse } from "@school-erp/api";
 import type { CognitoSyncServiceDeps } from "./cognito-sync.service";
-import { createCognitoSync, deleteCognitoSync, getCognitoSync, listCognitoSync, updateCognitoSync } from "./cognito-sync.service";
+import {
+  createCognitoSync,
+  deleteCognitoSync,
+  getCognitoSync,
+  listCognitoSync,
+  updateCognitoSync,
+} from "./cognito-sync.service";
 import { validateCognitoSyncListFilter } from "./cognito-sync.validator";
 
 function recordId(context: RequestContext): string {
   return context.params.id ?? "";
 }
 
-export function registerCognitoSyncRoutes(router: ApiRouter, deps: CognitoSyncServiceDeps = {}): ApiRouter {
+export function registerCognitoSyncRoutes(
+  router: ApiRouter,
+  deps: CognitoSyncServiceDeps = {},
+): ApiRouter {
   router.route("GET", "/cognito-sync", async (context: RequestContext) => {
     const result = await listCognitoSync(
       {
@@ -72,7 +81,10 @@ export function registerCognitoSyncRoutes(router: ApiRouter, deps: CognitoSyncSe
       },
       deps,
     );
-    return jsonResponse(result ? 204 : 404, result ? undefined : { message: "cognito sync not found" });
+    return jsonResponse(
+      result ? 204 : 404,
+      result ? undefined : { message: "cognito sync not found" },
+    );
   });
 
   return router;

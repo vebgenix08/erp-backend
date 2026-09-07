@@ -37,13 +37,21 @@ type Enquiry {
 input EnquiryFilter {
   campusId: ID
   academicYearId: ID
+  academicTargetId: ID
   status: EnquiryStatus
   source: String
+  createdFrom: AWSDateTime
+  createdTo: AWSDateTime
   search: String
   limit: Int
   offset: Int
 }
-type EnquiryPage { items: [Enquiry!]! total: Int! limit: Int! offset: Int! }
+type EnquiryPage {
+  items: [Enquiry!]!
+  total: Int!
+  limit: Int!
+  offset: Int!
+}
 input CreateEnquiryInput {
   campusId: ID
   academicYearId: ID
@@ -149,6 +157,11 @@ input ApplicationFilter {
   campusId: ID
   academicYearId: ID
   academicTargetId: ID
+  sectionId: ID
+  createdFrom: AWSDateTime
+  createdTo: AWSDateTime
+  confirmedFrom: AWSDateTime
+  confirmedTo: AWSDateTime
   search: String
   page: Int
   pageSize: Int

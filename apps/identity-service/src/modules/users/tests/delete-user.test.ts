@@ -6,7 +6,10 @@ import { createUserFixture } from "./fixtures";
 
 test("delete user removes tenant-scoped record", async () => {
   const context = createTenantContext({ tenantId: "tenant-1", source: "request" });
-  const created = await createUserUseCase(context, createUserFixture({ email: "delete@example.com" }));
+  const created = await createUserUseCase(
+    context,
+    createUserFixture({ email: "delete@example.com" }),
+  );
 
   const deleted = await deleteUserUseCase(context, String(created?.id ?? ""));
   assert.equal(deleted, true);

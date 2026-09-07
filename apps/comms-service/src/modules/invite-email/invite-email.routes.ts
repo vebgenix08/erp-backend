@@ -8,13 +8,20 @@ function recordId(context: RequestContext): string {
   return context.params.id ?? "";
 }
 
-export function registerInviteEmailRoutes(router: ApiRouter, deps: InviteEmailServiceDeps = {}): ApiRouter {
+export function registerInviteEmailRoutes(
+  router: ApiRouter,
+  deps: InviteEmailServiceDeps = {},
+): ApiRouter {
   router.route("POST", "/invite-emails", async (context: RequestContext) => {
-    const result = await sendInviteEmail(context.body, {
-      requestId: context.requestId,
-      tenantContext: context.tenantContext!,
-      authContext: context.authContext!,
-    }, deps);
+    const result = await sendInviteEmail(
+      context.body,
+      {
+        requestId: context.requestId,
+        tenantContext: context.tenantContext!,
+        authContext: context.authContext!,
+      },
+      deps,
+    );
     return jsonResponse(201, result);
   });
 

@@ -13,7 +13,15 @@ test("create template stores a draft template", async () => {
       templateType: "FORM",
       sections: [{ key: "identity", label: "Employee identity", order: 1 }],
       fields: [
-        { key: "fullName", label: "Full name", type: "text", order: 1, required: true, visible: true, section: "identity" },
+        {
+          key: "fullName",
+          label: "Full name",
+          type: "text",
+          order: 1,
+          required: true,
+          visible: true,
+          section: "identity",
+        },
       ],
       requiredSystemKeys: ["fullName"],
     },
@@ -24,5 +32,8 @@ test("create template stores a draft template", async () => {
   assert.equal(result.code, "teaching_staff_onboarding_form");
   assert.equal(result.status, "DRAFT");
   assert.equal(result.version, 1);
-  assert.equal(JSON.stringify(result.sections), JSON.stringify([{ key: "identity", label: "Employee identity", order: 1 }]));
+  assert.equal(
+    JSON.stringify(result.sections),
+    JSON.stringify([{ key: "identity", label: "Employee identity", order: 1 }]),
+  );
 });

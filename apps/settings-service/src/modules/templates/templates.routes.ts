@@ -1,14 +1,24 @@
 import type { ApiRouter, RequestContext } from "@school-erp/api";
 import { jsonResponse } from "@school-erp/api";
 import type { TemplateServiceDeps } from "./templates.service";
-import { archiveTemplate, createTemplate, getTemplate, listTemplates, publishTemplate, updateTemplate } from "./templates.service";
+import {
+  archiveTemplate,
+  createTemplate,
+  getTemplate,
+  listTemplates,
+  publishTemplate,
+  updateTemplate,
+} from "./templates.service";
 import { validateTemplateListFilter } from "./templates.validator";
 
 function templateId(context: RequestContext): string {
   return context.params.id ?? "";
 }
 
-export function registerTemplateRoutes(router: ApiRouter, deps: TemplateServiceDeps = {}): ApiRouter {
+export function registerTemplateRoutes(
+  router: ApiRouter,
+  deps: TemplateServiceDeps = {},
+): ApiRouter {
   router.route("GET", "/templates", async (context: RequestContext) => {
     const result = await listTemplates(context, deps, validateTemplateListFilter(context.query));
     return jsonResponse(200, result);

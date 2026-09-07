@@ -3,7 +3,11 @@ import { toSectionView } from "../sections.mapper";
 import { validateSectionUpdateInput } from "../sections.validator";
 import type { SectionView } from "../sections.model";
 import type { SectionServiceDeps } from "../sections.shared";
-import { requireSectionPermission, requireSectionTenantId, resolveSectionRepository } from "../sections.shared";
+import {
+  requireSectionPermission,
+  requireSectionTenantId,
+  resolveSectionRepository,
+} from "../sections.shared";
 import { sectionPermissions } from "../sections.permissions";
 import type { Permission } from "@school-erp/auth";
 import { requireClassInHierarchy } from "../../academic-hierarchy.policy";
@@ -22,7 +26,13 @@ export async function updateSectionUseCase(
   if (!existing) throw new NotFoundError("section not found");
   const validated = validateSectionUpdateInput(input);
   if (validated.programId || validated.classId) {
-    await requireClassInHierarchy(tenantId, existing.campusId, validated.programId ?? existing.programId, validated.classId ?? existing.classId, deps);
+    await requireClassInHierarchy(
+      tenantId,
+      existing.campusId,
+      validated.programId ?? existing.programId,
+      validated.classId ?? existing.classId,
+      deps,
+    );
   }
   return toSectionView(await repository.update(tenantId, id, validated));
 }

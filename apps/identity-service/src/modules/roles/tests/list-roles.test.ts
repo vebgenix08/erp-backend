@@ -13,6 +13,20 @@ test("list roles only returns current tenant records", async () => {
   const roles = await listRolesUseCase(tenantOne);
   assert.ok(roles.some((role) => role?.code === "ONE"));
   assert.ok(roles.some((role) => role?.code === "TENANT_ADMIN" && role.isSystemRole));
+  for (const code of [
+    "TEACHER",
+    "CLASS_TEACHER",
+    "HOD",
+    "ACADEMIC_COORDINATOR",
+    "PRINCIPAL",
+    "VICE_PRINCIPAL",
+    "DEAN",
+  ]) {
+    assert.ok(
+      roles.some((role) => role?.code === code && role.isSystemRole),
+      `${code} system role is required`,
+    );
+  }
   assert.ok(!roles.some((role) => role?.code === "TWO"));
   assert.ok(roles.every((role) => role?.tenantId === "tenant-1"));
 });

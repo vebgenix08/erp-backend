@@ -1,10 +1,6 @@
 import type { RequestContext } from "@school-erp/api";
 import type { Permission } from "@school-erp/auth";
-import {
-  BadRequestError,
-  ForbiddenError,
-  NotFoundError,
-} from "@school-erp/errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "@school-erp/errors";
 import type { StudentEnrolledEventData } from "@school-erp/events";
 import { generateFeeOrderFromEnrollment } from "../fee-orders/fee-orders.service";
 import { toFeeOrderRecoveryView } from "./fee-order-recovery.mapper";
@@ -16,10 +12,7 @@ import {
 import { validateFeeOrderRecoveryFilter } from "./fee-order-recovery.validator";
 export interface FeeOrderRecoveryDependencies {
   repository?: FeeOrderRecoveryRepository | Promise<FeeOrderRecoveryRepository>;
-  generate?: (
-    payload: StudentEnrolledEventData,
-    tenantId: string,
-  ) => Promise<unknown>;
+  generate?: (payload: StudentEnrolledEventData, tenantId: string) => Promise<unknown>;
   now?: () => Date;
 }
 const repository = async (deps?: FeeOrderRecoveryDependencies) =>
@@ -45,8 +38,7 @@ export async function recordFeeOrderFailure(
   error: unknown,
   deps: FeeOrderRecoveryDependencies = {},
 ) {
-  const message =
-    error instanceof Error ? error.message : "fee order generation failed";
+  const message = error instanceof Error ? error.message : "fee order generation failed";
   return (await repository(deps)).recordFailure(
     tenantId,
     eventId,
@@ -64,9 +56,7 @@ export async function resolveFeeOrderRecoveryForEvent(
   const store = await repository(deps),
     records = await store.list(tenantId, { status: "PENDING" });
   const record = records.find((item) => item.eventId === eventId);
-  return record
-    ? store.resolve(tenantId, record.id, actorId, deps.now?.() ?? new Date())
-    : null;
+  return record ? store.resolve(tenantId, record.id, actorId, deps.now?.() ?? new Date()) : null;
 }
 export async function listFeeOrderRecoveries(
   filter: unknown,
@@ -75,9 +65,7 @@ export async function listFeeOrderRecoveries(
 ) {
   permission(context, feeOrderRecoveryPermissions.read as Permission);
   return (
-    await (
-      await repository(deps)
-    ).list(tenantId(context), validateFeeOrderRecoveryFilter(filter))
+    await (await repository(deps)).list(tenantId(context), validateFeeOrderRecoveryFilter(filter))
   ).map(toFeeOrderRecoveryView);
 }
 export async function retryFeeOrderRecovery(
@@ -92,10 +80,7 @@ export async function retryFeeOrderRecovery(
   if (!record) throw new NotFoundError("fee order recovery was not found");
   if (record.status === "RESOLVED") return toFeeOrderRecoveryView(record);
   try {
-    await (deps.generate ?? generateFeeOrderFromEnrollment)(
-      record.payload,
-      tenant,
-    );
+    await (deps.generate ?? generateFeeOrderFromEnrollment)(record.payload, tenant);
     const resolved = await store.resolve(
       tenant,
       record.id,

@@ -36,10 +36,7 @@ const context = (tenantId = "tenant_one"): RequestContext => ({
     authenticatedAt: new Date(),
     user: {
       id: "finance_admin",
-      permissions: [
-        "finance.fee-order-recovery.read",
-        "finance.fee-order-recovery.retry",
-      ],
+      permissions: ["finance.fee-order-recovery.read", "finance.fee-order-recovery.retry"],
       source: "jwt-claims",
     },
   },
@@ -109,9 +106,5 @@ test("failed retry remains pending and tenant isolation is enforced", async () =
     repository,
   });
   assert.equal(rows[0]?.attempts, 2);
-  assert.equal(
-    (await listFeeOrderRecoveries({}, context("tenant_two"), { repository }))
-      .length,
-    0,
-  );
+  assert.equal((await listFeeOrderRecoveries({}, context("tenant_two"), { repository })).length, 0);
 });

@@ -1,12 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createTenantContext } from "@school-erp/tenancy";
-import {
-  hasPermission,
-  requireAuth,
-  requirePermission,
-  resolveAuthFromRequest,
-} from "../index";
+import { hasPermission, requireAuth, requirePermission, resolveAuthFromRequest } from "../index";
 
 test("resolves auth from jwt claims first", () => {
   const context = resolveAuthFromRequest({
@@ -75,6 +70,10 @@ test("auth context can be combined with tenant context", () => {
     },
   });
 
-  const tenantContext = createTenantContext({ source: "request", tenantId: context.tenant?.tenantId, tenantCode: "TENANT-LOCAL" });
+  const tenantContext = createTenantContext({
+    source: "request",
+    tenantId: context.tenant?.tenantId,
+    tenantCode: "TENANT-LOCAL",
+  });
   assert.equal(tenantContext.tenantId, "tenant-local");
 });

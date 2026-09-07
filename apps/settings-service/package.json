@@ -8,16 +8,21 @@
     "@school-erp/errors": "workspace:*",
     "@school-erp/logger": "workspace:*",
     "@school-erp/mongodb": "workspace:*",
+    "@school-erp/numbering": "workspace:*",
+    "@school-erp/service-client": "workspace:*",
     "@school-erp/tenancy": "workspace:*",
     "@school-erp/test-utils": "workspace:*",
     "@school-erp/types": "workspace:*",
-    "@school-erp/validation": "workspace:*"
-    ,"mongodb": "^6.19.0"
+    "@school-erp/validation": "workspace:*",
+    "mongodb": "^6.19.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node scripts/clean-tests.mjs && tsc -p tsconfig.test.json && node scripts/run-tests.mjs",
-    "migrate:campus-academic-units": "node scripts/migrations/002-campus-academic-units.mjs"
+    "migrate:campus-academic-units": "node scripts/migrations/002-campus-academic-units.mjs",
+    "migrate:remove-finance-due-notifications": "node scripts/migrations/003-remove-finance-due-notifications.mjs",
+    "migrate:numbering-issuance-scope": "node scripts/migrations/004-numbering-issuance-scope.mjs",
+    "migrate:numbering-indexes": "node scripts/migrations/005-numbering-query-indexes.mjs"
   }
 }

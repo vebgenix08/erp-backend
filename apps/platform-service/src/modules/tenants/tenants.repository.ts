@@ -1,17 +1,30 @@
 import { ConflictError } from "@school-erp/errors";
-import type { CollectionAdapter, MongoEnvLike, PlatformRepository } from "@school-erp/mongodb";
-import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
+import type {
+  MongoEnvLike,
+  PlatformCollectionAdapter,
+  PlatformRepository,
+} from "@school-erp/mongodb";
+import { createPlatformMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
 import type { TenantCreateInput, TenantRecord, TenantUpdateInput } from "./tenants.model";
 
-export interface TenantRepository extends PlatformRepository<TenantRecord, TenantCreateInput, TenantUpdateInput> {
+export interface TenantRepository
+  extends PlatformRepository<TenantRecord, TenantCreateInput, TenantUpdateInput> {
   listPage(input: TenantListQuery): Promise<TenantListPage>;
   getByCode(code: string, context?: unknown): Promise<TenantRecord | null>;
   getBySlug(slug: string): Promise<TenantRecord | null>;
   getByClientRequestId(clientRequestId: string): Promise<TenantRecord | null>;
 }
 
-export interface TenantListQuery { limit: number; offset: number; status?: TenantRecord["status"]; search?: string; }
-export interface TenantListPage { items: TenantRecord[]; hasNextPage: boolean; }
+export interface TenantListQuery {
+  limit: number;
+  offset: number;
+  status?: TenantRecord["status"];
+  search?: string;
+}
+export interface TenantListPage {
+  items: TenantRecord[];
+  hasNextPage: boolean;
+}
 
 interface TenantDocument {
   _id: string;
@@ -49,7 +62,9 @@ function cloneTenant(tenant: TenantRecord): TenantRecord {
     createdAt: new Date(tenant.createdAt),
     updatedAt: new Date(tenant.updatedAt),
     deactivatedAt: tenant.deactivatedAt ? new Date(tenant.deactivatedAt) : undefined,
-    deletionRequestedAt: tenant.deletionRequestedAt ? new Date(tenant.deletionRequestedAt) : undefined,
+    deletionRequestedAt: tenant.deletionRequestedAt
+      ? new Date(tenant.deletionRequestedAt)
+      : undefined,
     deletedAt: tenant.deletedAt ? new Date(tenant.deletedAt) : undefined,
     purgeEligibleAt: tenant.purgeEligibleAt ? new Date(tenant.purgeEligibleAt) : undefined,
   };
@@ -66,7 +81,12 @@ function toTenantDocument(record: TenantRecord): TenantDocument {
 
 function fromTenantDocument(document: TenantDocument | null): TenantRecord | null {
   if (!document) return null;
-  const { _id, normalizedCode: _normalizedCode, normalizedSlug: _normalizedSlug, ...record } = document;
+  const {
+    _id,
+    normalizedCode: _normalizedCode,
+    normalizedSlug: _normalizedSlug,
+    ...record
+  } = document;
   return cloneTenant({
     ...record,
     id: record.id || _id,
@@ -79,7 +99,10 @@ const TENANT_ID_GENERATION_ATTEMPTS = 5;
 
 function generateTenantId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(TENANT_ID_LENGTH));
-  const suffix = Array.from(bytes, (byte) => TENANT_ID_ALPHABET[byte % TENANT_ID_ALPHABET.length]).join("");
+  const suffix = Array.from(
+    bytes,
+    (byte) => TENANT_ID_ALPHABET[byte % TENANT_ID_ALPHABET.length],
+  ).join("");
   return `tenant_${suffix}`;
 }
 
@@ -105,23 +128,36 @@ function toTenantRecord(input: TenantCreateInput, id = generateTenantId()): Tena
 function normalizeCode(code: string): string {
   return code.trim().toLowerCase();
 }
-function normalizeSlug(slug: string): string { return slug.trim().toLowerCase(); }
+function normalizeSlug(slug: string): string {
+  return slug.trim().toLowerCase();
+}
 
 class InMemoryTenantRepository implements TenantRepository {
   private readonly tenants = new Map<string, TenantRecord>();
 
   async list() {
-    return [...this.tenants.values()].sort((left, right) => left.name.localeCompare(right.name)).map(cloneTenant);
+    return [...this.tenants.values()]
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map(cloneTenant);
   }
 
   async listPage(input: TenantListQuery) {
     const search = input.search?.trim().toLowerCase();
     const matches = [...this.tenants.values()]
       .filter((tenant) => !input.status || tenant.status === input.status)
-      .filter((tenant) => !search || [tenant.name, tenant.code, tenant.slug, tenant.contactEmail].some((value) => value?.toLowerCase().includes(search)))
+      .filter(
+        (tenant) =>
+          !search ||
+          [tenant.name, tenant.code, tenant.slug, tenant.contactEmail].some((value) =>
+            value?.toLowerCase().includes(search),
+          ),
+      )
       .sort((left, right) => left.name.localeCompare(right.name));
     const page = matches.slice(input.offset, input.offset + input.limit + 1);
-    return { items: page.slice(0, input.limit).map(cloneTenant), hasNextPage: page.length > input.limit };
+    return {
+      items: page.slice(0, input.limit).map(cloneTenant),
+      hasNextPage: page.length > input.limit,
+    };
   }
 
   async getById(id: string) {
@@ -130,13 +166,23 @@ class InMemoryTenantRepository implements TenantRepository {
   }
 
   async getByCode(code: string) {
-    const tenant = [...this.tenants.values()].find((item) => item.code.toLowerCase() === normalizeCode(code)) ?? null;
+    const tenant =
+      [...this.tenants.values()].find((item) => item.code.toLowerCase() === normalizeCode(code)) ??
+      null;
     return tenant ? cloneTenant(tenant) : null;
   }
-  async getBySlug(slug: string) { const tenant=[...this.tenants.values()].find((item)=>item.slug&&normalizeSlug(item.slug)===normalizeSlug(slug))??null; return tenant?cloneTenant(tenant):null; }
+  async getBySlug(slug: string) {
+    const tenant =
+      [...this.tenants.values()].find(
+        (item) => item.slug && normalizeSlug(item.slug) === normalizeSlug(slug),
+      ) ?? null;
+    return tenant ? cloneTenant(tenant) : null;
+  }
 
   async getByClientRequestId(clientRequestId: string) {
-    const tenant = [...this.tenants.values()].find((item) => item.clientRequestId === clientRequestId.trim()) ?? null;
+    const tenant =
+      [...this.tenants.values()].find((item) => item.clientRequestId === clientRequestId.trim()) ??
+      null;
     return tenant ? cloneTenant(tenant) : null;
   }
 
@@ -145,7 +191,8 @@ class InMemoryTenantRepository implements TenantRepository {
     if (existing) {
       throw new ConflictError("tenant code must be unique");
     }
-    if (input.slug && await this.getBySlug(input.slug)) throw new ConflictError("tenant slug must be unique");
+    if (input.slug && (await this.getBySlug(input.slug)))
+      throw new ConflictError("tenant slug must be unique");
     for (let attempt = 0; attempt < TENANT_ID_GENERATION_ATTEMPTS; attempt += 1) {
       const tenant = toTenantRecord(input);
       if (this.tenants.has(tenant.id)) continue;
@@ -159,7 +206,9 @@ class InMemoryTenantRepository implements TenantRepository {
     const existing = this.tenants.get(id);
     if (!existing) return null;
     if (input.code !== undefined) {
-      const duplicate = [...this.tenants.values()].find((tenant) => tenant.code.toLowerCase() === normalizeCode(input.code ?? ""));
+      const duplicate = [...this.tenants.values()].find(
+        (tenant) => tenant.code.toLowerCase() === normalizeCode(input.code ?? ""),
+      );
       if (duplicate && duplicate.id !== id) {
         throw new ConflictError("tenant code must be unique");
       }
@@ -172,7 +221,7 @@ class InMemoryTenantRepository implements TenantRepository {
       updatedAt: now(),
       deactivatedAt:
         input.status === "INACTIVE" || input.status === "SUSPENDED"
-          ? existing.deactivatedAt ?? now()
+          ? (existing.deactivatedAt ?? now())
           : input.status === "ACTIVE"
             ? undefined
             : existing.deactivatedAt,
@@ -183,7 +232,7 @@ class InMemoryTenantRepository implements TenantRepository {
 }
 
 class MongoTenantRepository implements TenantRepository {
-  constructor(private readonly collection: CollectionAdapter<TenantDocument>) {}
+  constructor(private readonly collection: PlatformCollectionAdapter<TenantDocument>) {}
 
   async list() {
     const records = await this.collection.findMany({});
@@ -198,11 +247,20 @@ class MongoTenantRepository implements TenantRepository {
     if (input.status) filter.status = input.status;
     if (input.search?.trim()) {
       const escaped = input.search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      filter.$or = ["name", "code", "slug", "contactEmail"].map((field) => ({ [field]: { $regex: escaped, $options: "i" } }));
+      filter.$or = ["name", "code", "slug", "contactEmail"].map((field) => ({
+        [field]: { $regex: escaped, $options: "i" },
+      }));
     }
-    const records = await this.collection.findMany(filter, { sort: { name: 1, _id: 1 }, skip: input.offset, limit: input.limit + 1 });
+    const records = await this.collection.findMany(filter, {
+      sort: { name: 1, _id: 1 },
+      skip: input.offset,
+      limit: input.limit + 1,
+    });
     return {
-      items: records.slice(0, input.limit).map(fromTenantDocument).filter((record): record is TenantRecord => record !== null),
+      items: records
+        .slice(0, input.limit)
+        .map(fromTenantDocument)
+        .filter((record): record is TenantRecord => record !== null),
       hasNextPage: records.length > input.limit,
     };
   }
@@ -212,12 +270,20 @@ class MongoTenantRepository implements TenantRepository {
   }
 
   async getByCode(code: string) {
-    return fromTenantDocument(await this.collection.findOne({ normalizedCode: normalizeCode(code) }));
+    return fromTenantDocument(
+      await this.collection.findOne({ normalizedCode: normalizeCode(code) }),
+    );
   }
-  async getBySlug(slug: string) { return fromTenantDocument(await this.collection.findOne({ normalizedSlug: normalizeSlug(slug) })); }
+  async getBySlug(slug: string) {
+    return fromTenantDocument(
+      await this.collection.findOne({ normalizedSlug: normalizeSlug(slug) }),
+    );
+  }
 
   async getByClientRequestId(clientRequestId: string) {
-    return fromTenantDocument(await this.collection.findOne({ clientRequestId: clientRequestId.trim() }));
+    return fromTenantDocument(
+      await this.collection.findOne({ clientRequestId: clientRequestId.trim() }),
+    );
   }
 
   async create(input: TenantCreateInput) {
@@ -225,7 +291,8 @@ class MongoTenantRepository implements TenantRepository {
     if (existing) {
       throw new ConflictError("tenant code must be unique");
     }
-    if (input.slug && await this.getBySlug(input.slug)) throw new ConflictError("tenant slug must be unique");
+    if (input.slug && (await this.getBySlug(input.slug)))
+      throw new ConflictError("tenant slug must be unique");
 
     for (let attempt = 0; attempt < TENANT_ID_GENERATION_ATTEMPTS; attempt += 1) {
       const tenant = toTenantRecord(input);
@@ -261,7 +328,7 @@ class MongoTenantRepository implements TenantRepository {
       updatedAt: now(),
       deactivatedAt:
         input.status === "INACTIVE" || input.status === "SUSPENDED"
-          ? existing.deactivatedAt ?? now()
+          ? (existing.deactivatedAt ?? now())
           : input.status === "ACTIVE"
             ? undefined
             : existing.deactivatedAt,
@@ -272,10 +339,14 @@ class MongoTenantRepository implements TenantRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
-function isDuplicateKeyError(error: unknown): error is { code: number; keyPattern?: Record<string, unknown> } {
+function isDuplicateKeyError(
+  error: unknown,
+): error is { code: number; keyPattern?: Record<string, unknown> } {
   return Boolean(error && typeof error === "object" && "code" in error && error.code === 11000);
 }
 
@@ -288,7 +359,9 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createTenantRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<TenantRepository> {
+export async function createTenantRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<TenantRepository> {
   if (!hasMongoEnv(env)) {
     const runtimeEnvironment = typeof env.environment === "string" ? env.environment : undefined;
     if (runtimeEnvironment === "dev" || runtimeEnvironment === "prod") {
@@ -301,7 +374,7 @@ export async function createTenantRepository(env: MongoEnvLike = getRuntimeEnv()
   await collection.createIndex({ normalizedCode: 1 }, { unique: true });
   await collection.createIndex({ normalizedSlug: 1 }, { unique: true, sparse: true });
   await collection.createIndex({ clientRequestId: 1 }, { unique: true });
-  return new MongoTenantRepository(createMongoCollectionAdapter(collection));
+  return new MongoTenantRepository(createPlatformMongoCollectionAdapter(collection));
 }
 
 export {

@@ -1,13 +1,16 @@
 import { BadRequestError, ConflictError } from "@school-erp/errors";
-import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
-import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { FirstAdminBootstrapCreateInput, FirstAdminBootstrapRecord } from "./bootstrap.model";
+import type { MongoEnvLike, PlatformCollectionAdapter } from "@school-erp/mongodb";
+import { createPlatformMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
+import type { FirstAdminBootstrapRecord } from "./bootstrap.model";
 
 export interface FirstAdminBootstrapRepository {
   list(): Promise<FirstAdminBootstrapRecord[]>;
   getByTenantId(tenantId: string): Promise<FirstAdminBootstrapRecord | null>;
   create(input: FirstAdminBootstrapRecord): Promise<FirstAdminBootstrapRecord>;
-  update(tenantId: string, input: Partial<FirstAdminBootstrapRecord>): Promise<FirstAdminBootstrapRecord | null>;
+  update(
+    tenantId: string,
+    input: Partial<FirstAdminBootstrapRecord>,
+  ): Promise<FirstAdminBootstrapRecord | null>;
 }
 
 interface FirstAdminBootstrapDocument extends FirstAdminBootstrapRecord {
@@ -25,7 +28,9 @@ function clone(record: FirstAdminBootstrapRecord): FirstAdminBootstrapRecord {
     updatedAt: new Date(record.updatedAt),
     invitedAt: record.invitedAt ? new Date(record.invitedAt) : undefined,
     completedAt: record.completedAt ? new Date(record.completedAt) : undefined,
-    lastInviteAttemptAt: record.lastInviteAttemptAt ? new Date(record.lastInviteAttemptAt) : undefined,
+    lastInviteAttemptAt: record.lastInviteAttemptAt
+      ? new Date(record.lastInviteAttemptAt)
+      : undefined,
   };
 }
 
@@ -33,14 +38,12 @@ function toDocument(record: FirstAdminBootstrapRecord): FirstAdminBootstrapDocum
   return { ...clone(record), _id: record.id };
 }
 
-function fromDocument(document: FirstAdminBootstrapDocument | null): FirstAdminBootstrapRecord | null {
+function fromDocument(
+  document: FirstAdminBootstrapDocument | null,
+): FirstAdminBootstrapRecord | null {
   if (!document) return null;
   const { _id, ...record } = document;
   return clone({ ...record, id: record.id || _id });
-}
-
-function makeId(): string {
-  return `bootstrap_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
 function normalizeTenantId(tenantId: string): string {
@@ -55,7 +58,9 @@ export class InMemoryFirstAdminBootstrapRepository implements FirstAdminBootstra
   private readonly records = new Map<string, FirstAdminBootstrapRecord>();
 
   async list() {
-    return [...this.records.values()].map(clone).sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
+    return [...this.records.values()]
+      .map(clone)
+      .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
   }
 
   async getByTenantId(tenantId: string) {
@@ -90,7 +95,9 @@ export class InMemoryFirstAdminBootstrapRepository implements FirstAdminBootstra
 }
 
 export class MongoFirstAdminBootstrapRepository implements FirstAdminBootstrapRepository {
-  constructor(private readonly collection: CollectionAdapter<FirstAdminBootstrapDocument>) {}
+  constructor(
+    private readonly collection: PlatformCollectionAdapter<FirstAdminBootstrapDocument>,
+  ) {}
 
   async list() {
     const records = await this.collection.findMany({});
@@ -131,13 +138,18 @@ export class MongoFirstAdminBootstrapRepository implements FirstAdminBootstrapRe
       tenantId: normalized,
       updatedAt: now(),
     });
-    const replaced = await this.collection.replaceOne({ tenantId: normalized, _id: existing.id }, toDocument(updated));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: normalized, _id: existing.id },
+      toDocument(updated),
+    );
     return replaced ? updated : null;
   }
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -145,13 +157,18 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createFirstAdminBootstrapRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<FirstAdminBootstrapRepository> {
+export async function createFirstAdminBootstrapRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<FirstAdminBootstrapRepository> {
   if (!hasMongoEnv(env)) {
     return new InMemoryFirstAdminBootstrapRepository();
   }
-  const collection = await getCollection<FirstAdminBootstrapDocument>("platform_first_admin_bootstraps", env);
+  const collection = await getCollection<FirstAdminBootstrapDocument>(
+    "platform_first_admin_bootstraps",
+    env,
+  );
   await collection.createIndex({ tenantId: 1 }, { unique: true });
-  return new MongoFirstAdminBootstrapRepository(createMongoCollectionAdapter(collection));
+  return new MongoFirstAdminBootstrapRepository(createPlatformMongoCollectionAdapter(collection));
 }
 
 export const firstAdminBootstrapRepository = createFirstAdminBootstrapRepository();

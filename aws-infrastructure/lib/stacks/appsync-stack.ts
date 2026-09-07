@@ -29,30 +29,18 @@ export class AppSyncStack extends Stack {
   constructor(scope: Construct, id: string, props: AppSyncStackProps) {
     super(scope, id, props);
 
-    const userPool = cognito.UserPool.fromUserPoolId(
-      this,
-      "UserPool",
-      props.userPoolId,
-    );
+    const userPool = cognito.UserPool.fromUserPoolId(this, "UserPool", props.userPoolId);
     this.api = new appsync.GraphqlApi(this, "GraphqlApi", {
       name: props.config.graphqlApiName,
       definition: appsync.Definition.fromFile(
-        path.resolve(
-          process.cwd(),
-          "..",
-          "graphql-api",
-          "generated",
-          "schema.graphql",
-        ),
+        path.resolve(process.cwd(), "..", "graphql-api", "generated", "schema.graphql"),
       ),
       authorizationConfig: {
         defaultAuthorization: {
           authorizationType: appsync.AuthorizationType.USER_POOL,
           userPoolConfig: { userPool },
         },
-        additionalAuthorizationModes: [
-          { authorizationType: appsync.AuthorizationType.IAM },
-        ],
+        additionalAuthorizationModes: [{ authorizationType: appsync.AuthorizationType.IAM }],
       },
       logConfig: {
         fieldLogLevel: appsync.FieldLogLevel.ERROR,
@@ -116,9 +104,7 @@ export class AppSyncStack extends Stack {
         "version": "2018-05-29",
         "payload": {"ok": true, "environment": "${props.config.environment}"}
       }`),
-      responseMappingTemplate: appsync.MappingTemplate.fromString(
-        "$util.toJson($ctx.result)",
-      ),
+      responseMappingTemplate: appsync.MappingTemplate.fromString("$util.toJson($ctx.result)"),
     });
     const platformDataSource = this.api.addLambdaDataSource(
       "PlatformDataSource",
@@ -218,7 +204,6 @@ export class AppSyncStack extends Stack {
       "createEmployee",
       "updateEmployee",
       "resendEmployeeInvite",
-      "endEmployment",
       "deactivateEmployee",
       "reactivateEmployee",
     ]) {
@@ -297,6 +282,25 @@ export class AppSyncStack extends Stack {
       "teacherWorkloadPolicies",
       "facultyWorkload",
       "teacherWorkloadWorkspace",
+      "teacherClassWorkspace",
+      "teacherAttendanceHistory",
+      "teacherMarksHistory",
+      "teacherMentees",
+      "teacherMenteeWorkspace",
+      "teacherSectionWorkspace",
+      "teacherDepartmentWorkspace",
+      "teacherCoordinationWorkspace",
+      "teacherLeadershipWorkspace",
+      "teacherAttendanceWorkspace",
+      "assessmentDefinitions",
+      "teacherMarksWorkspace",
+      "teacherDailyStudentUpdates",
+      "teacherLessonPlans",
+      "teacherDiaryEntries",
+      "teacherResources",
+      "teacherCoursework",
+      "teacherCourseworkSubmissions",
+      "teacherAcademicDoubts",
       "academicRooms",
       "campusTravelRules",
       "timetablePeriodSets",
@@ -396,6 +400,29 @@ export class AppSyncStack extends Stack {
       "addAcademicResponsibility",
       "setTeacherAvailability",
       "saveTeacherWorkloadPolicy",
+      "saveTeacherAttendance",
+      "saveAssessmentDefinition",
+      "setAssessmentDefinitionStatus",
+      "saveTeacherMarks",
+      "saveTeacherDailyStudentUpdate",
+      "publishTeacherDailyStudentUpdate",
+      "archiveTeacherDailyStudentUpdate",
+      "saveTeacherLessonPlan",
+      "setTeacherLessonPlanStatus",
+      "saveTeacherDiaryEntry",
+      "setTeacherDiaryStatus",
+      "saveTeacherResource",
+      "archiveTeacherResource",
+      "saveTeacherCoursework",
+      "setTeacherCourseworkStatus",
+      "reviewTeacherCourseworkSubmission",
+      "replyTeacherAcademicDoubt",
+      "closeTeacherAcademicDoubt",
+      "assignStudentMentor",
+      "saveTeacherMentorInteraction",
+      "setTeacherMentorInteractionStatus",
+      "saveTeacherSectionFollowUp",
+      "resolveTeacherSectionFollowUp",
       "createAcademicRoom",
       "createCampusTravelRule",
       "createTimetablePeriodSet",
@@ -421,6 +448,7 @@ export class AppSyncStack extends Stack {
       "issueStudentDocument",
       "revokeStudentDocument",
       "changeStudentEnrollment",
+      "updateStudent",
       "generateClassRegistrationNumbers",
       "generateSectionRollNumbers",
       "createCampusTransfer",

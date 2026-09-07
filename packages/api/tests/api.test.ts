@@ -22,7 +22,7 @@ test("createRequestContext normalizes request data", () => {
     path: " /tenants ",
     headers: { "X-Test": "yes" },
     query: { page: "1" },
-    rawBody: "{\"name\":\"Alpha\"}",
+    rawBody: '{"name":"Alpha"}',
   });
 
   assert.equal(context.requestId, "req-1");
@@ -69,7 +69,12 @@ test("errorResponse sanitizes unknown failures and maps capacity failures", () =
 });
 
 test("route matcher handles method and path registration", () => {
-  const route = { method: "GET" as const, path: "/tenants/:id", handler: async () => undefined, middlewares: [] };
+  const route = {
+    method: "GET" as const,
+    path: "/tenants/:id",
+    handler: async () => undefined,
+    middlewares: [],
+  };
   const match = matchRoute(route, "GET", "/tenants/tenant-1");
   assert.equal(match.matched, true);
   assert.equal(match.params.id, "tenant-1");
@@ -134,11 +139,13 @@ test("auth and tenant middleware can populate request context", async () => {
 
 test("validation middleware blocks bad input", async () => {
   const router = createRouter()
-    .use(validationMiddleware((context) => {
-      if (typeof context.body !== "object" || context.body === null) {
-        throw new BadRequestError("body required");
-      }
-    }))
+    .use(
+      validationMiddleware((context) => {
+        if (typeof context.body !== "object" || context.body === null) {
+          throw new BadRequestError("body required");
+        }
+      }),
+    )
     .route("POST", "/items", async () => jsonResponse(201, { ok: true }));
 
   const response = await router.handle({ method: "POST", path: "/items", rawBody: "{}" });

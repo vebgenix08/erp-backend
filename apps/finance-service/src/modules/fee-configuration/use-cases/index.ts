@@ -9,12 +9,7 @@ import {
 } from "../fee-configuration.mapper";
 import { feeConfigurationPermissions } from "../fee-configuration.permissions";
 import type { FeeConfigurationDependencies } from "../fee-configuration.shared";
-import {
-  actorId,
-  permission,
-  repository,
-  tenantId,
-} from "../fee-configuration.shared";
+import { actorId, permission, repository, tenantId } from "../fee-configuration.shared";
 import {
   validateFeeHead,
   validateFeeMapping,
@@ -30,9 +25,7 @@ export async function listFeeConfiguration(
 ) {
   permission(context, feeConfigurationPermissions.read as Permission);
   return toConfigurationView(
-    await (
-      await repository(deps)
-    ).snapshot(tenantId(context), validateScope(input)),
+    await (await repository(deps)).snapshot(tenantId(context), validateScope(input)),
   );
 }
 export async function createFeeHead(
@@ -44,11 +37,7 @@ export async function createFeeHead(
   return toFeeHeadView(
     await (
       await repository(deps)
-    ).createFeeHead(
-      tenantId(context),
-      actorId(context),
-      validateFeeHead(input),
-    ),
+    ).createFeeHead(tenantId(context), actorId(context), validateFeeHead(input)),
   );
 }
 export async function updateFeeHead(
@@ -61,12 +50,7 @@ export async function updateFeeHead(
   return toFeeHeadView(
     await (
       await repository(deps)
-    ).updateFeeHead(
-      tenantId(context),
-      id.trim(),
-      actorId(context),
-      validateFeeHead(input),
-    ),
+    ).updateFeeHead(tenantId(context), id.trim(), actorId(context), validateFeeHead(input)),
   );
 }
 export async function createFeeSchedule(
@@ -78,11 +62,7 @@ export async function createFeeSchedule(
   return toScheduleView(
     await (
       await repository(deps)
-    ).createSchedule(
-      tenantId(context),
-      actorId(context),
-      validateFeeSchedule(input),
-    ),
+    ).createSchedule(tenantId(context), actorId(context), validateFeeSchedule(input)),
   );
 }
 export async function createFeeStructure(
@@ -94,11 +74,7 @@ export async function createFeeStructure(
   return toStructureView(
     await (
       await repository(deps)
-    ).createStructure(
-      tenantId(context),
-      actorId(context),
-      validateFeeStructure(input),
-    ),
+    ).createStructure(tenantId(context), actorId(context), validateFeeStructure(input)),
   );
 }
 export async function createFeeMapping(
@@ -110,11 +86,7 @@ export async function createFeeMapping(
   return toMappingView(
     await (
       await repository(deps)
-    ).createMapping(
-      tenantId(context),
-      actorId(context),
-      validateFeeMapping(input),
-    ),
+    ).createMapping(tenantId(context), actorId(context), validateFeeMapping(input)),
   );
 }
 export async function setFeeConfigurationStatus(

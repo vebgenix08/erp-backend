@@ -1,0 +1,20 @@
+{
+  "name": "@school-erp/service-client",
+  "private": true,
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "dependencies": {
+    "@aws-sdk/client-lambda": "^3.1090.0",
+    "@school-erp/api": "workspace:*",
+    "@school-erp/auth": "workspace:*",
+    "@school-erp/numbering": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.14"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test dist-tests/tests/service-client.test.js"
+  }
+}

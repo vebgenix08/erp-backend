@@ -23,7 +23,9 @@ export interface UserFixture {
 
 export type FixtureRecord<T> = T & Record<string, unknown>;
 
-export function createTenantFixture(overrides: Partial<TenantFixture> = {}): FixtureRecord<TenantFixture> {
+export function createTenantFixture(
+  overrides: Partial<TenantFixture> = {},
+): FixtureRecord<TenantFixture> {
   return {
     id: "tenant_test_1",
     clientRequestId: "request_tenant_test_1",
@@ -39,7 +41,9 @@ export function createTenantFixture(overrides: Partial<TenantFixture> = {}): Fix
   };
 }
 
-export function createUserFixture(overrides: Partial<UserFixture> = {}): FixtureRecord<UserFixture> {
+export function createUserFixture(
+  overrides: Partial<UserFixture> = {},
+): FixtureRecord<UserFixture> {
   return {
     id: "user_test_1",
     tenantId: "tenant_test_1",

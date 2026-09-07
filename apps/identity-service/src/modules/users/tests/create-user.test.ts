@@ -20,7 +20,11 @@ test("create user rejects duplicate email within tenant", async () => {
   await createUserUseCase(context, createUserFixture({ email: "duplicate@example.com" }));
 
   await assert.rejects(
-    () => createUserUseCase(context, createUserFixture({ email: "duplicate@example.com", authUserId: "auth-user-2" })),
+    () =>
+      createUserUseCase(
+        context,
+        createUserFixture({ email: "duplicate@example.com", authUserId: "auth-user-2" }),
+      ),
     /user email must be unique within tenant/i,
   );
 });

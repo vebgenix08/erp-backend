@@ -1,6 +1,8 @@
 import type { InstitutionProfileInput } from "../../institution.model";
 
-export function createInstitutionFixture(overrides: Partial<InstitutionProfileInput> = {}): InstitutionProfileInput {
+export function createInstitutionFixture(
+  overrides: Partial<InstitutionProfileInput> = {},
+): InstitutionProfileInput {
   return {
     name: "Sample Institution",
     shortName: "Sample",

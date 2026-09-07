@@ -1,6 +1,24 @@
-import type { SessionAuthContext, SessionPayload, SessionTenantSnapshot, SessionUserSnapshot } from "./session.model";
+import type {
+  SessionAuthContext,
+  SessionPayload,
+  SessionRoleSnapshot,
+  SessionScopeSnapshot,
+  SessionTenantSnapshot,
+  SessionUserSnapshot,
+} from "./session.model";
+import type { Permission } from "@school-erp/auth";
 
-export function toSessionUserSnapshot(context: SessionAuthContext): SessionUserSnapshot {
+export interface ResolvedSessionAuthorization {
+  role?: string | undefined;
+  roles: SessionRoleSnapshot[];
+  permissions: Permission[];
+  scopes: SessionScopeSnapshot[];
+}
+
+export function toSessionUserSnapshot(
+  context: SessionAuthContext,
+  authorization?: ResolvedSessionAuthorization,
+): SessionUserSnapshot {
   const user = context.user;
   if (!user) {
     throw new Error("auth context is required");
@@ -8,13 +26,19 @@ export function toSessionUserSnapshot(context: SessionAuthContext): SessionUserS
   return {
     id: user.id,
     email: user.email,
-    role: user.role,
-    permissions: [...user.permissions],
+    role: authorization?.role ?? user.role,
+    roles:
+      authorization?.roles ??
+      (user.role ? [{ code: user.role, name: user.role.replaceAll("_", " ") }] : []),
+    permissions: [...new Set(authorization?.permissions ?? user.permissions)],
+    scopes: authorization?.scopes ?? [],
     source: user.source,
   };
 }
 
-export function toSessionTenantSnapshot(tenant: SessionAuthContext["tenant"] | null | undefined): SessionTenantSnapshot | null {
+export function toSessionTenantSnapshot(
+  tenant: SessionAuthContext["tenant"] | null | undefined,
+): SessionTenantSnapshot | null {
   if (!tenant?.tenantId) return null;
   return {
     tenantId: tenant.tenantId,
@@ -26,9 +50,10 @@ export function toSessionTenantSnapshot(tenant: SessionAuthContext["tenant"] | n
 export function toSessionPayload(
   context: SessionAuthContext,
   selectedTenant: SessionTenantSnapshot | null,
+  authorization?: ResolvedSessionAuthorization,
 ): SessionPayload {
   return {
-    user: toSessionUserSnapshot(context),
+    user: toSessionUserSnapshot(context, authorization),
     tenant: toSessionTenantSnapshot(context.tenant),
     selectedTenant,
     authenticatedAt: context.authenticatedAt.toISOString(),

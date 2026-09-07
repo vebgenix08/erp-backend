@@ -9,7 +9,9 @@ export interface ProgramServiceDeps {
   repository?: ProgramRepository | Promise<ProgramRepository>;
 }
 
-export async function resolveProgramRepository(deps?: ProgramServiceDeps): Promise<ProgramRepository> {
+export async function resolveProgramRepository(
+  deps?: ProgramServiceDeps,
+): Promise<ProgramRepository> {
   return await (deps?.repository ?? defaultRepository);
 }
 
@@ -36,6 +38,9 @@ export function requirePermission(context: RequestContext, permission: Permissio
   }
 }
 
-export function requireProgramPermissions(context: RequestContext, permission: keyof typeof academicsPermissions.programs): void {
+export function requireProgramPermissions(
+  context: RequestContext,
+  permission: keyof typeof academicsPermissions.programs,
+): void {
   requirePermission(context, academicsPermissions.programs[permission] as Permission);
 }

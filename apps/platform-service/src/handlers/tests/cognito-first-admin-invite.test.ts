@@ -14,22 +14,32 @@ function sesClient(responses: unknown[]): SESv2Client {
 }
 
 test("allows all recipients after SES production access is enabled", async () => {
-  await assertSesRecipientEligible(sesClient([{ ProductionAccessEnabled: true }]), "admin@example.com");
+  await assertSesRecipientEligible(
+    sesClient([{ ProductionAccessEnabled: true }]),
+    "admin@example.com",
+  );
 });
 
 test("allows verified recipients while SES is sandboxed", async () => {
   await assertSesRecipientEligible(
-    sesClient([{ ProductionAccessEnabled: false }, { VerifiedForSendingStatus: true, VerificationStatus: "SUCCESS" }]),
+    sesClient([
+      { ProductionAccessEnabled: false },
+      { VerifiedForSendingStatus: true, VerificationStatus: "SUCCESS" },
+    ]),
     "verified@example.com",
   );
 });
 
 test("rejects unverified recipients while SES is sandboxed", async () => {
   await assert.rejects(
-    () => assertSesRecipientEligible(
-      sesClient([{ ProductionAccessEnabled: false }, { VerifiedForSendingStatus: false, VerificationStatus: "PENDING" }]),
-      "unverified@example.com",
-    ),
+    () =>
+      assertSesRecipientEligible(
+        sesClient([
+          { ProductionAccessEnabled: false },
+          { VerifiedForSendingStatus: false, VerificationStatus: "PENDING" },
+        ]),
+        "unverified@example.com",
+      ),
     /SES sandbox cannot deliver to unverified recipient/,
   );
 });

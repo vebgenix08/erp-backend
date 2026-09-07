@@ -30,7 +30,11 @@ export async function getTenant(id: string, context: RequestContext, deps?: Tena
   return toTenantView(tenant);
 }
 
-export async function createTenant(input: Record<string, unknown>, context: RequestContext, deps?: TenantServiceDeps) {
+export async function createTenant(
+  input: Record<string, unknown>,
+  context: RequestContext,
+  deps?: TenantServiceDeps,
+) {
   requirePlatformPermission(context, platformPermissions.tenants.create);
   const repository = await resolveRepository(deps);
   const payload = validateTenantCreateInput(input);
@@ -43,7 +47,12 @@ export async function createTenant(input: Record<string, unknown>, context: Requ
   return toTenantView(await repository.create(payload));
 }
 
-export async function updateTenant(id: string, input: Record<string, unknown>, context: RequestContext, deps?: TenantServiceDeps) {
+export async function updateTenant(
+  id: string,
+  input: Record<string, unknown>,
+  context: RequestContext,
+  deps?: TenantServiceDeps,
+) {
   requirePlatformPermission(context, platformPermissions.tenants.update);
   const repository = await resolveRepository(deps);
   const payload = validateTenantUpdateInput(input);
@@ -58,16 +67,26 @@ export async function updateTenant(id: string, input: Record<string, unknown>, c
   return toTenantView(updated);
 }
 
-export async function deactivateTenant(id: string, context: RequestContext, deps?: TenantServiceDeps) {
+export async function deactivateTenant(
+  id: string,
+  context: RequestContext,
+  deps?: TenantServiceDeps,
+) {
   requirePlatformPermission(context, platformPermissions.tenants.update);
   const repository = await resolveRepository(deps);
   const existing = await repository.getById(id);
   if (!existing) return null;
   if (existing.status === "INACTIVE") return toTenantView(existing);
-  return toTenantView(await repository.update(id, { status: "INACTIVE", deactivatedAt: new Date() }));
+  return toTenantView(
+    await repository.update(id, { status: "INACTIVE", deactivatedAt: new Date() }),
+  );
 }
 
-export async function activateTenant(id: string, context: RequestContext, deps?: TenantServiceDeps) {
+export async function activateTenant(
+  id: string,
+  context: RequestContext,
+  deps?: TenantServiceDeps,
+) {
   requirePlatformPermission(context, platformPermissions.tenants.update);
   const repository = await resolveRepository(deps);
   const existing = await repository.getById(id);
@@ -82,10 +101,17 @@ export async function suspendTenant(id: string, context: RequestContext, deps?: 
   const existing = await repository.getById(id);
   if (!existing || existing.deletedAt) return null;
   if (existing.status === "SUSPENDED") return toTenantView(existing);
-  return toTenantView(await repository.update(id, { status: "SUSPENDED", deactivatedAt: new Date() }));
+  return toTenantView(
+    await repository.update(id, { status: "SUSPENDED", deactivatedAt: new Date() }),
+  );
 }
 
-export async function requestTenantDeletion(id: string, reason: string, context: RequestContext, deps?: TenantServiceDeps) {
+export async function requestTenantDeletion(
+  id: string,
+  reason: string,
+  context: RequestContext,
+  deps?: TenantServiceDeps,
+) {
   requirePlatformPermission(context, platformPermissions.tenants.delete);
   const repository = await resolveRepository(deps);
   const existing = await repository.getById(id);
@@ -93,26 +119,35 @@ export async function requestTenantDeletion(id: string, reason: string, context:
   if (existing.deletionRequestedAt) return toTenantView(existing);
   const normalizedReason = reason.trim();
   if (!normalizedReason) throw new ConflictError("tenant deletion reason is required");
-  return toTenantView(await repository.update(id, {
-    status: "INACTIVE",
-    deactivatedAt: existing.deactivatedAt ?? new Date(),
-    deletionRequestedAt: new Date(),
-    deletionRequestedBy: context.authContext?.user?.id,
-    deletionReason: normalizedReason,
-  }));
+  return toTenantView(
+    await repository.update(id, {
+      status: "INACTIVE",
+      deactivatedAt: existing.deactivatedAt ?? new Date(),
+      deletionRequestedAt: new Date(),
+      deletionRequestedBy: context.authContext?.user?.id,
+      deletionReason: normalizedReason,
+    }),
+  );
 }
 
-export async function confirmTenantDeletion(id: string, context: RequestContext, deps?: TenantServiceDeps) {
+export async function confirmTenantDeletion(
+  id: string,
+  context: RequestContext,
+  deps?: TenantServiceDeps,
+) {
   requirePlatformPermission(context, platformPermissions.tenants.delete);
   const repository = await resolveRepository(deps);
   const existing = await repository.getById(id);
   if (!existing) return null;
   if (existing.deletedAt) return toTenantView(existing);
-  if (!existing.deletionRequestedAt) throw new ConflictError("tenant deletion must be requested before confirmation");
-  return toTenantView(await repository.update(id, {
-    status: "INACTIVE",
-    deletedAt: new Date(),
-    deletedBy: context.authContext?.user?.id,
-    purgeEligibleAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-  }));
+  if (!existing.deletionRequestedAt)
+    throw new ConflictError("tenant deletion must be requested before confirmation");
+  return toTenantView(
+    await repository.update(id, {
+      status: "INACTIVE",
+      deletedAt: new Date(),
+      deletedBy: context.authContext?.user?.id,
+      purgeEligibleAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    }),
+  );
 }

@@ -16,7 +16,12 @@ test("complete first admin bootstrap marks the bootstrap complete", async () => 
     { repository },
   );
 
-  const result = await completeFirstAdminBootstrapUseCase("tenant_1", { inviteId: "invite_1" }, createBootstrapContext(), { repository });
+  const result = await completeFirstAdminBootstrapUseCase(
+    "tenant_1",
+    { inviteId: "invite_1" },
+    createBootstrapContext(),
+    { repository },
+  );
   assert.equal(result?.status, "COMPLETED");
   assert.equal(result?.inviteId, "invite_1");
 });

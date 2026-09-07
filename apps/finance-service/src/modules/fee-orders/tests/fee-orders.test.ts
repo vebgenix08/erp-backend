@@ -52,10 +52,32 @@ async function configuredRepositories() {
 }
 
 async function configureTargetCampus(deps: Awaited<ReturnType<typeof configuredRepositories>>) {
-  const targetSchedule = await deps.configuration.createSchedule(tenantId, "admin_1", { campusId: "campus_north", academicYearId: student.academicYearId, name: "North annual collection", pattern: "ANNUAL", collectionPolicy: "PARTIAL_ALLOWED" });
-  const head = (await deps.configuration.snapshot(tenantId, { campusId: student.campusId, academicYearId: student.academicYearId })).feeHeads[0]!;
-  const targetStructure = await deps.configuration.createStructure(tenantId, "admin_1", { campusId: "campus_north", academicYearId: student.academicYearId, name: "North Class 10 Annual Fee", components: [{ feeHeadId: head.id, amountMinor: 3_000_000 }] });
-  await deps.configuration.createMapping(tenantId, "admin_1", { campusId: "campus_north", academicYearId: student.academicYearId, structureId: targetStructure.id, scheduleId: targetSchedule.id, target: { programId: student.programId, classId: student.classId } });
+  const targetSchedule = await deps.configuration.createSchedule(tenantId, "admin_1", {
+    campusId: "campus_north",
+    academicYearId: student.academicYearId,
+    name: "North annual collection",
+    pattern: "ANNUAL",
+    collectionPolicy: "PARTIAL_ALLOWED",
+  });
+  const head = (
+    await deps.configuration.snapshot(tenantId, {
+      campusId: student.campusId,
+      academicYearId: student.academicYearId,
+    })
+  ).feeHeads[0]!;
+  const targetStructure = await deps.configuration.createStructure(tenantId, "admin_1", {
+    campusId: "campus_north",
+    academicYearId: student.academicYearId,
+    name: "North Class 10 Annual Fee",
+    components: [{ feeHeadId: head.id, amountMinor: 3_000_000 }],
+  });
+  await deps.configuration.createMapping(tenantId, "admin_1", {
+    campusId: "campus_north",
+    academicYearId: student.academicYearId,
+    structureId: targetStructure.id,
+    scheduleId: targetSchedule.id,
+    target: { programId: student.programId, classId: student.classId },
+  });
 }
 
 test("generates a frozen fee order from the active class mapping", async () => {
@@ -110,11 +132,26 @@ test("campus transfer preserves source payment and applies transfer credit to th
   });
 
   await configureTargetCampus(deps);
-  const destination=await generateFeeOrderFromEnrollment({...student,transferId:"transfer_1",enrollmentId:"enrollment_transfer",campusId:"campus_north"},tenantId,deps);
-  const source=await deps.orders.getById(tenantId,created.id);
-  assert.equal(source?.status,"CLOSED");assert.equal(source?.closureReason,"CAMPUS_TRANSFER");assert.equal(source?.closedBalanceMinor,2_000_001);assert.equal(source?.balanceMinor,0);
-  assert.equal(destination.totalMinor,3_000_000);assert.equal(destination.transferCreditMinor,500_000);assert.equal(destination.balanceMinor,2_500_000);assert.equal(destination.paidMinor,0);
-  assert.equal((await deps.orders.list(tenantId)).length,2);
+  const destination = await generateFeeOrderFromEnrollment(
+    {
+      ...student,
+      transferId: "transfer_1",
+      enrollmentId: "enrollment_transfer",
+      campusId: "campus_north",
+    },
+    tenantId,
+    deps,
+  );
+  const source = await deps.orders.getById(tenantId, created.id);
+  assert.equal(source?.status, "CLOSED");
+  assert.equal(source?.closureReason, "CAMPUS_TRANSFER");
+  assert.equal(source?.closedBalanceMinor, 2_000_001);
+  assert.equal(source?.balanceMinor, 0);
+  assert.equal(destination.totalMinor, 3_000_000);
+  assert.equal(destination.transferCreditMinor, 500_000);
+  assert.equal(destination.balanceMinor, 2_500_000);
+  assert.equal(destination.paidMinor, 0);
+  assert.equal((await deps.orders.list(tenantId)).length, 2);
 });
 
 test("campus transfer with an additional fee liability is held for finance review", async () => {
@@ -132,11 +169,12 @@ test("campus transfer with an additional fee liability is held for finance revie
   });
 
   await assert.rejects(
-    () => generateFeeOrderFromEnrollment(
-      { ...student, enrollmentId: "enrollment_transfer", campusId: "campus_north" },
-      tenantId,
-      deps,
-    ),
+    () =>
+      generateFeeOrderFromEnrollment(
+        { ...student, enrollmentId: "enrollment_transfer", campusId: "campus_north" },
+        tenantId,
+        deps,
+      ),
     /additional fee liabilities/,
   );
   assert.equal((await deps.orders.list(tenantId)).length, 2);
@@ -161,7 +199,12 @@ test("paid additional fees do not block a campus transfer", async () => {
   await configureTargetCampus(deps);
 
   const destination = await generateFeeOrderFromEnrollment(
-    { ...student, transferId: "transfer_paid_additional", enrollmentId: "enrollment_transfer", campusId: "campus_north" },
+    {
+      ...student,
+      transferId: "transfer_paid_additional",
+      enrollmentId: "enrollment_transfer",
+      campusId: "campus_north",
+    },
     tenantId,
     deps,
   );

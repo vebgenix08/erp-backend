@@ -34,7 +34,15 @@ export class EmailEventsStack extends Stack {
       eventDestination: {
         name: `email-events-${props.config.environment}`,
         enabled: true,
-        matchingEventTypes: ["SEND", "DELIVERY", "BOUNCE", "COMPLAINT", "REJECT", "DELIVERY_DELAY", "RENDERING_FAILURE"],
+        matchingEventTypes: [
+          "SEND",
+          "DELIVERY",
+          "BOUNCE",
+          "COMPLAINT",
+          "REJECT",
+          "DELIVERY_DELAY",
+          "RENDERING_FAILURE",
+        ],
         eventBridgeDestination: { eventBusArn: defaultEventBus.eventBusArn },
       },
     });
@@ -61,13 +69,23 @@ export class EmailEventsStack extends Stack {
       ruleName: `ses-email-events-${props.config.environment}`,
       eventPattern: {
         source: ["aws.ses"],
-        detailType: ["Email Sent", "Email Delivered", "Email Bounced", "Email Complaint Received", "Email Rejected", "Email Delivery Delayed", "Email Rendering Failed"],
+        detailType: [
+          "Email Sent",
+          "Email Delivered",
+          "Email Bounced",
+          "Email Complaint Received",
+          "Email Rejected",
+          "Email Delivery Delayed",
+          "Email Rendering Failed",
+        ],
       },
-      targets: [new targets.SqsQueue(this.eventQueue, {
-        deadLetterQueue: this.deadLetterQueue,
-        retryAttempts: 2,
-        maxEventAge: Duration.hours(2),
-      })],
+      targets: [
+        new targets.SqsQueue(this.eventQueue, {
+          deadLetterQueue: this.deadLetterQueue,
+          retryAttempts: 2,
+          maxEventAge: Duration.hours(2),
+        }),
+      ],
     });
 
     new CfnOutput(this, "ConfigurationSetName", { value: props.config.sesConfigurationSetName });

@@ -1,14 +1,22 @@
 import { BadRequestError, ConflictError } from "@school-erp/errors";
 import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
 import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { PermissionCreateInput, PermissionRecord, PermissionUpdateInput } from "./permissions.model";
+import type {
+  PermissionCreateInput,
+  PermissionRecord,
+  PermissionUpdateInput,
+} from "./permissions.model";
 
 export interface PermissionRepository {
   list(tenantId: string): Promise<PermissionRecord[]>;
   getById(tenantId: string, id: string): Promise<PermissionRecord | null>;
   getByCode(tenantId: string, code: string): Promise<PermissionRecord | null>;
   create(tenantId: string, input: PermissionCreateInput): Promise<PermissionRecord>;
-  update(tenantId: string, id: string, input: PermissionUpdateInput): Promise<PermissionRecord | null>;
+  update(
+    tenantId: string,
+    id: string,
+    input: PermissionUpdateInput,
+  ): Promise<PermissionRecord | null>;
   delete(tenantId: string, id: string): Promise<boolean>;
 }
 
@@ -60,7 +68,11 @@ function fromPermissionDocument(document: PermissionDocument | null): Permission
   });
 }
 
-function toPermissionRecord(tenantId: string, input: PermissionCreateInput, id = generatePermissionId()): PermissionRecord {
+function toPermissionRecord(
+  tenantId: string,
+  input: PermissionCreateInput,
+  id = generatePermissionId(),
+): PermissionRecord {
   const timestamp = now();
   return {
     id,
@@ -75,12 +87,19 @@ function toPermissionRecord(tenantId: string, input: PermissionCreateInput, id =
   };
 }
 
-function mergePermission(existing: PermissionRecord, input: PermissionUpdateInput): PermissionRecord {
+function mergePermission(
+  existing: PermissionRecord,
+  input: PermissionUpdateInput,
+): PermissionRecord {
   return {
     ...existing,
     code: input.code ? normalizeCode(input.code) : existing.code,
-    description: input.description !== undefined ? input.description?.trim() || undefined : existing.description,
-    category: input.category !== undefined ? input.category?.trim() || undefined : existing.category,
+    description:
+      input.description !== undefined
+        ? input.description?.trim() || undefined
+        : existing.description,
+    category:
+      input.category !== undefined ? input.category?.trim() || undefined : existing.category,
     isSystemPermission: input.isSystemPermission ?? existing.isSystemPermission,
     isActive: input.isActive ?? existing.isActive,
     updatedAt: now(),
@@ -100,15 +119,18 @@ class InMemoryPermissionRepository implements PermissionRepository {
 
   async getById(tenantId: string, id: string) {
     const permission = this.permissions.get(id) ?? null;
-    return permission && permission.tenantId === normalizeTenantId(tenantId) ? clonePermission(permission) : null;
+    return permission && permission.tenantId === normalizeTenantId(tenantId)
+      ? clonePermission(permission)
+      : null;
   }
 
   async getByCode(tenantId: string, code: string) {
     const normalizedTenantId = normalizeTenantId(tenantId);
     const normalizedCode = normalizeCode(code);
-    const permission = [...this.permissions.values()].find(
-      (item) => item.tenantId === normalizedTenantId && item.code === normalizedCode,
-    ) ?? null;
+    const permission =
+      [...this.permissions.values()].find(
+        (item) => item.tenantId === normalizedTenantId && item.code === normalizedCode,
+      ) ?? null;
     return permission ? clonePermission(permission) : null;
   }
 
@@ -156,12 +178,17 @@ class MongoPermissionRepository implements PermissionRepository {
   }
 
   async getById(tenantId: string, id: string) {
-    return fromPermissionDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }));
+    return fromPermissionDocument(
+      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }),
+    );
   }
 
   async getByCode(tenantId: string, code: string) {
     return fromPermissionDocument(
-      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), code: normalizeCode(code) }),
+      await this.collection.findOne({
+        tenantId: normalizeTenantId(tenantId),
+        code: normalizeCode(code),
+      }),
     );
   }
 
@@ -199,7 +226,9 @@ class MongoPermissionRepository implements PermissionRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -207,7 +236,9 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createPermissionRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<PermissionRepository> {
+export async function createPermissionRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<PermissionRepository> {
   if (!hasMongoEnv(env)) {
     return new InMemoryPermissionRepository();
   }

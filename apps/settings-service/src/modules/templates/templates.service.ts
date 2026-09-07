@@ -6,14 +6,20 @@ import { templatePermissions } from "./templates.permissions";
 import { toTemplateView } from "./templates.mapper";
 import type { TemplateRepository } from "./templates.repository";
 import { templateRepository as defaultRepository } from "./templates.repository";
-import { validateTemplateCreateInput, validateTemplateListFilter, validateTemplateUpdateInput } from "./templates.validator";
+import {
+  validateTemplateCreateInput,
+  validateTemplateListFilter,
+  validateTemplateUpdateInput,
+} from "./templates.validator";
 import type { TemplateRecord, TemplateServiceContext, TemplateView } from "./templates.model";
 
 export interface TemplateServiceDeps {
   repository?: TemplateRepository | Promise<TemplateRepository>;
 }
 
-function resolveRepository(deps?: TemplateServiceDeps): TemplateRepository | Promise<TemplateRepository> {
+function resolveRepository(
+  deps?: TemplateServiceDeps,
+): TemplateRepository | Promise<TemplateRepository> {
   return deps?.repository ?? defaultRepository;
 }
 
@@ -25,7 +31,10 @@ function assertAuth(context: TemplateServiceContext | RequestContext): void {
   requireAuth(context.authContext);
 }
 
-function assertPermission(context: TemplateServiceContext | RequestContext, permission: string): void {
+function assertPermission(
+  context: TemplateServiceContext | RequestContext,
+  permission: string,
+): void {
   requirePermission(context.authContext, permission);
 }
 
@@ -69,7 +78,9 @@ export async function listTemplates(
   assertAuth(context);
   assertPermission(context, templatePermissions.read);
   const repository = await resolveRepository(deps);
-  return (await repository.list(getTenantId(context), validateTemplateListFilter(filter))).map((record) => toTemplateView(record) as TemplateView);
+  return (await repository.list(getTenantId(context), validateTemplateListFilter(filter))).map(
+    (record) => toTemplateView(record) as TemplateView,
+  );
 }
 
 export async function updateTemplate(
@@ -81,7 +92,11 @@ export async function updateTemplate(
   assertAuth(context);
   assertPermission(context, templatePermissions.update);
   const repository = await resolveRepository(deps);
-  const updated = await repository.update(getTenantId(context), id, validateTemplateUpdateInput(input));
+  const updated = await repository.update(
+    getTenantId(context),
+    id,
+    validateTemplateUpdateInput(input),
+  );
   return toTemplateView(updated);
 }
 
@@ -101,9 +116,12 @@ export async function publishTemplate(
   if (!published) return null;
 
   if (published.layout) {
-    const competingTemplates = (await repository.list(tenantId, { status: "PUBLISHED" }))
-      .filter((template) => template.id !== published.id && template.layout === published.layout);
-    await Promise.all(competingTemplates.map((template) => repository.archive(tenantId, template.id)));
+    const competingTemplates = (await repository.list(tenantId, { status: "PUBLISHED" })).filter(
+      (template) => template.id !== published.id && template.layout === published.layout,
+    );
+    await Promise.all(
+      competingTemplates.map((template) => repository.archive(tenantId, template.id)),
+    );
   }
 
   return toTemplateView(published);

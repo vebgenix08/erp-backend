@@ -16,7 +16,11 @@ export function createBootstrapContext(): FirstAdminBootstrapServiceContext {
         id: "user_1",
         email: "platform@example.test",
         role: "SUPER_ADMIN",
-        permissions: ["platform.bootstrap.create", "platform.bootstrap.read", "platform.bootstrap.complete"],
+        permissions: [
+          "platform.bootstrap.create",
+          "platform.bootstrap.read",
+          "platform.bootstrap.complete",
+        ],
         source: "request",
       },
       tenant: {

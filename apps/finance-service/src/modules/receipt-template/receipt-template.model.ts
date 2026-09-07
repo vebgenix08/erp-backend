@@ -18,9 +18,13 @@ export interface ReceiptTemplateRecord {
   updatedAt: Date;
 }
 
-export type ReceiptTemplateInput = Omit<ReceiptTemplateRecord, "id" | "tenantId" | "updatedBy" | "createdAt" | "updatedAt">;
+export type ReceiptTemplateInput = Omit<
+  ReceiptTemplateRecord,
+  "id" | "tenantId" | "updatedBy" | "createdAt" | "updatedAt"
+>;
 
-export interface ReceiptTemplateView extends Omit<ReceiptTemplateRecord, "createdAt" | "updatedAt"> {
+export interface ReceiptTemplateView
+  extends Omit<ReceiptTemplateRecord, "createdAt" | "updatedAt"> {
   createdAt: string;
   updatedAt: string;
 }

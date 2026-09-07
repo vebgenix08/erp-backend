@@ -33,7 +33,8 @@ export interface CampusAcademicUnitListFilter {
   status?: AcademicUnitStatus | undefined;
 }
 
-export interface CampusAcademicUnitView extends Omit<CampusAcademicUnitRecord, "createdAt" | "updatedAt" | "deactivatedAt"> {
+export interface CampusAcademicUnitView
+  extends Omit<CampusAcademicUnitRecord, "createdAt" | "updatedAt" | "deactivatedAt"> {
   createdAt: string;
   updatedAt: string;
   deactivatedAt?: string | undefined;

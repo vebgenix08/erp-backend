@@ -1,6 +1,8 @@
 import type { PermissionCreateInput, PermissionUpdateInput } from "../../permissions.model";
 
-export function createPermissionFixture(overrides: Partial<PermissionCreateInput> = {}): Record<string, unknown> {
+export function createPermissionFixture(
+  overrides: Partial<PermissionCreateInput> = {},
+): Record<string, unknown> {
   return {
     code: "identity.users.read",
     description: "Read users",
@@ -11,7 +13,9 @@ export function createPermissionFixture(overrides: Partial<PermissionCreateInput
   };
 }
 
-export function updatePermissionFixture(overrides: Partial<PermissionUpdateInput> = {}): Record<string, unknown> {
+export function updatePermissionFixture(
+  overrides: Partial<PermissionUpdateInput> = {},
+): Record<string, unknown> {
   return {
     description: "Updated description",
     ...overrides,

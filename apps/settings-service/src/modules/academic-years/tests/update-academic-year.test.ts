@@ -10,12 +10,22 @@ test("update academic year changes fields", async () => {
   const context = createMockRequestContext({
     tenantContext: { tenantId: "tenant-1" } as any,
     authContext: {
-      user: { id: "user-1", permissions: ["settings.academicyears.create", "settings.academicyears.update"] },
+      user: {
+        id: "user-1",
+        permissions: ["settings.academicyears.create", "settings.academicyears.update"],
+      },
       source: "request",
       authenticatedAt: new Date(),
     } as any,
   });
-  const created = await createAcademicYearUseCase(context as any, createAcademicYearFixture(), { repository });
-  const updated = await updateAcademicYearUseCase(context as any, created.id, { name: "Updated Year" }, { repository });
+  const created = await createAcademicYearUseCase(context as any, createAcademicYearFixture(), {
+    repository,
+  });
+  const updated = await updateAcademicYearUseCase(
+    context as any,
+    created.id,
+    { name: "Updated Year" },
+    { repository },
+  );
   assert.equal(updated?.name, "Updated Year");
 });

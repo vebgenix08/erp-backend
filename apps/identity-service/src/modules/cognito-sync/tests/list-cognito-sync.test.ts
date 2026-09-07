@@ -6,7 +6,11 @@ import { createCognitoSyncContext } from "./fixtures";
 
 test("list cognito sync returns tenant scoped results", async () => {
   const repository = new InMemoryCognitoSyncRepository();
-  await createCognitoSyncUseCase({ userId: "user_abc", email: "teacher@example.test" }, createCognitoSyncContext(), { repository });
+  await createCognitoSyncUseCase(
+    { userId: "user_abc", email: "teacher@example.test" },
+    createCognitoSyncContext(),
+    { repository },
+  );
   const records = await listCognitoSyncUseCase(createCognitoSyncContext(), { repository });
   assert.equal(records.length, 1);
 });

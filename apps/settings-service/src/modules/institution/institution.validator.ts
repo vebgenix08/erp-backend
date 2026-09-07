@@ -31,16 +31,26 @@ export function validateInstitutionProfileInput(input: unknown): InstitutionProf
 
   return {
     name,
-    ...(normalizeOptional(payload.shortName) !== undefined ? { shortName: normalizeOptional(payload.shortName) } : {}),
+    ...(normalizeOptional(payload.shortName) !== undefined
+      ? { shortName: normalizeOptional(payload.shortName) }
+      : {}),
     ...(contactEmail !== undefined ? { contactEmail } : {}),
     ...(contactPhone !== undefined ? { contactPhone } : {}),
-    ...(normalizeOptional(payload.address) !== undefined ? { address: normalizeOptional(payload.address) } : {}),
-    ...(normalizeOptional(payload.logoUrl) !== undefined ? { logoUrl: normalizeOptional(payload.logoUrl) } : {}),
-    ...(normalizeOptional(payload.logoFileId) !== undefined ? { logoFileId: normalizeOptional(payload.logoFileId) } : {}),
+    ...(normalizeOptional(payload.address) !== undefined
+      ? { address: normalizeOptional(payload.address) }
+      : {}),
+    ...(normalizeOptional(payload.logoUrl) !== undefined
+      ? { logoUrl: normalizeOptional(payload.logoUrl) }
+      : {}),
+    ...(normalizeOptional(payload.logoFileId) !== undefined
+      ? { logoFileId: normalizeOptional(payload.logoFileId) }
+      : {}),
   };
 }
 
-export function validateInstitutionProfileUpdateInput(input: unknown): InstitutionProfileUpdateInput {
+export function validateInstitutionProfileUpdateInput(
+  input: unknown,
+): InstitutionProfileUpdateInput {
   if (!input || typeof input !== "object") {
     throw new BadRequestError("institution profile payload is required");
   }

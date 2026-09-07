@@ -7,10 +7,7 @@ import {
   toGraphqlError,
   ValidationError,
 } from "@school-erp/errors";
-import {
-  createRuntimeEventPublisher,
-  type EventPublisher,
-} from "@school-erp/events";
+import { createRuntimeEventPublisher, type EventPublisher } from "@school-erp/events";
 import {
   closeEnquiry,
   createEnquiry,
@@ -35,12 +32,17 @@ import {
   updateApplication,
 } from "../modules/application/application.service";
 import { hydrateAdmissionsRuntimeConfig } from "./runtime-config";
+import { readAdmissionsDashboardSlice } from "../modules/admin-dashboard/admin-dashboard-slice.repository";
+import { hydrateConfiguredAuthorization } from "@school-erp/service-client";
 
 interface Event {
   info: { fieldName: string };
   arguments?: Record<string, unknown>;
   identity?: { sub?: string; claims?: Record<string, unknown> } | null;
   request?: { headers?: Record<string, string> };
+  source?: string;
+  operation?: string;
+  payload?: Record<string, unknown>;
 }
 function claim(claims: Record<string, unknown>, ...names: string[]) {
   for (const name of names) {
@@ -62,21 +64,15 @@ function context(event: Event): RequestContext {
       (groups.includes("TENANT_ADMIN") ? "TENANT_ADMIN" : undefined),
     userId = event.identity?.sub ?? claim(claims, "sub"),
     tenantId = claim(claims, "custom:tenantId", "tenantId");
-  if (!userId || !tenantId)
-    throw new ForbiddenError("authenticated tenant identity is required");
+  if (!userId || !tenantId) throw new ForbiddenError("authenticated tenant identity is required");
   const permissions = normalizePermissions([
     ...(role === "TENANT_ADMIN"
-      ? [
-          ...Object.values(enquiryPermissions),
-          ...Object.values(applicationPermissions),
-        ]
+      ? [...Object.values(enquiryPermissions), ...Object.values(applicationPermissions)]
       : []),
     ...normalizePermissions(claims["custom:permissions"] ?? claims.permissions),
   ]);
   return {
-    requestId:
-      event.request?.headers?.["x-amzn-trace-id"] ??
-      `gql_${crypto.randomUUID()}`,
+    requestId: event.request?.headers?.["x-amzn-trace-id"] ?? `gql_${crypto.randomUUID()}`,
     path: `graphql:${event.info.fieldName}`,
     method: "POST",
     headers: event.request?.headers ?? {},
@@ -98,14 +94,8 @@ function context(event: Event): RequestContext {
   };
 }
 function input(args: Record<string, unknown>) {
-  if (
-    !args.input ||
-    typeof args.input !== "object" ||
-    Array.isArray(args.input)
-  )
-    throw new ValidationError([
-      { field: "input", message: "input is required" },
-    ]);
+  if (!args.input || typeof args.input !== "object" || Array.isArray(args.input))
+    throw new ValidationError([{ field: "input", message: "input is required" }]);
   const payload = { ...(args.input as Record<string, unknown>) };
   if (typeof payload.customFields === "string") {
     try {
@@ -126,12 +116,10 @@ function id(args: Record<string, unknown>) {
     throw new ValidationError([{ field: "id", message: "id is required" }]);
   return args.id.trim();
 }
-export async function handleAdmissionsGraphql(
-  event: Event,
-  eventPublisher?: EventPublisher,
-) {
-  const ctx = context(event),
-    args = event.arguments ?? {},
+export async function handleAdmissionsGraphql(event: Event, eventPublisher?: EventPublisher) {
+  const ctx = context(event);
+  await hydrateConfiguredAuthorization(ctx);
+  const args = event.arguments ?? {},
     serviceContext = {
       tenantContext: ctx.tenantContext!,
       authContext: ctx.authContext!,
@@ -184,27 +172,39 @@ export async function handleAdmissionsGraphql(
         eventPublisher,
       });
     default:
-      throw new NotFoundError(
-        `unsupported admissions GraphQL field: ${event.info.fieldName}`,
-      );
+      throw new NotFoundError(`unsupported admissions GraphQL field: ${event.info.fieldName}`);
   }
 }
 export async function handler(event: Event) {
   try {
     await hydrateAdmissionsRuntimeConfig();
-    return await handleAdmissionsGraphql(
-      event,
-      createRuntimeEventPublisher("erp.admissions"),
-    );
+    if (event.source === "erp.internal" && event.operation === "GET_ADMIN_DASHBOARD_SLICE") {
+      const tenantId = event.payload?.tenantId;
+      const scope = event.payload?.scope;
+      if (
+        typeof tenantId !== "string" ||
+        !scope ||
+        typeof scope !== "object" ||
+        Array.isArray(scope)
+      ) {
+        throw new ValidationError([{ field: "payload", message: "dashboard scope is required" }]);
+      }
+      return {
+        result: await readAdmissionsDashboardSlice(tenantId.trim(), scope as never),
+      };
+    }
+    return await handleAdmissionsGraphql(event, createRuntimeEventPublisher("erp.admissions"));
   } catch (error) {
     if (!(error instanceof AppError)) {
-      console.error(JSON.stringify({
-        level: "error",
-        service: "admissions-service",
-        operation: event.info?.fieldName ?? "unknown",
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      }));
+      console.error(
+        JSON.stringify({
+          level: "error",
+          service: "admissions-service",
+          operation: event.info?.fieldName ?? "unknown",
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        }),
+      );
     }
     throw toGraphqlError(error, event.request?.headers?.["x-amzn-trace-id"]);
   }

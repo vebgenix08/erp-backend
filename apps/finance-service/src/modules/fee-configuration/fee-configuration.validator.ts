@@ -25,8 +25,7 @@ const object = (input: unknown, message: string): Record<string, unknown> => {
   return input as Record<string, unknown>;
 };
 const text = (value: unknown, field: string): string => {
-  if (typeof value !== "string" || !value.trim())
-    throw new BadRequestError(`${field} is required`);
+  if (typeof value !== "string" || !value.trim()) throw new BadRequestError(`${field} is required`);
   return value.trim();
 };
 const integer = (value: unknown, field: string): number => {
@@ -41,12 +40,8 @@ const scope = (value: Record<string, unknown>) => ({
 
 export function validateFeeHead(input: unknown): CreateFeeHeadInput {
   const value = object(input, "fee head input is required");
-  const category = text(
-    value.category,
-    "category",
-  ).toUpperCase() as FeeHeadCategory;
-  if (!categories.includes(category))
-    throw new BadRequestError("category is invalid");
+  const category = text(value.category, "category").toUpperCase() as FeeHeadCategory;
+  if (!categories.includes(category)) throw new BadRequestError("category is invalid");
   const result: CreateFeeHeadInput = {
     name: text(value.name, "name"),
     category,
@@ -60,10 +55,7 @@ export function validateFeeHead(input: unknown): CreateFeeHeadInput {
 export function validateFeeSchedule(input: unknown): CreateFeeScheduleInput {
   const value = object(input, "fee schedule input is required");
   const pattern = text(value.pattern, "pattern") as FeeSchedulePattern;
-  const collectionPolicy = text(
-    value.collectionPolicy,
-    "collectionPolicy",
-  ) as FeeCollectionPolicy;
+  const collectionPolicy = text(value.collectionPolicy, "collectionPolicy") as FeeCollectionPolicy;
   if (!["ANNUAL", "ONE_TIME", "PERIODIC", "MANUAL"].includes(pattern))
     throw new BadRequestError("pattern is invalid");
   if (!["FULL_ONLY", "PARTIAL_ALLOWED"].includes(collectionPolicy))
@@ -82,39 +74,24 @@ export function validateFeeStructure(input: unknown): CreateFeeStructureInput {
     throw new BadRequestError("at least one fee component is required");
   const components = value.components.map((item, index) => {
     const component = object(item, `component ${index + 1} is invalid`);
-    const amountMinor = integer(
-      component.amountMinor,
-      `components[${index}].amountMinor`,
-    );
+    const amountMinor = integer(component.amountMinor, `components[${index}].amountMinor`);
     if (amountMinor === 0)
-      throw new BadRequestError(
-        `components[${index}].amountMinor must be greater than zero`,
-      );
+      throw new BadRequestError(`components[${index}].amountMinor must be greater than zero`);
     return {
       feeHeadId: text(component.feeHeadId, `components[${index}].feeHeadId`),
       amountMinor,
       allocationPriority:
         component.allocationPriority === undefined
           ? index + 1
-          : integer(
-              component.allocationPriority,
-              `components[${index}].allocationPriority`,
-            ),
+          : integer(component.allocationPriority, `components[${index}].allocationPriority`),
     };
   });
-  if (
-    new Set(components.map((item) => item.feeHeadId)).size !== components.length
-  )
+  if (new Set(components.map((item) => item.feeHeadId)).size !== components.length)
     throw new BadRequestError("fee heads cannot be duplicated in a structure");
   if (components.some((item) => item.allocationPriority <= 0))
     throw new BadRequestError("allocation priority must be greater than zero");
-  if (
-    new Set(components.map((item) => item.allocationPriority)).size !==
-    components.length
-  )
-    throw new BadRequestError(
-      "allocation priorities must be unique within a fee structure",
-    );
+  if (new Set(components.map((item) => item.allocationPriority)).size !== components.length)
+    throw new BadRequestError("allocation priorities must be unique within a fee structure");
   return { ...scope(value), name: text(value.name, "name"), components };
 }
 

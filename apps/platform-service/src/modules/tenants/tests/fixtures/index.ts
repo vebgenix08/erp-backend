@@ -1,11 +1,10 @@
-export {
-  createMockRequestContext,
-  createUserFixture,
-} from "@school-erp/test-utils";
+export { createMockRequestContext, createUserFixture } from "@school-erp/test-utils";
 
 import type { TenantCreateInput } from "../../tenants.model";
 
-export function createTenantFixture(overrides: Partial<TenantCreateInput> = {}): TenantCreateInput & Record<string, unknown> {
+export function createTenantFixture(
+  overrides: Partial<TenantCreateInput> = {},
+): TenantCreateInput & Record<string, unknown> {
   return {
     clientRequestId: `request_${crypto.randomUUID()}`,
     name: "Sample School",

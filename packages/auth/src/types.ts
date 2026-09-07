@@ -2,11 +2,28 @@ import type { TenantContext } from "@school-erp/tenancy";
 
 export type Permission = `${string}.${string}.${string}`;
 
+export interface AuthAccessScope {
+  scopeType: "TENANT" | "CAMPUS" | "PROGRAM" | "CLASS" | "SECTION" | "ASSIGNED_ONLY";
+  campusIds?: string[];
+  programIds?: string[];
+  classIds?: string[];
+  sectionIds?: string[];
+}
+
+export interface AuthRoleAssignment {
+  assignmentId: string;
+  roleId: string;
+  roleCode: string;
+  scope: AuthAccessScope;
+}
+
 export interface AuthUser {
   id: string;
   email?: string | undefined;
   role?: string | undefined;
   permissions: Permission[];
+  roles?: Array<{ id: string; code: string; name: string }>;
+  scopes?: AuthRoleAssignment[];
   source: AuthResolutionSource;
 }
 
@@ -46,7 +63,12 @@ export interface AuthRequestLike {
 export interface AuthContextOptions {
   defaultSource?: AuthResolutionSource | undefined;
   cognito?: CognitoIntegrationConfig | undefined;
-  verifyJwt?: ((token: string, config: CognitoIntegrationConfig) => Promise<CognitoVerificationResult> | CognitoVerificationResult) | undefined;
+  verifyJwt?:
+    | ((
+        token: string,
+        config: CognitoIntegrationConfig,
+      ) => Promise<CognitoVerificationResult> | CognitoVerificationResult)
+    | undefined;
 }
 
 export interface CognitoIntegrationConfig {

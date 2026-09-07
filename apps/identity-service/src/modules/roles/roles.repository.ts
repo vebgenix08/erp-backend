@@ -1,11 +1,17 @@
 import { BadRequestError, ConflictError } from "@school-erp/errors";
 import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
 import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { RoleCreateInput, RolePage, RolePageFilter, RoleRecord, RoleUpdateInput } from "./roles.model";
+import type {
+  RoleCreateInput,
+  RolePage,
+  RolePageFilter,
+  RoleRecord,
+  RoleUpdateInput,
+} from "./roles.model";
 
 export interface RoleRepository {
   list(tenantId: string): Promise<RoleRecord[]>;
-  listPage(tenantId:string,filter?:RolePageFilter):Promise<RolePage>;
+  listPage(tenantId: string, filter?: RolePageFilter): Promise<RolePage>;
   getById(tenantId: string, id: string): Promise<RoleRecord | null>;
   getByCode(tenantId: string, code: string): Promise<RoleRecord | null>;
   create(tenantId: string, input: RoleCreateInput): Promise<RoleRecord>;
@@ -81,7 +87,10 @@ function mergeRole(existing: RoleRecord, input: RoleUpdateInput): RoleRecord {
     ...existing,
     code: input.code ? normalizeCode(input.code) : existing.code,
     name: input.name ? input.name.trim() : existing.name,
-    description: input.description !== undefined ? input.description?.trim() || undefined : existing.description,
+    description:
+      input.description !== undefined
+        ? input.description?.trim() || undefined
+        : existing.description,
     isSystemRole: input.isSystemRole ?? existing.isSystemRole,
     isActive: input.isActive ?? existing.isActive,
     updatedAt: now(),
@@ -98,7 +107,25 @@ class InMemoryRoleRepository implements RoleRepository {
       .sort((left, right) => left.name.localeCompare(right.name))
       .map(cloneRole);
   }
-  async listPage(tenantId:string,filter:RolePageFilter={}){const search=filter.search?.trim().toLowerCase(),rows=(await this.list(tenantId)).filter(item=>(filter.isActive===undefined||item.isActive===filter.isActive)&&(!search||`${item.name} ${item.code} ${item.description??""}`.toLowerCase().includes(search)));const page=Math.max(1,filter.page??1),pageSize=Math.min(100,Math.max(1,filter.pageSize??25)),total=rows.length;return{items:rows.slice((page-1)*pageSize,page*pageSize),page,pageSize,total,totalPages:Math.ceil(total/pageSize)}}
+  async listPage(tenantId: string, filter: RolePageFilter = {}) {
+    const search = filter.search?.trim().toLowerCase(),
+      rows = (await this.list(tenantId)).filter(
+        (item) =>
+          (filter.isActive === undefined || item.isActive === filter.isActive) &&
+          (!search ||
+            `${item.name} ${item.code} ${item.description ?? ""}`.toLowerCase().includes(search)),
+      );
+    const page = Math.max(1, filter.page ?? 1),
+      pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 25)),
+      total = rows.length;
+    return {
+      items: rows.slice((page - 1) * pageSize, page * pageSize),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
 
   async getById(tenantId: string, id: string) {
     const role = this.roles.get(id) ?? null;
@@ -108,7 +135,10 @@ class InMemoryRoleRepository implements RoleRepository {
   async getByCode(tenantId: string, code: string) {
     const normalizedTenantId = normalizeTenantId(tenantId);
     const normalizedCode = normalizeCode(code);
-    const role = [...this.roles.values()].find((item) => item.tenantId === normalizedTenantId && item.code === normalizedCode) ?? null;
+    const role =
+      [...this.roles.values()].find(
+        (item) => item.tenantId === normalizedTenantId && item.code === normalizedCode,
+      ) ?? null;
     return role ? cloneRole(role) : null;
   }
 
@@ -154,15 +184,48 @@ class MongoRoleRepository implements RoleRepository {
       .filter((role): role is RoleRecord => role !== null)
       .sort((left, right) => left.name.localeCompare(right.name));
   }
-  async listPage(tenantId:string,filter:RolePageFilter={}){const query:Record<string,unknown>={tenantId:normalizeTenantId(tenantId)};if(filter.isActive!==undefined)query.isActive=filter.isActive;if(filter.search?.trim())query.$or=[{name:{$regex:filter.search.trim(),$options:"i"}},{code:{$regex:filter.search.trim(),$options:"i"}},{description:{$regex:filter.search.trim(),$options:"i"}}];const page=Math.max(1,filter.page??1),pageSize=Math.min(100,Math.max(1,filter.pageSize??25));const[documents,total]=await Promise.all([this.collection.findMany(query as never,{sort:{name:1,_id:1},skip:(page-1)*pageSize,limit:pageSize}),this.collection.count(query as never)]);return{items:documents.map(item=>fromRoleDocument(item)).filter((item):item is RoleRecord=>Boolean(item)),page,pageSize,total,totalPages:Math.ceil(total/pageSize)}}
+  async listPage(tenantId: string, filter: RolePageFilter = {}) {
+    const query: Record<string, unknown> = { tenantId: normalizeTenantId(tenantId) };
+    if (filter.isActive !== undefined) query.isActive = filter.isActive;
+    if (filter.search?.trim())
+      query.$or = [
+        { name: { $regex: filter.search.trim(), $options: "i" } },
+        { code: { $regex: filter.search.trim(), $options: "i" } },
+        { description: { $regex: filter.search.trim(), $options: "i" } },
+      ];
+    const page = Math.max(1, filter.page ?? 1),
+      pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 25));
+    const [documents, total] = await Promise.all([
+      this.collection.findMany(query as never, {
+        sort: { name: 1, _id: 1 },
+        skip: (page - 1) * pageSize,
+        limit: pageSize,
+      }),
+      this.collection.count(query as never),
+    ]);
+    return {
+      items: documents
+        .map((item) => fromRoleDocument(item))
+        .filter((item): item is RoleRecord => Boolean(item)),
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
 
   async getById(tenantId: string, id: string) {
-    return fromRoleDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }));
+    return fromRoleDocument(
+      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }),
+    );
   }
 
   async getByCode(tenantId: string, code: string) {
     return fromRoleDocument(
-      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), code: normalizeCode(code) }),
+      await this.collection.findOne({
+        tenantId: normalizeTenantId(tenantId),
+        code: normalizeCode(code),
+      }),
     );
   }
 
@@ -187,7 +250,10 @@ class MongoRoleRepository implements RoleRepository {
       }
     }
     const updated = mergeRole(existing, input);
-    const replaced = await this.collection.replaceOne({ tenantId: updated.tenantId, _id: id }, toRoleDocument(updated));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: updated.tenantId, _id: id },
+      toRoleDocument(updated),
+    );
     return replaced ? updated : null;
   }
 
@@ -197,7 +263,9 @@ class MongoRoleRepository implements RoleRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -205,7 +273,9 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createRoleRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<RoleRepository> {
+export async function createRoleRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<RoleRepository> {
   if (!hasMongoEnv(env)) {
     return new InMemoryRoleRepository();
   }

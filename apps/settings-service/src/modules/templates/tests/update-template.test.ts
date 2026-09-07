@@ -16,7 +16,12 @@ test("update template bumps version and keeps tenant isolation", async () => {
     { repository },
   );
 
-  const updated = await updateTemplateUseCase(created.id, { name: "Invoice v2" }, createTemplateContext(), { repository });
+  const updated = await updateTemplateUseCase(
+    created.id,
+    { name: "Invoice v2" },
+    createTemplateContext(),
+    { repository },
+  );
   assert.equal(updated?.name, "Invoice v2");
   assert.equal(updated?.version, 2);
   assert.equal(updated?.status, "DRAFT");

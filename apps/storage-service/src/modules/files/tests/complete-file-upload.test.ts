@@ -12,6 +12,8 @@ test("complete file upload marks file available", async () => {
     { repository },
   );
 
-  const completed = await completeFileUploadUseCase(created.file.id, createStorageContext(), { repository });
+  const completed = await completeFileUploadUseCase(created.file.id, createStorageContext(), {
+    repository,
+  });
   assert.equal(completed?.status, "AVAILABLE");
 });

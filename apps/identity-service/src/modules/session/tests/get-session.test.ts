@@ -4,7 +4,13 @@ import { createSessionContext } from "./fixtures";
 import { getSessionUseCase } from "../use-cases";
 
 test("get session returns auth and tenant snapshots", async () => {
-  const result = await getSessionUseCase(createSessionContext());
+  const activations: Array<{ tenantId: string; email: string }> = [];
+  const result = await getSessionUseCase(createSessionContext(), {
+    employeeLoginActivator: async (tenantId, email) => {
+      activations.push({ tenantId, email });
+    },
+  });
   assert.equal(result.user.id, "user_test_1");
   assert.equal(result.tenant?.tenantId, "tenant_test_1");
+  assert.deepEqual(activations, [{ tenantId: "tenant_test_1", email: "user@example.com" }]);
 });

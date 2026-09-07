@@ -3,10 +3,7 @@ import assert from "node:assert/strict";
 import type { RequestContext } from "@school-erp/api";
 import { InMemoryFeeOrderRepository } from "../../fee-orders/fee-orders.repository";
 import { InMemoryPaymentRepository } from "../../payments/payments.repository";
-import {
-  createPaymentAdjustment,
-  listPaymentAdjustments,
-} from "../payment-adjustments.service";
+import { createPaymentAdjustment, listPaymentAdjustments } from "../payment-adjustments.service";
 import { InMemoryPaymentAdjustmentRepository } from "../payment-adjustments.repository";
 
 function context(tenantId = "tenant_one"): RequestContext {
@@ -114,14 +111,8 @@ test("void creates an immutable adjustment and restores the fee order", async ()
   );
   assert.equal(result.adjustmentNumber, "ADJ-YEAR2026-000001");
   assert.equal(result.amountMinor, 100_000);
-  assert.equal(
-    (await state.payments.getById("tenant_one", state.payment.id))?.status,
-    "VOIDED",
-  );
-  const order = await state.orders.getById(
-    "tenant_one",
-    state.payment.allocations[0]!.feeOrderId,
-  );
+  assert.equal((await state.payments.getById("tenant_one", state.payment.id))?.status, "VOIDED");
+  const order = await state.orders.getById("tenant_one", state.payment.allocations[0]!.feeOrderId);
   assert.equal(order?.paidMinor, 0);
   assert.equal(order?.balanceMinor, 100_000);
   assert.equal(order?.status, "OPEN");
@@ -144,10 +135,7 @@ test("partial refund restores only the recorded refundable amount", async () => 
   const payment = await state.payments.getById("tenant_one", state.payment.id);
   assert.equal(payment?.status, "PARTIALLY_REFUNDED");
   assert.equal(payment?.reversedMinor, 40_000);
-  const order = await state.orders.getById(
-    "tenant_one",
-    state.payment.allocations[0]!.feeOrderId,
-  );
+  const order = await state.orders.getById("tenant_one", state.payment.allocations[0]!.feeOrderId);
   assert.equal(order?.paidMinor, 60_000);
   assert.equal(order?.balanceMinor, 40_000);
 });
@@ -181,13 +169,7 @@ test("refund rejects non-refundable charge and duplicate request is idempotent",
   const retry = await createPaymentAdjustment(input, context(), state.deps);
   assert.equal(retry.id, first.id);
   assert.equal(
-    (
-      await listPaymentAdjustments(
-        { paymentId: state.payment.id },
-        context(),
-        state.deps,
-      )
-    ).length,
+    (await listPaymentAdjustments({ paymentId: state.payment.id }, context(), state.deps)).length,
     1,
   );
 });
@@ -208,9 +190,5 @@ test("adjustment lookup and mutation are tenant isolated", async () => {
       ),
     /not found/,
   );
-  assert.equal(
-    (await listPaymentAdjustments({}, context("tenant_two"), state.deps))
-      .length,
-    0,
-  );
+  assert.equal((await listPaymentAdjustments({}, context("tenant_two"), state.deps)).length, 0);
 });

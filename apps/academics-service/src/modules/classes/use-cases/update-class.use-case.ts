@@ -3,7 +3,11 @@ import { toClassView } from "../classes.mapper";
 import { validateClassUpdateInput } from "../classes.validator";
 import type { ClassView } from "../classes.model";
 import type { ClassServiceDeps } from "../classes.shared";
-import { requireClassPermission, requireClassTenantId, resolveClassRepository } from "../classes.shared";
+import {
+  requireClassPermission,
+  requireClassTenantId,
+  resolveClassRepository,
+} from "../classes.shared";
 import { classPermissions } from "../classes.permissions";
 import type { Permission } from "@school-erp/auth";
 import { requireProgramInCampus } from "../../academic-hierarchy.policy";
@@ -21,6 +25,7 @@ export async function updateClassUseCase(
   const existing = await repository.getById(tenantId, id);
   if (!existing) throw new NotFoundError("class not found");
   const validated = validateClassUpdateInput(input);
-  if (validated.programId) await requireProgramInCampus(tenantId, existing.campusId, validated.programId, deps);
+  if (validated.programId)
+    await requireProgramInCampus(tenantId, existing.campusId, validated.programId, deps);
   return toClassView(await repository.update(tenantId, id, validated));
 }

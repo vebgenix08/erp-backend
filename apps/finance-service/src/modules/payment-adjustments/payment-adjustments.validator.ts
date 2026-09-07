@@ -6,13 +6,10 @@ import type {
 } from "./payment-adjustments.model";
 
 const text = (value: unknown, field: string) => {
-  if (typeof value !== "string" || !value.trim())
-    throw new BadRequestError(`${field} is required`);
+  if (typeof value !== "string" || !value.trim()) throw new BadRequestError(`${field} is required`);
   return value.trim();
 };
-export function validatePaymentAdjustment(
-  input: unknown,
-): CreatePaymentAdjustmentInput {
+export function validatePaymentAdjustment(input: unknown): CreatePaymentAdjustmentInput {
   if (!input || typeof input !== "object" || Array.isArray(input))
     throw new BadRequestError("payment adjustment input is required");
   const value = input as Record<string, unknown>;
@@ -33,16 +30,12 @@ export function validatePaymentAdjustment(
       !Number.isSafeInteger(value.amountMinor) ||
       value.amountMinor <= 0
     )
-      throw new BadRequestError(
-        "amountMinor must be a positive integer for a refund",
-      );
+      throw new BadRequestError("amountMinor must be a positive integer for a refund");
     result.amountMinor = value.amountMinor;
   }
   return result;
 }
-export function validatePaymentAdjustmentFilter(
-  input: unknown,
-): PaymentAdjustmentFilter {
+export function validatePaymentAdjustmentFilter(input: unknown): PaymentAdjustmentFilter {
   if (input === undefined || input === null) return {};
   if (typeof input !== "object" || Array.isArray(input))
     throw new BadRequestError("adjustment filter must be an object");
@@ -51,10 +44,7 @@ export function validatePaymentAdjustmentFilter(
   for (const field of ["paymentId", "campusId", "academicYearId"] as const)
     if (value[field] !== undefined) result[field] = text(value[field], field);
   if (value.type !== undefined) {
-    const type = text(
-      value.type,
-      "type",
-    ).toUpperCase() as PaymentAdjustmentType;
+    const type = text(value.type, "type").toUpperCase() as PaymentAdjustmentType;
     if (type !== "VOID" && type !== "REFUND")
       throw new BadRequestError("adjustment type is invalid");
     result.type = type;

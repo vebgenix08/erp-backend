@@ -1,6 +1,9 @@
 import type { RequestContext } from "@school-erp/api";
 import type { activateEmployeeLogin, EmployeeServiceDeps } from "@school-erp/identity-service";
-import type { completeFirstAdminBootstrap, FirstAdminBootstrapServiceDeps } from "@school-erp/platform-service";
+import type {
+  completeFirstAdminBootstrap,
+  FirstAdminBootstrapServiceDeps,
+} from "@school-erp/platform-service";
 
 export interface CognitoPostAuthenticationEvent {
   request: { userAttributes?: Record<string, string | undefined> };
@@ -48,7 +51,9 @@ export async function handlePostAuthentication<T extends CognitoPostAuthenticati
   if (!tenantId) return event;
 
   if (attributes["custom:role"] === "TENANT_ADMIN") {
-    const completeBootstrap = deps.completeBootstrap ?? (await import("@school-erp/platform-service")).completeFirstAdminBootstrap;
+    const completeBootstrap =
+      deps.completeBootstrap ??
+      (await import("@school-erp/platform-service")).completeFirstAdminBootstrap;
     await completeBootstrap(
       tenantId,
       { inviteId: event.userName },
@@ -57,7 +62,8 @@ export async function handlePostAuthentication<T extends CognitoPostAuthenticati
     );
   }
   if (email) {
-    const activateEmployee = deps.activateEmployee ?? (await import("@school-erp/identity-service")).activateEmployeeLogin;
+    const activateEmployee =
+      deps.activateEmployee ?? (await import("@school-erp/identity-service")).activateEmployeeLogin;
     await activateEmployee(tenantId, email, deps.employeeDeps);
   }
   return event;
@@ -66,7 +72,13 @@ export async function handlePostAuthentication<T extends CognitoPostAuthenticati
 export async function handler<T extends CognitoPostAuthenticationEvent>(event: T): Promise<T> {
   const attributes = event.request.userAttributes ?? {};
   if (!attributes["custom:tenantId"]?.trim()) return event;
-  const [platform, identity] = await Promise.all([import("@school-erp/platform-service"), import("@school-erp/identity-service")]);
-  await Promise.all([platform.hydratePlatformRuntimeConfig(), identity.hydrateIdentityRuntimeConfig()]);
+  const [platform, identity] = await Promise.all([
+    import("@school-erp/platform-service"),
+    import("@school-erp/identity-service"),
+  ]);
+  await Promise.all([
+    platform.hydratePlatformRuntimeConfig(),
+    identity.hydrateIdentityRuntimeConfig(),
+  ]);
   return handlePostAuthentication(event);
 }

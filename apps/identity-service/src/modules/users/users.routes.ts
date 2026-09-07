@@ -35,13 +35,22 @@ export function registerUsersRoutes(router: ApiRouter, deps: UserServiceDeps = {
 
   router.route("POST", "/users", async (context: RequestContext) => {
     requirePermission(context.authContext, userPermissions.create);
-    const result = await createUserUseCase(tenantContext(context), context.body as Record<string, unknown>, deps);
+    const result = await createUserUseCase(
+      tenantContext(context),
+      context.body as Record<string, unknown>,
+      deps,
+    );
     return jsonResponse(201, result);
   });
 
   router.route("PUT", "/users/:id", async (context: RequestContext) => {
     requirePermission(context.authContext, userPermissions.update);
-    const result = await updateUserUseCase(tenantContext(context), userId(context), context.body as Record<string, unknown>, deps);
+    const result = await updateUserUseCase(
+      tenantContext(context),
+      userId(context),
+      context.body as Record<string, unknown>,
+      deps,
+    );
     return jsonResponse(result ? 200 : 404, result ?? { message: "user not found" });
   });
 

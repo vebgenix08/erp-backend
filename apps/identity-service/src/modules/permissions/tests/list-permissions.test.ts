@@ -7,8 +7,14 @@ import { createPermissionFixture } from "./fixtures";
 test("list permissions only returns current tenant records", async () => {
   const tenantOne = createTenantContext({ tenantId: "tenant-1", source: "request" });
   const tenantTwo = createTenantContext({ tenantId: "tenant-2", source: "request" });
-  await createPermissionUseCase(tenantOne, createPermissionFixture({ code: "identity.users.read" }));
-  await createPermissionUseCase(tenantTwo, createPermissionFixture({ code: "identity.roles.read" }));
+  await createPermissionUseCase(
+    tenantOne,
+    createPermissionFixture({ code: "identity.users.read" }),
+  );
+  await createPermissionUseCase(
+    tenantTwo,
+    createPermissionFixture({ code: "identity.roles.read" }),
+  );
 
   const permissions = await listPermissionsUseCase(tenantOne);
   assert.equal(permissions.length, 1);

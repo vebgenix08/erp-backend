@@ -1,4 +1,5 @@
 import { ValidationError } from "@school-erp/errors";
+import { validateEmail, validatePhone } from "@school-erp/validation";
 import type {
   CreateStudentFromAdmissionInput,
   StudentGender,
@@ -9,6 +10,7 @@ import type {
   ChangeStudentEnrollmentInput,
   ClassRegistrationNumberingInput,
   SectionRollNumberingInput,
+  UpdateStudentInput,
 } from "./students.model";
 const required = (value: unknown, field: string) => {
   if (typeof value !== "string" || !value.trim())
@@ -17,31 +19,60 @@ const required = (value: unknown, field: string) => {
 };
 const optional = (value: unknown) =>
   typeof value === "string" && value.trim() ? value.trim() : undefined;
+const nullable = (value: unknown) =>
+  typeof value === "string" && value.trim() ? value.trim() : null;
+
+export function validateUpdateStudent(input: unknown): UpdateStudentInput {
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    throw new ValidationError([{ field: "input", message: "input is required" }]);
+  const value = input as Record<string, unknown>;
+  const phone = validatePhone(value.phone, "phone");
+  if (!phone.success)
+    throw new ValidationError(phone.errors.map((message) => ({ field: "phone", message })));
+  const emailValue = nullable(value.email);
+  const email = emailValue ? validateEmail(emailValue, "email") : null;
+  if (email && !email.success)
+    throw new ValidationError(email.errors.map((message) => ({ field: "email", message })));
+  const guardianPhoneValue = nullable(value.guardianPhone);
+  const guardianPhone = guardianPhoneValue
+    ? validatePhone(guardianPhoneValue, "guardianPhone")
+    : null;
+  if (guardianPhone && !guardianPhone.success)
+    throw new ValidationError(
+      guardianPhone.errors.map((message) => ({ field: "guardianPhone", message })),
+    );
+  const dateOfBirth = nullable(value.dateOfBirth);
+  if (dateOfBirth && Number.isNaN(Date.parse(dateOfBirth)))
+    throw new ValidationError([{ field: "dateOfBirth", message: "dateOfBirth is invalid" }]);
+  const genderValue = nullable(value.gender)?.toUpperCase() as StudentGender | null;
+  if (genderValue && !(["MALE", "FEMALE", "OTHER"] as string[]).includes(genderValue))
+    throw new ValidationError([{ field: "gender", message: "gender is invalid" }]);
+  return {
+    name: required(value.name, "name"),
+    dateOfBirth,
+    gender: genderValue,
+    phone: phone.value,
+    email: email?.value ?? null,
+    address: nullable(value.address),
+    guardianName: required(value.guardianName, "guardianName"),
+    guardianPhone: guardianPhone?.value ?? null,
+    guardianRelation: nullable(value.guardianRelation),
+  };
+}
 export function validateCreateStudentFromAdmission(
   input: unknown,
 ): CreateStudentFromAdmissionInput {
   if (!input || typeof input !== "object" || Array.isArray(input))
-    throw new ValidationError([
-      { field: "input", message: "input is required" },
-    ]);
+    throw new ValidationError([{ field: "input", message: "input is required" }]);
   const value = input as Record<string, unknown>;
-  const gender = optional(value.gender)?.toUpperCase() as
-    | StudentGender
-    | undefined;
+  const gender = optional(value.gender)?.toUpperCase() as StudentGender | undefined;
   if (gender && !(["MALE", "FEMALE", "OTHER"] as string[]).includes(gender))
-    throw new ValidationError([
-      { field: "gender", message: "gender is invalid" },
-    ]);
+    throw new ValidationError([{ field: "gender", message: "gender is invalid" }]);
   const confirmedAt = required(value.confirmedAt, "confirmedAt");
   if (Number.isNaN(Date.parse(confirmedAt)))
-    throw new ValidationError([
-      { field: "confirmedAt", message: "confirmedAt is invalid" },
-    ]);
+    throw new ValidationError([{ field: "confirmedAt", message: "confirmedAt is invalid" }]);
   const result: CreateStudentFromAdmissionInput = {
-    admissionApplicationId: required(
-      value.admissionApplicationId,
-      "admissionApplicationId",
-    ),
+    admissionApplicationId: required(value.admissionApplicationId, "admissionApplicationId"),
     admissionNumber: required(value.admissionNumber, "admissionNumber"),
     campusId: required(value.campusId, "campusId"),
     academicYearId: required(value.academicYearId, "academicYearId"),
@@ -64,13 +95,13 @@ export function validateCreateStudentFromAdmission(
     if (normalized) result[key] = normalized;
   }
   if (result.dateOfBirth && Number.isNaN(Date.parse(result.dateOfBirth)))
-    throw new ValidationError([
-      { field: "dateOfBirth", message: "dateOfBirth is invalid" },
-    ]);
+    throw new ValidationError([{ field: "dateOfBirth", message: "dateOfBirth is invalid" }]);
   if (gender) result.gender = gender;
   return result;
 }
-export function validateClassRegistrationNumbering(input: unknown): ClassRegistrationNumberingInput {
+export function validateClassRegistrationNumbering(
+  input: unknown,
+): ClassRegistrationNumberingInput {
   if (!input || typeof input !== "object" || Array.isArray(input))
     throw new ValidationError([{ field: "input", message: "input is required" }]);
   const value = input as Record<string, unknown>;
@@ -93,9 +124,15 @@ export function validateSectionRollNumbering(input: unknown): SectionRollNumberi
   };
 }
 export function validateChangeStudentEnrollment(input: unknown): ChangeStudentEnrollmentInput {
-  if (!input || typeof input !== "object" || Array.isArray(input)) throw new ValidationError([{ field: "input", message: "input is required" }]);
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    throw new ValidationError([{ field: "input", message: "input is required" }]);
   const value = input as Record<string, unknown>;
-  const result: ChangeStudentEnrollmentInput = { campusId: required(value.campusId, "campusId"), academicYearId: required(value.academicYearId, "academicYearId"), classId: required(value.classId, "classId"), reason: required(value.reason, "reason") };
+  const result: ChangeStudentEnrollmentInput = {
+    campusId: required(value.campusId, "campusId"),
+    academicYearId: required(value.academicYearId, "academicYearId"),
+    classId: required(value.classId, "classId"),
+    reason: required(value.reason, "reason"),
+  };
   const sectionId = optional(value.sectionId);
   if (sectionId) result.sectionId = sectionId;
   return result;
@@ -103,33 +140,17 @@ export function validateChangeStudentEnrollment(input: unknown): ChangeStudentEn
 export function validateStudentFilter(input: unknown): StudentListFilter {
   if (input == null) return {};
   if (typeof input !== "object" || Array.isArray(input))
-    throw new ValidationError([
-      { field: "filter", message: "filter must be an object" },
-    ]);
+    throw new ValidationError([{ field: "filter", message: "filter must be an object" }]);
   const value = input as Record<string, unknown>,
     result: StudentListFilter = {};
-  for (const key of [
-    "campusId",
-    "academicYearId",
-    "classId",
-    "sectionId",
-    "search",
-  ] as const) {
+  for (const key of ["campusId", "academicYearId", "classId", "sectionId", "search"] as const) {
     const normalized = optional(value[key]);
     if (normalized) result[key] = normalized;
   }
-  const status = optional(value.status)?.toUpperCase() as
-    | StudentStatus
-    | undefined;
+  const status = optional(value.status)?.toUpperCase() as StudentStatus | undefined;
   if (status) {
-    if (
-      !(
-        ["ACTIVE", "INACTIVE", "GRADUATED", "TRANSFERRED"] as string[]
-      ).includes(status)
-    )
-      throw new ValidationError([
-        { field: "status", message: "status is invalid" },
-      ]);
+    if (!(["ACTIVE", "INACTIVE", "GRADUATED", "TRANSFERRED"] as string[]).includes(status))
+      throw new ValidationError([{ field: "status", message: "status is invalid" }]);
     result.status = status;
   }
   for (const key of ["limit", "offset", "page", "pageSize"] as const) {
@@ -139,13 +160,10 @@ export function validateStudentFilter(input: unknown): StudentListFilter {
         typeof number !== "number" ||
         !Number.isSafeInteger(number) ||
         number < 0 ||
-        ((key === "limit" || key === "pageSize") &&
-          (number < 1 || number > 100)) ||
+        ((key === "limit" || key === "pageSize") && (number < 1 || number > 100)) ||
         (key === "page" && number < 1)
       )
-        throw new ValidationError([
-          { field: key, message: `${key} is invalid` },
-        ]);
+        throw new ValidationError([{ field: key, message: `${key} is invalid` }]);
       result[key] = number;
     }
   }
@@ -158,9 +176,7 @@ export function validateStudentFilter(input: unknown): StudentListFilter {
   const sortDirection = optional(value.sortDirection)?.toUpperCase();
   if (sortDirection) {
     if (!["ASC", "DESC"].includes(sortDirection))
-      throw new ValidationError([
-        { field: "sortDirection", message: "sortDirection is invalid" },
-      ]);
+      throw new ValidationError([{ field: "sortDirection", message: "sortDirection is invalid" }]);
     result.sortDirection = sortDirection as SortDirection;
   }
   return result;

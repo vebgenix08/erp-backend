@@ -13,7 +13,11 @@ test("get class returns the existing tenant record", async () => {
     { repository, ...academicHierarchyFixture() },
   );
 
-  const result = await getClassUseCase(created.id, createClassContext({ path: `/classes/${created.id}` }), { repository, ...academicHierarchyFixture() });
+  const result = await getClassUseCase(
+    created.id,
+    createClassContext({ path: `/classes/${created.id}` }),
+    { repository, ...academicHierarchyFixture() },
+  );
 
   assert.equal(result?.id, created.id);
   assert.equal(result?.name, "First Year B.Sc");

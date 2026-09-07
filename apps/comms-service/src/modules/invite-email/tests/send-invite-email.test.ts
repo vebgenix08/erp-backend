@@ -28,7 +28,29 @@ test("send invite email stores a delivery record", async () => {
 
 test("send invite email persists provider failure instead of a synthetic SENT state", async () => {
   const repository = new InMemoryInviteEmailRepository();
-  await assert.rejects(() => sendInviteEmailUseCase({ inviteId: "invite_2", tenantId: "tenant_test_1", email: "teacher@example.test", role: "TEACHER", inviteUrl: "https://app.example.test/invite", subject: "Invitation", text: "text", html: "<p>html</p>" }, createInviteEmailContext(), { repository, provider: { send: async () => { throw new Error("SES rejected message"); } } }));
+  await assert.rejects(() =>
+    sendInviteEmailUseCase(
+      {
+        inviteId: "invite_2",
+        tenantId: "tenant_test_1",
+        email: "teacher@example.test",
+        role: "TEACHER",
+        inviteUrl: "https://app.example.test/invite",
+        subject: "Invitation",
+        text: "text",
+        html: "<p>html</p>",
+      },
+      createInviteEmailContext(),
+      {
+        repository,
+        provider: {
+          send: async () => {
+            throw new Error("SES rejected message");
+          },
+        },
+      },
+    ),
+  );
   const records = await repository.list("tenant_test_1");
   assert.equal(records[0]?.status, "FAILED");
   assert.equal(records[0]?.errorMessage, "SES rejected message");

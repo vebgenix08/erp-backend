@@ -5,14 +5,16 @@ import {
   type CollectionAdapter,
   type MongoEnvLike,
 } from "@school-erp/mongodb";
-import type {
-  EmployeeListFilter,
-  EmployeePage,
-  EmployeeRecord,
-} from "./employees.model";
+import type { EmployeeListFilter, EmployeePage, EmployeeRecord } from "./employees.model";
 
-interface EmployeeDocument extends EmployeeRecord { _id: string }
-interface CounterDocument { _id: string; tenantId: string; sequence: number }
+interface EmployeeDocument extends EmployeeRecord {
+  _id: string;
+}
+interface CounterDocument {
+  _id: string;
+  tenantId: string;
+  sequence: number;
+}
 
 const clone = (value: EmployeeRecord): EmployeeRecord => ({
   ...value,
@@ -28,12 +30,18 @@ const clone = (value: EmployeeRecord): EmployeeRecord => ({
 });
 
 export interface EmployeeRepository {
+  getMany?(tenantId: string, ids: string[]): Promise<EmployeeRecord[]>;
   list(tenantId: string, filter?: EmployeeListFilter): Promise<EmployeeRecord[]>;
   listPage(tenantId: string, filter?: EmployeeListFilter): Promise<EmployeePage>;
   get(tenantId: string, id: string): Promise<EmployeeRecord | null>;
   findByEmail(tenantId: string, email: string): Promise<EmployeeRecord | null>;
+  findByPrincipal(tenantId: string, principalId: string): Promise<EmployeeRecord | null>;
   create(record: EmployeeRecord): Promise<EmployeeRecord>;
-  update(tenantId: string, id: string, patch: Partial<EmployeeRecord>): Promise<EmployeeRecord | null>;
+  update(
+    tenantId: string,
+    id: string,
+    patch: Partial<EmployeeRecord>,
+  ): Promise<EmployeeRecord | null>;
   nextCode(tenantId: string): Promise<string>;
 }
 
@@ -43,14 +51,17 @@ const matches = (value: EmployeeRecord, filter: EmployeeListFilter) => {
   if (filter.staffCategory && value.staffCategory !== filter.staffCategory) return false;
   if (filter.campusId && !value.campusIds.includes(filter.campusId)) return false;
   const search = filter.search?.trim().toLowerCase();
-  return !search || [
-    value.fullName,
-    value.email,
-    value.phone,
-    value.employeeCode,
-    value.department,
-    value.designation,
-  ].some((item) => item?.toLowerCase().includes(search));
+  return (
+    !search ||
+    [
+      value.fullName,
+      value.email,
+      value.phone,
+      value.employeeCode,
+      value.department,
+      value.designation,
+    ].some((item) => item?.toLowerCase().includes(search))
+  );
 };
 
 const sortRows = (rows: EmployeeRecord[], filter: EmployeeListFilter) => {
@@ -59,9 +70,10 @@ const sortRows = (rows: EmployeeRecord[], filter: EmployeeListFilter) => {
   return rows.sort((left, right) => {
     const leftValue = left[sortBy];
     const rightValue = right[sortBy];
-    const compared = leftValue instanceof Date && rightValue instanceof Date
-      ? leftValue.getTime() - rightValue.getTime()
-      : String(leftValue).localeCompare(String(rightValue));
+    const compared =
+      leftValue instanceof Date && rightValue instanceof Date
+        ? leftValue.getTime() - rightValue.getTime()
+        : String(leftValue).localeCompare(String(rightValue));
     return compared === 0 ? left.id.localeCompare(right.id) : compared * direction;
   });
 };
@@ -70,9 +82,18 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
   private readonly data = new Map<string, EmployeeRecord>();
   private readonly counters = new Map<string, number>();
 
+  async getMany(tenantId: string, ids: string[]) {
+    const selected = new Set(ids);
+    return [...this.data.values()]
+      .filter((item) => item.tenantId === tenantId && selected.has(item.id))
+      .map(clone);
+  }
+
   async list(tenantId: string, filter: EmployeeListFilter = {}) {
     return sortRows(
-      [...this.data.values()].filter((value) => value.tenantId === tenantId && matches(value, filter)).map(clone),
+      [...this.data.values()]
+        .filter((value) => value.tenantId === tenantId && matches(value, filter))
+        .map(clone),
       filter,
     );
   }
@@ -82,7 +103,11 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
     const page = filter.page ?? 1;
     const pageSize = filter.pageSize ?? 20;
     const total = rows.length;
-    const summaryRows = [...this.data.values()].filter((value) => value.tenantId === tenantId && (!filter.campusId || value.campusIds.includes(filter.campusId)));
+    const summaryRows = [...this.data.values()].filter(
+      (value) =>
+        value.tenantId === tenantId &&
+        (!filter.campusId || value.campusIds.includes(filter.campusId)),
+    );
     return {
       items: rows.slice((page - 1) * pageSize, page * pageSize),
       page,
@@ -94,8 +119,12 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
       summary: {
         total: summaryRows.length,
         active: summaryRows.filter((item) => item.status === "ACTIVE").length,
-        teaching: summaryRows.filter((item) => item.status === "ACTIVE" && item.staffCategory === "TEACHING").length,
-        nonTeaching: summaryRows.filter((item) => item.status === "ACTIVE" && item.staffCategory === "NON_TEACHING").length,
+        teaching: summaryRows.filter(
+          (item) => item.status === "ACTIVE" && item.staffCategory === "TEACHING",
+        ).length,
+        nonTeaching: summaryRows.filter(
+          (item) => item.status === "ACTIVE" && item.staffCategory === "NON_TEACHING",
+        ).length,
         loginReady: summaryRows.filter((item) => item.loginStatus === "ACTIVE").length,
         inviteIssues: summaryRows.filter((item) => item.loginStatus === "FAILED").length,
       },
@@ -109,12 +138,23 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
 
   async findByEmail(tenantId: string, email: string) {
     const normalized = email.trim().toLowerCase();
-    const value = [...this.data.values()].find((item) => item.tenantId === tenantId && item.email?.toLowerCase() === normalized);
+    const value = [...this.data.values()].find(
+      (item) => item.tenantId === tenantId && item.email?.toLowerCase() === normalized,
+    );
+    return value ? clone(value) : null;
+  }
+
+  async findByPrincipal(tenantId: string, principalId: string) {
+    const value = [...this.data.values()].find(
+      (item) =>
+        item.tenantId === tenantId && (item.id === principalId || item.userId === principalId),
+    );
     return value ? clone(value) : null;
   }
 
   async create(value: EmployeeRecord) {
-    if (value.email && await this.findByEmail(value.tenantId, value.email)) throw new ConflictError("employee email already exists");
+    if (value.email && (await this.findByEmail(value.tenantId, value.email)))
+      throw new ConflictError("employee email already exists");
     this.data.set(value.id, clone(value));
     return clone(value);
   }
@@ -122,7 +162,13 @@ export class InMemoryEmployeeRepository implements EmployeeRepository {
   async update(tenantId: string, id: string, patch: Partial<EmployeeRecord>) {
     const current = await this.get(tenantId, id);
     if (!current) return null;
-    const next = { ...current, ...patch, id: current.id, tenantId: current.tenantId, updatedAt: new Date() };
+    const next = {
+      ...current,
+      ...patch,
+      id: current.id,
+      tenantId: current.tenantId,
+      updatedAt: new Date(),
+    };
     this.data.set(id, next);
     return clone(next);
   }
@@ -150,7 +196,9 @@ export class MongoEmployeeRepository implements EmployeeRepository {
     if (filter.campusId) query.campusIds = filter.campusId;
     if (filter.search?.trim()) {
       const search = { $regex: escapeRegex(filter.search.trim()), $options: "i" };
-      query.$or = ["fullName", "email", "phone", "employeeCode", "department", "designation"].map((field) => ({ [field]: search }));
+      query.$or = ["fullName", "email", "phone", "employeeCode", "department", "designation"].map(
+        (field) => ({ [field]: search }),
+      );
     }
     return query;
   }
@@ -158,6 +206,14 @@ export class MongoEmployeeRepository implements EmployeeRepository {
   private fromDocument(document: EmployeeDocument) {
     const { _id, ...value } = document;
     return clone({ ...value, id: value.id || _id });
+  }
+
+  async getMany(tenantId: string, ids: string[]) {
+    if (!tenantId.trim()) throw new Error("tenantId is required");
+    if (!ids.length) return [];
+    return (await this.employees.findMany({ tenantId, _id: { $in: ids } } as never)).map((item) =>
+      this.fromDocument(item),
+    );
   }
 
   async list(tenantId: string, filter: EmployeeListFilter = {}) {
@@ -183,14 +239,23 @@ export class MongoEmployeeRepository implements EmployeeRepository {
     });
     const summaryFilter: Record<string, unknown> = { tenantId };
     if (filter.campusId) summaryFilter.campusIds = filter.campusId;
-    const [summaryTotal, active, teaching, nonTeaching, loginReady, inviteIssues] = await Promise.all([
-      this.employees.count(summaryFilter as never),
-      this.employees.count({ ...summaryFilter, status: "ACTIVE" } as never),
-      this.employees.count({ ...summaryFilter, status: "ACTIVE", staffCategory: "TEACHING" } as never),
-      this.employees.count({ ...summaryFilter, status: "ACTIVE", staffCategory: "NON_TEACHING" } as never),
-      this.employees.count({ ...summaryFilter, loginStatus: "ACTIVE" } as never),
-      this.employees.count({ ...summaryFilter, loginStatus: "FAILED" } as never),
-    ]);
+    const [summaryTotal, active, teaching, nonTeaching, loginReady, inviteIssues] =
+      await Promise.all([
+        this.employees.count(summaryFilter as never),
+        this.employees.count({ ...summaryFilter, status: "ACTIVE" } as never),
+        this.employees.count({
+          ...summaryFilter,
+          status: "ACTIVE",
+          staffCategory: "TEACHING",
+        } as never),
+        this.employees.count({
+          ...summaryFilter,
+          status: "ACTIVE",
+          staffCategory: "NON_TEACHING",
+        } as never),
+        this.employees.count({ ...summaryFilter, loginStatus: "ACTIVE" } as never),
+        this.employees.count({ ...summaryFilter, loginStatus: "FAILED" } as never),
+      ]);
     return {
       items: rows.map((row) => this.fromDocument(row)),
       page,
@@ -209,12 +274,24 @@ export class MongoEmployeeRepository implements EmployeeRepository {
   }
 
   async findByEmail(tenantId: string, email: string) {
-    const document = await this.employees.findOne({ tenantId, email: email.trim().toLowerCase() } as never);
+    const document = await this.employees.findOne({
+      tenantId,
+      email: email.trim().toLowerCase(),
+    } as never);
+    return document ? this.fromDocument(document) : null;
+  }
+
+  async findByPrincipal(tenantId: string, principalId: string) {
+    const document = await this.employees.findOne({
+      tenantId,
+      $or: [{ _id: principalId }, { id: principalId }, { userId: principalId }],
+    } as never);
     return document ? this.fromDocument(document) : null;
   }
 
   async create(value: EmployeeRecord) {
-    if (value.email && await this.findByEmail(value.tenantId, value.email)) throw new ConflictError("employee email already exists");
+    if (value.email && (await this.findByEmail(value.tenantId, value.email)))
+      throw new ConflictError("employee email already exists");
     await this.employees.insertOne({ ...clone(value), _id: value.id });
     return clone(value);
   }
@@ -222,8 +299,16 @@ export class MongoEmployeeRepository implements EmployeeRepository {
   async update(tenantId: string, id: string, patch: Partial<EmployeeRecord>) {
     const current = await this.get(tenantId, id);
     if (!current) return null;
-    const next = { ...current, ...patch, id: current.id, tenantId: current.tenantId, updatedAt: new Date() };
-    return await this.employees.replaceOne({ tenantId, _id: id } as never, { ...next, _id: id }) ? clone(next) : null;
+    const next = {
+      ...current,
+      ...patch,
+      id: current.id,
+      tenantId: current.tenantId,
+      updatedAt: new Date(),
+    };
+    return (await this.employees.replaceOne({ tenantId, _id: id } as never, { ...next, _id: id }))
+      ? clone(next)
+      : null;
   }
 
   async nextCode(tenantId: string) {
@@ -243,7 +328,8 @@ function runtimeEnv(): MongoEnvLike {
 
 let singleton: Promise<EmployeeRepository> | undefined;
 export async function createEmployeeRepository(env: MongoEnvLike = runtimeEnv()) {
-  if (!env.MONGODB_URI && !env.MONGODB_URI_DEV && !env.MONGODB_URI_PROD && !env.MONGODB_URI_TEST) return new InMemoryEmployeeRepository();
+  if (!env.MONGODB_URI && !env.MONGODB_URI_DEV && !env.MONGODB_URI_PROD && !env.MONGODB_URI_TEST)
+    return new InMemoryEmployeeRepository();
   const employeeCollection = await getCollection<EmployeeDocument>("identity_employees", env);
   const counterCollection = await getCollection<CounterDocument>("identity_counters", env);
   await employeeCollection.createIndex({ tenantId: 1, employeeCode: 1 }, { unique: true });
@@ -256,14 +342,20 @@ export async function createEmployeeRepository(env: MongoEnvLike = runtimeEnv())
 }
 
 async function repository() {
-  return singleton ??= createEmployeeRepository();
+  return (singleton ??= createEmployeeRepository());
 }
 
 export const employeeRepository: EmployeeRepository = {
+  getMany: async (tenantId, ids) => {
+    const repo = await repository();
+    if (!repo.getMany) throw new Error("Employee batch lookup is unavailable");
+    return repo.getMany(tenantId, ids);
+  },
   list: async (...args) => (await repository()).list(...args),
   listPage: async (...args) => (await repository()).listPage(...args),
   get: async (...args) => (await repository()).get(...args),
   findByEmail: async (...args) => (await repository()).findByEmail(...args),
+  findByPrincipal: async (...args) => (await repository()).findByPrincipal(...args),
   create: async (...args) => (await repository()).create(...args),
   update: async (...args) => (await repository()).update(...args),
   nextCode: async (...args) => (await repository()).nextCode(...args),

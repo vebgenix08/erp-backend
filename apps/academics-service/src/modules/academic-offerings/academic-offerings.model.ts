@@ -44,7 +44,8 @@ export interface AcademicOfferingListFilter {
   status?: AcademicOfferingStatus | undefined;
 }
 
-export interface AcademicOfferingView extends Omit<AcademicOfferingRecord, "createdAt" | "updatedAt" | "deactivatedAt"> {
+export interface AcademicOfferingView
+  extends Omit<AcademicOfferingRecord, "createdAt" | "updatedAt" | "deactivatedAt"> {
   createdAt: string;
   updatedAt: string;
   deactivatedAt?: string | undefined;

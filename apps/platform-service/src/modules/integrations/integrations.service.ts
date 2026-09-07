@@ -7,21 +7,14 @@ import {
 } from "./integrations.repository";
 import { validatePlatformIntegrationInput } from "./integrations.validator";
 export interface IntegrationDeps {
-  repository?:
-    | PlatformIntegrationRepository
-    | Promise<PlatformIntegrationRepository>;
+  repository?: PlatformIntegrationRepository | Promise<PlatformIntegrationRepository>;
 }
-const view = (
-  x: Awaited<ReturnType<PlatformIntegrationRepository["upsert"]>>,
-) => ({
+const view = (x: Awaited<ReturnType<PlatformIntegrationRepository["upsert"]>>) => ({
   ...x,
   createdAt: x.createdAt.toISOString(),
   updatedAt: x.updatedAt.toISOString(),
 });
-export async function listPlatformIntegrations(
-  ctx: RequestContext,
-  deps: IntegrationDeps = {},
-) {
+export async function listPlatformIntegrations(ctx: RequestContext, deps: IntegrationDeps = {}) {
   requirePlatformPermission(ctx, platformPermissions.integrations.read);
   const r = await (deps.repository ?? createPlatformIntegrationRepository());
   return (await r.list()).map(view);

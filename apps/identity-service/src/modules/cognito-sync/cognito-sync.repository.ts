@@ -1,14 +1,23 @@
 import { BadRequestError, ConflictError } from "@school-erp/errors";
 import type { CollectionAdapter, MongoEnvLike } from "@school-erp/mongodb";
 import { createMongoCollectionAdapter, getCollection } from "@school-erp/mongodb";
-import type { CognitoSyncCreateInput, CognitoSyncListFilter, CognitoSyncRecord, CognitoSyncUpdateInput } from "./cognito-sync.model";
+import type {
+  CognitoSyncCreateInput,
+  CognitoSyncListFilter,
+  CognitoSyncRecord,
+  CognitoSyncUpdateInput,
+} from "./cognito-sync.model";
 
 export interface CognitoSyncRepository {
   list(tenantId: string, filter?: CognitoSyncListFilter): Promise<CognitoSyncRecord[]>;
   getById(tenantId: string, id: string): Promise<CognitoSyncRecord | null>;
   getByUserId(tenantId: string, userId: string): Promise<CognitoSyncRecord | null>;
   create(tenantId: string, input: CognitoSyncCreateInput): Promise<CognitoSyncRecord>;
-  update(tenantId: string, id: string, input: CognitoSyncUpdateInput): Promise<CognitoSyncRecord | null>;
+  update(
+    tenantId: string,
+    id: string,
+    input: CognitoSyncUpdateInput,
+  ): Promise<CognitoSyncRecord | null>;
   delete(tenantId: string, id: string): Promise<boolean>;
 }
 
@@ -108,7 +117,8 @@ export class InMemoryCognitoSyncRepository implements CognitoSyncRepository {
 
   async getByUserId(tenantId: string, userId: string) {
     const normalizedTenantId = normalizeTenantId(tenantId);
-    const record = [...this.bucket(normalizedTenantId).values()].find((item) => item.userId === userId) ?? null;
+    const record =
+      [...this.bucket(normalizedTenantId).values()].find((item) => item.userId === userId) ?? null;
     return record ? clone(record) : null;
   }
 
@@ -162,11 +172,15 @@ export class MongoCognitoSyncRepository implements CognitoSyncRepository {
   }
 
   async getById(tenantId: string, id: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }));
+    return fromDocument(
+      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), _id: id }),
+    );
   }
 
   async getByUserId(tenantId: string, userId: string) {
-    return fromDocument(await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), userId }));
+    return fromDocument(
+      await this.collection.findOne({ tenantId: normalizeTenantId(tenantId), userId }),
+    );
   }
 
   async create(tenantId: string, input: CognitoSyncCreateInput) {
@@ -191,7 +205,10 @@ export class MongoCognitoSyncRepository implements CognitoSyncRepository {
       email: existing.email,
       updatedAt: now(),
     });
-    const replaced = await this.collection.replaceOne({ tenantId: normalizeTenantId(tenantId), _id: id }, toDocument(updated));
+    const replaced = await this.collection.replaceOne(
+      { tenantId: normalizeTenantId(tenantId), _id: id },
+      toDocument(updated),
+    );
     return replaced ? updated : null;
   }
 
@@ -201,7 +218,9 @@ export class MongoCognitoSyncRepository implements CognitoSyncRepository {
 }
 
 function hasMongoEnv(env: MongoEnvLike): boolean {
-  return Boolean(env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST);
+  return Boolean(
+    env.MONGODB_URI || env.MONGODB_URI_DEV || env.MONGODB_URI_PROD || env.MONGODB_URI_TEST,
+  );
 }
 
 function getRuntimeEnv(): MongoEnvLike {
@@ -209,7 +228,9 @@ function getRuntimeEnv(): MongoEnvLike {
   return runtime.process?.env ?? {};
 }
 
-export async function createCognitoSyncRepository(env: MongoEnvLike = getRuntimeEnv()): Promise<CognitoSyncRepository> {
+export async function createCognitoSyncRepository(
+  env: MongoEnvLike = getRuntimeEnv(),
+): Promise<CognitoSyncRepository> {
   if (!hasMongoEnv(env)) {
     return new InMemoryCognitoSyncRepository();
   }

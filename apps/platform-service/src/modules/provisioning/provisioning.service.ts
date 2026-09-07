@@ -33,7 +33,8 @@ export async function provisionTenant(
   let tenant = await tenants.getByClientRequestId(payload.clientRequestId);
 
   if (!tenant) {
-    if (await tenants.getBySlug(payload.slug)) throw new ConflictError("tenant slug must be unique");
+    if (await tenants.getBySlug(payload.slug))
+      throw new ConflictError("tenant slug must be unique");
     try {
       tenant = await tenants.create({
         clientRequestId: payload.clientRequestId,
@@ -91,7 +92,12 @@ export async function provisionTenant(
     primaryAdminInviteStatus: bootstrap.status,
     warnings:
       bootstrap.status === "FAILED"
-        ? [{ code: "INVITE_FAILED", message: "Tenant was created but the administrator invite must be retried." }]
+        ? [
+            {
+              code: "INVITE_FAILED",
+              message: "Tenant was created but the administrator invite must be retried.",
+            },
+          ]
         : [],
   };
 }

@@ -48,11 +48,17 @@ export async function getDb(env?: MongoEnvLike) {
   return connection.client.db(connection.dbName);
 }
 
-export function getCollectionFromDb<TCollectionDocument extends Document = Document>(db: Db, name: string) {
+export function getCollectionFromDb<TCollectionDocument extends Document = Document>(
+  db: Db,
+  name: string,
+) {
   return db.collection<TCollectionDocument>(name);
 }
 
-export async function getCollection<TCollectionDocument extends Document = Document>(name: string, env?: MongoEnvLike) {
+export async function getCollection<TCollectionDocument extends Document = Document>(
+  name: string,
+  env?: MongoEnvLike,
+) {
   const db = await getDb(env);
   return getCollectionFromDb<TCollectionDocument>(db, name);
 }

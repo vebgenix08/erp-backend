@@ -11,12 +11,16 @@ export function registerSessionRoutes(router: ApiRouter, deps: SessionServiceDep
   });
 
   router.route("POST", "/session/select-tenant", async (context: RequestContext) => {
-    const result = await selectTenantUseCase(validateSelectTenantInput(context.body), context, deps);
+    const result = await selectTenantUseCase(
+      validateSelectTenantInput(context.body),
+      context,
+      deps,
+    );
     return jsonResponse(200, result);
   });
 
   router.route("POST", "/session/logout", async (context: RequestContext) => {
-    const result = await logoutUseCase(context);
+    const result = await logoutUseCase(context, deps);
     return jsonResponse(200, result);
   });
 

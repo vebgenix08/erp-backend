@@ -35,4 +35,4 @@ export interface AcademicYearListFilter {
   status?: AcademicYearStatus | undefined;
 }
 
-export interface AcademicYearView extends AcademicYearRecord {}
+export type AcademicYearView = AcademicYearRecord;

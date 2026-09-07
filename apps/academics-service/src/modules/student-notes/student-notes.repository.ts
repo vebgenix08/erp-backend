@@ -1,12 +1,24 @@
 import { BadRequestError } from "@school-erp/errors";
-import { createMongoCollectionAdapter, getCollection, type CollectionAdapter, type MongoEnvLike } from "@school-erp/mongodb";
+import {
+  createMongoCollectionAdapter,
+  getCollection,
+  type CollectionAdapter,
+  type MongoEnvLike,
+} from "@school-erp/mongodb";
 import type { StudentNoteRecord } from "./student-notes.model";
 
-interface StudentNoteDocument extends StudentNoteRecord { _id: string }
+interface StudentNoteDocument extends StudentNoteRecord {
+  _id: string;
+}
 export interface StudentNoteRepository {
   list(tenantId: string, studentId: string): Promise<StudentNoteRecord[]>;
   create(record: StudentNoteRecord): Promise<StudentNoteRecord>;
-  update(tenantId: string, id: string, body: string, updatedAt: Date): Promise<StudentNoteRecord | null>;
+  update(
+    tenantId: string,
+    id: string,
+    body: string,
+    updatedAt: Date,
+  ): Promise<StudentNoteRecord | null>;
 }
 
 const required = (value: string, field: string) => {
@@ -45,22 +57,25 @@ export class InMemoryStudentNoteRepository implements StudentNoteRepository {
 class MongoStudentNoteRepository implements StudentNoteRepository {
   constructor(private readonly collection: CollectionAdapter<StudentNoteDocument>) {}
   async list(tenantId: string, studentId: string) {
-    return (await this.collection.findMany(
-      { tenantId: required(tenantId, "tenantId"), studentId },
-      { sort: { createdAt: -1 } },
-    )).map(({ _id, ...record }) => clone({ ...record, id: record.id || _id }));
+    return (
+      await this.collection.findMany(
+        { tenantId: required(tenantId, "tenantId"), studentId },
+        { sort: { createdAt: -1 } },
+      )
+    ).map(({ _id, ...record }) => clone({ ...record, id: record.id || _id }));
   }
   async create(record: StudentNoteRecord) {
     await this.collection.insertOne({ ...clone(record), _id: record.id });
     return clone(record);
   }
   async update(tenantId: string, id: string, body: string, updatedAt: Date) {
-    const current = await this.collection.findOne({ tenantId: required(tenantId, "tenantId"), _id: id });
+    const current = await this.collection.findOne({
+      tenantId: required(tenantId, "tenantId"),
+      _id: id,
+    });
     if (!current) return null;
     const next = { ...current, body, updatedAt };
-    return await this.collection.replaceOne({ tenantId, _id: id }, next)
-      ? clone(next)
-      : null;
+    return (await this.collection.replaceOne({ tenantId, _id: id }, next)) ? clone(next) : null;
   }
 }
 
@@ -75,5 +90,5 @@ export async function createStudentNoteRepository(env: MongoEnvLike = runtimeEnv
   return new MongoStudentNoteRepository(createMongoCollectionAdapter(collection));
 }
 export function getStudentNoteRepository() {
-  return singleton ??= createStudentNoteRepository();
+  return (singleton ??= createStudentNoteRepository());
 }

@@ -21,9 +21,13 @@ export function validateUserCreateInput(input: Record<string, unknown>): UserCre
   const errors: Array<{ field: string; message: string }> = [];
 
   if (!name.success) errors.push({ field: "name", message: name.errors[0] ?? "name is required" });
-  if (!email.success) errors.push({ field: "email", message: email.errors[0] ?? "email is required" });
+  if (!email.success)
+    errors.push({ field: "email", message: email.errors[0] ?? "email is required" });
   if (input.status !== undefined && !isUserStatus(input.status)) {
-    errors.push({ field: "status", message: "status must be one of ACTIVE, INACTIVE, SUSPENDED, INVITED" });
+    errors.push({
+      field: "status",
+      message: "status must be one of ACTIVE, INACTIVE, SUSPENDED, INVITED",
+    });
   }
   if (errors.length > 0) {
     throw new ValidationError(errors);
@@ -46,13 +50,15 @@ export function validateUserUpdateInput(input: Record<string, unknown>): UserUpd
 
   if (input.name !== undefined) {
     const name = validateNonEmptyString(input.name, "name");
-    if (!name.success) errors.push({ field: "name", message: name.errors[0] ?? "name cannot be empty" });
+    if (!name.success)
+      errors.push({ field: "name", message: name.errors[0] ?? "name cannot be empty" });
     else update.name = name.value;
   }
 
   if (input.email !== undefined) {
     const email = validateEmail(input.email, "email");
-    if (!email.success) errors.push({ field: "email", message: email.errors[0] ?? "email is invalid" });
+    if (!email.success)
+      errors.push({ field: "email", message: email.errors[0] ?? "email is invalid" });
     else update.email = email.value;
   }
 

@@ -2,11 +2,19 @@ import { BadRequestError, ConflictError } from "@school-erp/errors";
 import { requireAuth, requirePermission } from "@school-erp/auth";
 import { requireTenantId } from "@school-erp/tenancy";
 import type { StructuredLogger } from "@school-erp/logger";
-import { issueConfiguredNumber, type NumberingContext } from "@school-erp/numbering";
+import type { NumberingContext } from "@school-erp/numbering";
+import { issueConfiguredNumber } from "@school-erp/service-client";
 import { enquiryPermissions } from "./enquiry.permissions";
 import { toEnquiryView } from "./enquiry.mapper";
-import { enquiryRepository as defaultRepository, type EnquiryRepository } from "./enquiry.repository";
-import { validateEnquiryCreateInput, validateEnquiryListFilter, validateEnquiryUpdateInput } from "./enquiry.validator";
+import {
+  enquiryRepository as defaultRepository,
+  type EnquiryRepository,
+} from "./enquiry.repository";
+import {
+  validateEnquiryCreateInput,
+  validateEnquiryListFilter,
+  validateEnquiryUpdateInput,
+} from "./enquiry.validator";
 import type { EnquiryListFilter, EnquiryServiceContext, EnquiryView } from "./enquiry.model";
 
 export interface AdmissionsServiceDeps {
@@ -40,14 +48,20 @@ function assertPermission(context: EnquiryServiceContext, permission: string): v
   requirePermission(context.authContext, permission);
 }
 
-function log(deps: AdmissionsServiceDeps | undefined, message: string, context: EnquiryServiceContext): void {
+function log(
+  deps: AdmissionsServiceDeps | undefined,
+  message: string,
+  context: EnquiryServiceContext,
+): void {
   const logger = resolveLogger(deps);
   if (!logger) return;
-  logger.withContext({
-    requestId: context.requestId,
-    tenantId: context.tenantContext.tenantId,
-    userId: context.authContext.user?.id,
-  }).info(message);
+  logger
+    .withContext({
+      requestId: context.requestId,
+      tenantId: context.tenantContext.tenantId,
+      userId: context.authContext.user?.id,
+    })
+    .info(message);
 }
 
 async function enquiryNumber(
@@ -56,18 +70,20 @@ async function enquiryNumber(
   academicYearId: string | undefined,
   deps: AdmissionsServiceDeps | undefined,
 ) {
-  if (deps?.numberIssuer) return deps.numberIssuer({
-    tenantId,
-    stream: "ENQUIRY",
-    idempotencyKey: id,
-    ...(academicYearId ? { academicYearId } : {}),
-  });
-  if (!deps?.repository) return issueConfiguredNumber({
-    tenantId,
-    stream: "ENQUIRY",
-    idempotencyKey: id,
-    ...(academicYearId ? { academicYearId } : {}),
-  });
+  if (deps?.numberIssuer)
+    return deps.numberIssuer({
+      tenantId,
+      stream: "ENQUIRY",
+      idempotencyKey: id,
+      ...(academicYearId ? { academicYearId } : {}),
+    });
+  if (!deps?.repository)
+    return issueConfiguredNumber({
+      tenantId,
+      stream: "ENQUIRY",
+      idempotencyKey: id,
+      ...(academicYearId ? { academicYearId } : {}),
+    });
   return `ENQ-${String(await deps.repository.nextEnquirySequence(tenantId)).padStart(4, "0")}`;
 }
 
@@ -121,9 +137,16 @@ export async function listEnquiries(
   return enquiries.map((enquiry) => toEnquiryView(enquiry) as EnquiryView);
 }
 
-export async function listEnquiryPage(context: EnquiryServiceContext, deps?: AdmissionsServiceDeps, filter?: EnquiryListFilter) {
+export async function listEnquiryPage(
+  context: EnquiryServiceContext,
+  deps?: AdmissionsServiceDeps,
+  filter?: EnquiryListFilter,
+) {
   assertPermission(context, enquiryPermissions.read);
-  const page = await resolveRepository(deps).listPage(getTenantId(context), validateEnquiryListFilter(filter));
+  const page = await resolveRepository(deps).listPage(
+    getTenantId(context),
+    validateEnquiryListFilter(filter),
+  );
   return { ...page, items: page.items.map((enquiry) => toEnquiryView(enquiry) as EnquiryView) };
 }
 

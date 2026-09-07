@@ -1,8 +1,27 @@
-enum CampusStatus { ACTIVE INACTIVE }
-enum AcademicUnitType { SCHOOL PU DEGREE }
-enum AcademicYearStatus { DRAFT ACTIVE CLOSED }
-enum TemplateStatus { DRAFT PUBLISHED ARCHIVED }
-enum TemplateType { FORM EMAIL PRINT }
+enum CampusStatus {
+  ACTIVE
+  INACTIVE
+}
+enum AcademicUnitType {
+  SCHOOL
+  PU
+  DEGREE
+}
+enum AcademicYearStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+enum TemplateStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+enum TemplateType {
+  FORM
+  EMAIL
+  PRINT
+}
 
 type InstitutionProfile {
   id: ID!
@@ -12,8 +31,8 @@ type InstitutionProfile {
   contactEmail: AWSEmail
   contactPhone: String
   address: String
-    logoUrl: AWSURL
-    logoFileId: ID
+  logoUrl: AWSURL
+  logoFileId: ID
   createdAt: AWSDateTime!
   updatedAt: AWSDateTime!
 }
@@ -174,28 +193,191 @@ type TenantTemplate {
   archivedAt: AWSDateTime
 }
 
-input UpdateInstitutionProfileInput { name: String shortName: String contactEmail: AWSEmail contactPhone: String address: String logoUrl: AWSURL logoFileId: ID }
-input CreateCampusInput { name: String! address: String contactEmail: AWSEmail contactPhone: String }
-input UpdateCampusInput { name: String address: String contactEmail: AWSEmail contactPhone: String }
-input CampusAcademicUnitFilter { campusId: ID type: AcademicUnitType status: CampusStatus }
-input CreateCampusAcademicUnitInput { name: String! type: AcademicUnitType! curriculumOrAffiliationId: ID! }
-input UpdateCampusAcademicUnitInput { name: String curriculumOrAffiliationId: ID status: CampusStatus }
-input CreateCampusSetupInput { name: String! address: String contactEmail: AWSEmail contactPhone: String academicUnits: [CreateCampusAcademicUnitInput!]! }
-type CampusSetupPayload { campus: Campus! academicUnits: [CampusAcademicUnit!]! }
-input CreateAcademicYearInput { name: String! startDate: AWSDateTime! endDate: AWSDateTime! }
-input UpdateAcademicYearInput { name: String startDate: AWSDateTime endDate: AWSDateTime }
-input CreateTenantTemplateInput { name: String! templateType: TemplateType! description: String subject: String body: String layout: String sections: AWSJSON fields: AWSJSON requiredSystemKeys: [String!] }
-input UpdateTenantTemplateInput { name: String templateType: TemplateType description: String subject: String body: String layout: String sections: AWSJSON fields: AWSJSON requiredSystemKeys: [String!] }
+input UpdateInstitutionProfileInput {
+  name: String
+  shortName: String
+  contactEmail: AWSEmail
+  contactPhone: String
+  address: String
+  logoUrl: AWSURL
+  logoFileId: ID
+}
+input CreateCampusInput {
+  name: String!
+  address: String
+  contactEmail: AWSEmail
+  contactPhone: String
+}
+input UpdateCampusInput {
+  name: String
+  address: String
+  contactEmail: AWSEmail
+  contactPhone: String
+}
+input CampusAcademicUnitFilter {
+  campusId: ID
+  type: AcademicUnitType
+  status: CampusStatus
+}
+input CreateCampusAcademicUnitInput {
+  name: String!
+  type: AcademicUnitType!
+  curriculumOrAffiliationId: ID!
+}
+input UpdateCampusAcademicUnitInput {
+  name: String
+  curriculumOrAffiliationId: ID
+  status: CampusStatus
+}
+input CreateCampusSetupInput {
+  name: String!
+  address: String
+  contactEmail: AWSEmail
+  contactPhone: String
+  academicUnits: [CreateCampusAcademicUnitInput!]!
+}
+type CampusSetupPayload {
+  campus: Campus!
+  academicUnits: [CampusAcademicUnit!]!
+}
+input CreateAcademicYearInput {
+  name: String!
+  startDate: AWSDateTime!
+  endDate: AWSDateTime!
+}
+input UpdateAcademicYearInput {
+  name: String
+  startDate: AWSDateTime
+  endDate: AWSDateTime
+}
+input CreateTenantTemplateInput {
+  name: String!
+  templateType: TemplateType!
+  description: String
+  subject: String
+  body: String
+  layout: String
+  sections: AWSJSON
+  fields: AWSJSON
+  requiredSystemKeys: [String!]
+}
+input UpdateTenantTemplateInput {
+  name: String
+  templateType: TemplateType
+  description: String
+  subject: String
+  body: String
+  layout: String
+  sections: AWSJSON
+  fields: AWSJSON
+  requiredSystemKeys: [String!]
+}
 
-enum NumberingStream { ENQUIRY APPLICATION ADMISSION STUDENT_REGISTRATION CLASS_REGISTER ROLL_NUMBER EMPLOYEE FEE_ORDER INVOICE PAYMENT RECEIPT BONAFIDE_CERTIFICATE STUDY_CERTIFICATE TRANSFER_CERTIFICATE STUDENT_ID_CARD }
-enum NumberingScope { TENANT CAMPUS ACADEMIC_YEAR PROGRAM CLASS SECTION }
-enum NumberingReset { NEVER ACADEMIC_YEAR CALENDAR_YEAR MONTHLY }
-type NumberingPolicy { id: ID! tenantId: ID! stream: NumberingStream! name: String! format: String! prefix: String! separator: String! padding: Int! scope: NumberingScope! reset: NumberingReset! nextNumber: Int! active: Boolean! issuedCount: Int! sample: String! createdAt: AWSDateTime! updatedAt: AWSDateTime! }
-input SaveNumberingPolicyInput { stream: NumberingStream! name: String! format: String! prefix: String! separator: String! padding: Int! scope: NumberingScope! reset: NumberingReset! active: Boolean! }
+enum NumberingStream {
+  ENQUIRY
+  APPLICATION
+  ADMISSION
+  STUDENT_REGISTRATION
+  CLASS_REGISTER
+  ROLL_NUMBER
+  EMPLOYEE
+  FEE_ORDER
+  INVOICE
+  PAYMENT
+  RECEIPT
+  BONAFIDE_CERTIFICATE
+  STUDY_CERTIFICATE
+  TRANSFER_CERTIFICATE
+  STUDENT_ID_CARD
+}
+enum NumberingScope {
+  TENANT
+  CAMPUS
+  ACADEMIC_YEAR
+  PROGRAM
+  CLASS
+  SECTION
+}
+enum NumberingReset {
+  NEVER
+  ACADEMIC_YEAR
+  CALENDAR_YEAR
+  MONTHLY
+}
+type NumberingPolicy {
+  id: ID!
+  tenantId: ID!
+  stream: NumberingStream!
+  name: String!
+  format: String!
+  prefix: String!
+  separator: String!
+  padding: Int!
+  scope: NumberingScope!
+  reset: NumberingReset!
+  nextNumber: Int!
+  active: Boolean!
+  issuedCount: Int!
+  sample: String!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+input SaveNumberingPolicyInput {
+  stream: NumberingStream!
+  name: String!
+  format: String!
+  prefix: String!
+  separator: String!
+  padding: Int!
+  scope: NumberingScope!
+  reset: NumberingReset!
+  active: Boolean!
+}
 
-enum NotificationEvent { NEW_ENQUIRY APPLICATION_SUBMITTED APPLICATION_APPROVED APPLICATION_REJECTED FEE_PAID STAFF_INVITED }
-enum NotificationAudience { TENANT_ADMINS APPLICANT PARENT_STUDENT STAFF_MEMBER }
-type NotificationEventPolicy { event: NotificationEvent! label: String! audience: NotificationAudience! email: Boolean! sms: Boolean! }
-type NotificationPolicy { id: ID! tenantId: ID! adminEmail: AWSEmail replyToEmail: AWSEmail emailEnabled: Boolean! smsEnabled: Boolean! timezone: String! events: [NotificationEventPolicy!]! createdAt: AWSDateTime! updatedAt: AWSDateTime! }
-input NotificationEventPolicyInput { event: NotificationEvent! audience: NotificationAudience! email: Boolean! sms: Boolean! }
-input UpdateNotificationPolicyInput { adminEmail: AWSEmail replyToEmail: AWSEmail emailEnabled: Boolean! smsEnabled: Boolean! timezone: String! events: [NotificationEventPolicyInput!]! }
+enum NotificationEvent {
+  NEW_ENQUIRY
+  APPLICATION_SUBMITTED
+  APPLICATION_APPROVED
+  APPLICATION_REJECTED
+  FEE_PAID
+  STAFF_INVITED
+}
+enum NotificationAudience {
+  TENANT_ADMINS
+  APPLICANT
+  PARENT_STUDENT
+  STAFF_MEMBER
+}
+type NotificationEventPolicy {
+  event: NotificationEvent!
+  label: String!
+  audience: NotificationAudience!
+  email: Boolean!
+  sms: Boolean!
+}
+type NotificationPolicy {
+  id: ID!
+  tenantId: ID!
+  adminEmail: AWSEmail
+  replyToEmail: AWSEmail
+  emailEnabled: Boolean!
+  smsEnabled: Boolean!
+  timezone: String!
+  events: [NotificationEventPolicy!]!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+input NotificationEventPolicyInput {
+  event: NotificationEvent!
+  audience: NotificationAudience!
+  email: Boolean!
+  sms: Boolean!
+}
+input UpdateNotificationPolicyInput {
+  adminEmail: AWSEmail
+  replyToEmail: AWSEmail
+  emailEnabled: Boolean!
+  smsEnabled: Boolean!
+  timezone: String!
+  events: [NotificationEventPolicyInput!]!
+}
