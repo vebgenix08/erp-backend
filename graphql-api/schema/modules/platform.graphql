@@ -261,6 +261,7 @@ type Query {
   tenantEntitlements(tenantId: ID): [TenantEntitlement!]!
   platformIntegrations: [PlatformIntegration!]!
   inviteDeliveryEvents(email: AWSEmail!): [EmailDeliveryEvent!]!
+  institutionBranding: InstitutionBranding
   institutionProfile: InstitutionProfile
   campuses(status: CampusStatus, search: String): [Campus!]!
   campusAcademicUnits(filter: CampusAcademicUnitFilter): [CampusAcademicUnit!]!

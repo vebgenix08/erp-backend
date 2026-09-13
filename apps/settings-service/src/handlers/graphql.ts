@@ -26,6 +26,7 @@ import {
 } from "../modules/campus-academic-units/campus-academic-units.service";
 import { institutionPermissions } from "../modules/institution/institution.permissions";
 import {
+  getInstitutionBranding,
   getInstitutionProfile,
   updateInstitutionProfile,
 } from "../modules/institution/institution.service";
@@ -161,6 +162,8 @@ export async function handleSettingsGraphql(event: SettingsGraphqlEvent): Promis
   await hydrateConfiguredAuthorization(context);
   const args = event.arguments ?? {};
   switch (event.info.fieldName) {
+    case "institutionBranding":
+      return getInstitutionBranding(context);
     case "institutionProfile":
       return getInstitutionProfile(context);
     case "campuses":

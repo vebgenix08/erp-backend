@@ -600,6 +600,13 @@ type InstitutionProfile {
   updatedAt: AWSDateTime!
 }
 
+type InstitutionBranding {
+  name: String!
+  shortName: String
+  logoUrl: AWSURL
+  logoFileId: ID
+}
+
 type Campus {
   id: ID!
   tenantId: ID!
@@ -4833,6 +4840,7 @@ type Query {
   tenantEntitlements(tenantId: ID): [TenantEntitlement!]!
   platformIntegrations: [PlatformIntegration!]!
   inviteDeliveryEvents(email: AWSEmail!): [EmailDeliveryEvent!]!
+  institutionBranding: InstitutionBranding
   institutionProfile: InstitutionProfile
   campuses(status: CampusStatus, search: String): [Campus!]!
   campusAcademicUnits(filter: CampusAcademicUnitFilter): [CampusAcademicUnit!]!

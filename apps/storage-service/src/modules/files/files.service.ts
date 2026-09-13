@@ -96,16 +96,17 @@ function assertPermission(context: RequestContext | FileServiceContext, permissi
   }
 }
 
-function hasPermission(
-  context: RequestContext | FileServiceContext,
-  permission: string,
-): boolean {
+function hasPermission(context: RequestContext | FileServiceContext, permission: string): boolean {
   const permissions = (context.authContext?.user?.permissions ?? []) as string[];
   return permissions.includes(permission);
 }
 
 function isStaffProfilePhoto(record: Pick<FileRecord, "metadata">): boolean {
   return record.metadata?.category === "staff_profile";
+}
+
+function isTenantBrandingImage(record: Pick<FileRecord, "metadata">): boolean {
+  return record.metadata?.category === "institution_logo";
 }
 
 function isOwnedStaffProfilePhoto(
@@ -262,7 +263,11 @@ export async function createFileDownloadUrl(
   const repository = await resolveRepository(deps);
   const existing = await repository.getById(getTenantId(context), id);
   if (!existing) return null;
-  if (!hasPermission(context, filePermissions.read) && !isStaffProfilePhoto(existing)) {
+  if (
+    !hasPermission(context, filePermissions.read) &&
+    !isStaffProfilePhoto(existing) &&
+    !isTenantBrandingImage(existing)
+  ) {
     throw new BadRequestError("permission denied");
   }
   ensureAvailable(existing);

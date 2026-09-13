@@ -4,6 +4,7 @@ import { createMockRequestContext } from "@school-erp/test-utils";
 import { createInstitutionFixture } from "./fixtures";
 import { InMemoryInstitutionRepository } from "../institution.repository";
 import { updateInstitutionUseCase, getInstitutionUseCase } from "../use-cases";
+import { getInstitutionBranding } from "../institution.service";
 
 test("get institution returns the stored profile", async () => {
   const repository = new InMemoryInstitutionRepository();
@@ -21,4 +22,11 @@ test("get institution returns the stored profile", async () => {
   await updateInstitutionUseCase(createInstitutionFixture(), context as any, { repository });
   const result = await getInstitutionUseCase(context as any, { repository });
   assert.equal(result?.name, "Sample Institution");
+
+  (context as any).authContext.user.permissions = [];
+  const branding = await getInstitutionBranding(context as any, { repository });
+  assert.equal(branding?.name, "Sample Institution");
+  assert.equal(branding?.shortName, "Sample");
+  assert.equal(branding?.logoUrl, "https://example.com/logo.png");
+  assert.equal(branding?.logoFileId, undefined);
 });

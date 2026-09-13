@@ -18,6 +18,8 @@ export interface SessionScopeSnapshot {
 export interface SessionUserSnapshot {
   id: string;
   email?: string | undefined;
+  fullName?: string | undefined;
+  profilePhotoFileId?: string | undefined;
   role?: string | undefined;
   roles: SessionRoleSnapshot[];
   permissions: Permission[];

@@ -34,7 +34,7 @@ test("critical tenant mutations require idempotency", async () => {
 
 test("every tenant subscription source exists as a mutation", async () => {
   const schema = `${await readFile(root, "utf8")}\n${await readFile(platform, "utf8")}`;
-  const sourceList = schema.match(/@aws_subscribe\(mutations: \[([^\]]+)\]\)/)?.[1] ?? "";
+  const sourceList = schema.match(/@aws_subscribe\(\s*mutations:\s*\[([^\]]+)\]\s*\)/)?.[1] ?? "";
   const sources = [...sourceList.matchAll(/"([A-Za-z0-9_]+)"/g)].map((match) => match[1]);
   assert.ok(sources.length > 0);
   for (const source of sources)
@@ -51,6 +51,7 @@ test("tenant settings operations are exposed through the canonical root contract
   const schema = `${await readFile(platform, "utf8")}\n${await readFile(settings, "utf8")}`;
   for (const operation of [
     "institutionProfile",
+    "institutionBranding",
     "campuses",
     "academicYears",
     "tenantTemplates",

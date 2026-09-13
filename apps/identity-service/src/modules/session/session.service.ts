@@ -2,7 +2,7 @@ import { requireAuth, type Permission } from "@school-erp/auth";
 import { ForbiddenError } from "@school-erp/errors";
 import { createTenantContext } from "@school-erp/tenancy";
 import type { RequestContext } from "@school-erp/api";
-import type { SessionAuthContext, SessionRepository } from "./session.model";
+import type { SessionAuthContext, SessionPayload, SessionRepository } from "./session.model";
 import { sessionRepository as defaultRepository } from "./session.repository";
 import {
   toSessionPayload,
@@ -13,12 +13,16 @@ import { validateSelectTenantInput } from "./session.validator";
 import type { AccessRepository } from "../access/access.repository";
 import type { RoleRepository } from "../roles/roles.repository";
 import type { UserRepository } from "../users/users.repository";
-import { activateEmployeeLogin } from "../employees/employees.service";
+import { activateEmployeeLogin, resolveEmployeeByPrincipal } from "../employees/employees.service";
 import { resolvePrincipalAuthorization } from "../access/authorization.service";
 import { bootstrapCurrentTenantAdmin } from "../access/access.service";
 
 type EmployeeLoginActivator = (tenantId: string, email: string) => Promise<unknown>;
 type TenantAdminBootstrapper = (context: RequestContext) => Promise<unknown>;
+type SessionEmployeeResolver = (
+  tenantId: string,
+  principalId: string,
+) => Promise<{ fullName?: string; profilePhotoFileId?: string } | null>;
 
 export interface SessionServiceDeps {
   repository?: SessionRepository;
@@ -27,10 +31,30 @@ export interface SessionServiceDeps {
   userRepository?: UserRepository | Promise<UserRepository>;
   employeeLoginActivator?: EmployeeLoginActivator;
   tenantAdminBootstrapper?: TenantAdminBootstrapper;
+  employeeResolver?: SessionEmployeeResolver;
 }
 
 function resolveRepository(deps?: SessionServiceDeps): SessionRepository {
   return deps?.repository ?? defaultRepository;
+}
+
+async function attachEmployeeProfile(
+  payload: SessionPayload,
+  tenantId: string | undefined,
+  principalId: string,
+  deps?: SessionServiceDeps,
+): Promise<SessionPayload> {
+  const employee = tenantId
+    ? await (deps?.employeeResolver ?? resolveEmployeeByPrincipal)(tenantId, principalId)
+    : null;
+  return {
+    ...payload,
+    user: {
+      ...payload.user,
+      ...(employee?.fullName ? { fullName: employee.fullName } : {}),
+      ...(employee?.profilePhotoFileId ? { profilePhotoFileId: employee.profilePhotoFileId } : {}),
+    },
+  };
 }
 
 async function resolveAuthorization(
@@ -70,10 +94,11 @@ export async function getSession(context: RequestContext, deps?: SessionServiceD
     persistedTenant?.tenantId === authenticatedTenant?.tenantId
       ? persistedTenant
       : authenticatedTenant;
-  return toSessionPayload(
-    authContext,
-    selectedTenant,
-    await resolveAuthorization(authContext, deps),
+  return attachEmployeeProfile(
+    toSessionPayload(authContext, selectedTenant, await resolveAuthorization(authContext, deps)),
+    tenantId,
+    user.id,
+    deps,
   );
 }
 
@@ -115,10 +140,11 @@ export async function selectTenant(
   }
   await resolveRepository(deps).saveSelectedTenant(user.id, selectedTenant);
   const authContext = auth as SessionAuthContext;
-  return toSessionPayload(
-    authContext,
-    selectedTenant,
-    await resolveAuthorization(authContext, deps),
+  return attachEmployeeProfile(
+    toSessionPayload(authContext, selectedTenant, await resolveAuthorization(authContext, deps)),
+    selectedTenant.tenantId,
+    user.id,
+    deps,
   );
 }
 

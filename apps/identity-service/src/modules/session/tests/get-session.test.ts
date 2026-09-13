@@ -9,9 +9,15 @@ test("get session returns auth and tenant snapshots", async () => {
     employeeLoginActivator: async (tenantId, email) => {
       activations.push({ tenantId, email });
     },
+    employeeResolver: async () => ({
+      fullName: "Ananya Rao",
+      profilePhotoFileId: "file-profile-1",
+    }),
   });
   assert.equal(result.user.id, "user_test_1");
   assert.equal(result.tenant?.tenantId, "tenant_test_1");
+  assert.equal(result.user.fullName, "Ananya Rao");
+  assert.equal(result.user.profilePhotoFileId, "file-profile-1");
   assert.deepEqual(activations, [{ tenantId: "tenant_test_1", email: "user@example.com" }]);
 });
 
@@ -22,6 +28,7 @@ test("get session bootstraps a tenant administrator before resolving authorizati
 
   await getSessionUseCase(context, {
     employeeLoginActivator: async () => undefined,
+    employeeResolver: async () => null,
     tenantAdminBootstrapper: async (requestContext) => {
       bootstrapped.push(requestContext.authContext!.user!.id);
     },

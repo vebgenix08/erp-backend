@@ -37,6 +37,13 @@ type InstitutionProfile {
   updatedAt: AWSDateTime!
 }
 
+type InstitutionBranding {
+  name: String!
+  shortName: String
+  logoUrl: AWSURL
+  logoFileId: ID
+}
+
 type Campus {
   id: ID!
   tenantId: ID!

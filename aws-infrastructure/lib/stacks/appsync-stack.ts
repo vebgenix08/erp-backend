@@ -214,6 +214,7 @@ export class AppSyncStack extends Stack {
     }
     for (const fieldName of [
       "institutionProfile",
+      "institutionBranding",
       "campuses",
       "campusAcademicUnits",
       "academicYears",

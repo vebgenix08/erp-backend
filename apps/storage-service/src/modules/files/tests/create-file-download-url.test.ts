@@ -26,3 +26,29 @@ test("create file download url requires available file", async () => {
   assert.equal(downloaded?.file.status, "AVAILABLE");
   assert.match(downloaded?.downloadUrl ?? "", /https:\/\/storage\.local\/download\//);
 });
+
+test("tenant members can download the institution logo without general file access", async () => {
+  const repository = new InMemoryFileRepository();
+  const adminContext = createStorageContext();
+  const created = await createFileUploadUrlUseCase(
+    {
+      fileName: "institution.png",
+      contentType: "image/png",
+      sizeBytes: 1024,
+      scopeType: "TENANT",
+      metadata: { category: "institution_logo" },
+    },
+    adminContext,
+    { repository },
+  );
+  await completeFileUploadUseCase(created.file.id, adminContext, { repository });
+  const memberContext = createStorageContext();
+  memberContext.authContext!.user!.id = "tenant-member";
+  memberContext.authContext!.user!.role = "TEACHER";
+  memberContext.authContext!.user!.permissions = [];
+
+  const downloaded = await createFileDownloadUrlUseCase(created.file.id, {}, memberContext, {
+    repository,
+  });
+  assert.match(downloaded?.downloadUrl ?? "", /storage\.local\/download/);
+});

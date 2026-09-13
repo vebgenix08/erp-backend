@@ -53,6 +53,21 @@ export async function getInstitutionProfile(
   return toInstitutionProfileView(record);
 }
 
+export async function getInstitutionBranding(
+  context: RequestContext,
+  deps?: InstitutionServiceDeps,
+) {
+  requireActor(context);
+  const record = await resolveRepository(deps).getById(getTenantId(context), "institution");
+  if (!record) return null;
+  return {
+    name: record.name,
+    shortName: record.shortName,
+    logoUrl: record.logoUrl,
+    logoFileId: record.logoFileId,
+  };
+}
+
 export async function updateInstitutionProfile(
   input: unknown,
   context: RequestContext,
