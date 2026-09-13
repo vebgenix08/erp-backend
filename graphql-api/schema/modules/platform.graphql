@@ -333,6 +333,7 @@ type Query {
   classSetupWorkspace(input: ClassSetupContextInput!): ClassSetupWorkspace!
   teachingAssignments(filter: TeachingAssignmentFilter!): [TeachingAssignment!]!
   studentDocuments(filter: StudentDocumentFilter): [StudentDocument!]!
+  studentDocumentPage(filter: StudentDocumentFilter): StudentDocumentPage!
   studentNotes(id: ID!): [StudentNote!]!
   studentDocument(id: ID!): StudentDocument!
   students(filter: StudentFilter): [Student!]!
@@ -551,6 +552,7 @@ type Mutation {
   ): FinanceMutationResult!
   collectFinancePayment(input: CollectPaymentInput!): FinancePayment!
   createGeneralCharge(input: CreateGeneralChargeInput!): GeneralCharge!
+  retryGeneralCharge(id: ID!): GeneralCharge!
   saveFinanceReceiptTemplate(input: SaveFinanceReceiptTemplateInput!): FinanceReceiptTemplate!
   createFinancePaymentAdjustment(input: CreatePaymentAdjustmentInput!): FinancePaymentAdjustment!
   retryFeeOrderRecovery(id: ID!): FeeOrderRecovery!

@@ -185,12 +185,43 @@ test("teacher marks workspace uses assigned offering, active roster and submitte
   assert.equal(result.selectedAssessment?.maximumMarks, 25);
   assert.equal(result.students.length, 2);
   assert.deepEqual(
+    result.students.map((student) => student.registrationNumber),
+    ["REG-0", "REG-1"],
+  );
+  assert.deepEqual(
     result.students.map((student) => student.attendanceHeld),
     [1, 1],
   );
   assert.deepEqual(
     result.students.map((student) => student.attendanceAttended),
     [1, 0],
+  );
+});
+
+test("teacher marks workspace stays inside the selected campus", async () => {
+  const deps = await dependencies();
+  deps.workspaceReader = async () => ({
+    ...structuredClone(workload),
+    assignments: [
+      ...structuredClone(workload.assignments),
+      {
+        ...workload.assignments[0]!,
+        id: "assignment-other-campus",
+        campusId: "campus-other",
+        campusName: "Other Campus",
+        subjectOfferingId: "offering-other-campus",
+      },
+    ],
+  });
+
+  const result = await getTeacherMarksWorkspace(
+    { academicYearId, campusId: "campus-main" },
+    context("TEACHER"),
+    deps,
+  );
+  assert.deepEqual(
+    result.offerings.map((offering) => offering.campusId),
+    ["campus-main"],
   );
 });
 

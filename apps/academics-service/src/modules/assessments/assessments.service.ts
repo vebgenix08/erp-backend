@@ -264,10 +264,9 @@ async function marksWorkspace(
   );
   const offerings = [
     ...new Map(
-      workload.assignments.map((assignment) => [
-        assignment.subjectOfferingId,
-        assignmentOffering(assignment),
-      ]),
+      workload.assignments
+        .filter((assignment) => !input.campusId || assignment.campusId === input.campusId)
+        .map((assignment) => [assignment.subjectOfferingId, assignmentOffering(assignment)]),
     ).values(),
   ];
   const selectedOffering = input.subjectOfferingId
@@ -340,6 +339,7 @@ async function marksWorkspace(
         studentId: student.id,
         enrollmentId: enrollment.id,
         studentName: student.name,
+        registrationNumber: student.registrationNumber,
         ...(enrollment.rollNumber ? { rollNumber: enrollment.rollNumber } : {}),
         status: existing?.status ?? "NOT_RECORDED",
         ...(existing?.marks !== undefined ? { marks: existing.marks } : {}),

@@ -159,6 +159,35 @@ test("teacher attendance workspace uses the active section roster", async () => 
   );
 });
 
+test("teacher attendance workspace stays inside the selected campus", async () => {
+  const deps = await dependencies();
+  deps.workspaceReader = async () => ({
+    ...structuredClone(workload),
+    timetableEntries: [
+      {
+        ...workload.timetableEntries[0]!,
+        id: "lesson-other-campus",
+        campusId: "campus-other",
+        campusName: "Other Campus",
+        startTime: "08:00",
+        endTime: "08:45",
+      },
+      ...structuredClone(workload.timetableEntries),
+    ],
+  });
+
+  const result = await getTeacherAttendanceWorkspace(
+    { date, campusId: "campus-main" },
+    context(),
+    deps,
+  );
+  assert.deepEqual(
+    result.sessions.map((session) => session.campusId),
+    ["campus-main"],
+  );
+  assert.equal(result.selectedSession?.id, "lesson-one");
+});
+
 test("teacher can save a draft, submit it once and cannot overwrite the submission", async () => {
   const deps = await dependencies();
   const draft = await saveTeacherAttendance(

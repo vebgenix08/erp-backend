@@ -474,6 +474,7 @@ async function getTeacherAcademicScopeWorkspace(
         ...(employee?.employmentType ? { employmentType: text(employee.employmentType) } : {}),
         ...(employee?.joiningDate ? { joiningDate: text(employee.joiningDate) } : {}),
         status: text(employee?.status) || "UNKNOWN",
+        loginStatus: text(employee?.loginStatus) || "NONE",
         assignmentCount: employeeAssignments.length,
         requiredPeriods,
         scheduledPeriods,

@@ -1,7 +1,7 @@
 import { ValidationError } from "@school-erp/errors";
 import type { FeeOrderFilter } from "./fee-orders.model";
 
-const statuses = new Set(["OPEN", "PARTIALLY_PAID", "PAID", "CANCELLED"]);
+const statuses = new Set(["OPEN", "PARTIALLY_PAID", "PAID", "CLOSED", "CANCELLED"]);
 const sourceTypes = new Set(["ANNUAL", "GENERAL", "TRANSFER_ADJUSTMENT"]);
 
 export function validateFeeOrderFilter(value: unknown): FeeOrderFilter {
@@ -34,6 +34,13 @@ export function validateFeeOrderFilter(value: unknown): FeeOrderFilter {
     if (typeof input.sourceType !== "string" || !sourceTypes.has(input.sourceType))
       throw new ValidationError([{ field: "sourceType", message: "sourceType is invalid" }]);
     result.sourceType = input.sourceType as Exclude<FeeOrderFilter["sourceType"], undefined>;
+  }
+  if (input.payableOnly !== undefined) {
+    if (typeof input.payableOnly !== "boolean")
+      throw new ValidationError([
+        { field: "payableOnly", message: "payableOnly must be a boolean" },
+      ]);
+    result.payableOnly = input.payableOnly;
   }
   for (const field of ["limit", "offset"] as const) {
     if (input[field] === undefined) continue;

@@ -5,6 +5,7 @@ import { InMemoryStudentRepository } from "../../students/students.repository";
 import {
   getStudentDocument,
   issueStudentDocument,
+  listStudentDocumentPage,
   listStudentDocuments,
   revokeStudentDocument,
 } from "../student-documents.service";
@@ -110,6 +111,45 @@ test("revokes an issued document without removing its audit record", async () =>
   assert.equal(revoked.status, "REVOKED");
   assert.equal(revoked.revokeReason, "Replacement card issued");
   assert.equal((await getStudentDocument(issued.id, context(), deps)).status, "REVOKED");
+});
+
+test("paginates and searches document records with campus summary counts", async () => {
+  const deps = await dependencies();
+  for (const documentType of [
+    "BONAFIDE_CERTIFICATE",
+    "STUDY_CERTIFICATE",
+    "STUDENT_ID_CARD",
+  ] as const) {
+    await issueStudentDocument(
+      { studentId: deps.created.student.id, documentType },
+      context(),
+      deps,
+    );
+  }
+
+  const firstPage = await listStudentDocumentPage(
+    { campusId: "campus_central", page: 1, pageSize: 2 },
+    context(),
+    deps,
+  );
+  assert.equal(firstPage.items.length, 2);
+  assert.equal(firstPage.total, 3);
+  assert.equal(firstPage.totalPages, 2);
+  assert.deepEqual(firstPage.summary, {
+    total: 3,
+    certificates: 2,
+    idCards: 1,
+    revoked: 0,
+  });
+
+  const search = await listStudentDocumentPage(
+    { search: "aarav", page: 2, pageSize: 2 },
+    context(),
+    deps,
+  );
+  assert.equal(search.items.length, 1);
+  assert.equal(search.total, 3);
+  assert.equal((await listStudentDocumentPage({}, context("tenant_riverside"), deps)).total, 0);
 });
 
 test("renders valid PDF output for a certificate and an identity card", async () => {

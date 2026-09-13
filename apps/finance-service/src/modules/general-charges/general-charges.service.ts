@@ -86,16 +86,27 @@ export async function createGeneralCharge(
   );
   if (!feeHead) throw new NotFoundError("active fee head was not found in this finance scope");
   const repository = await charges(deps);
-  let assignment = await repository.reserve(tenant, actorId(context), feeHead.code, value);
+  const assignment = await repository.reserve(tenant, actorId(context), feeHead.code, value);
   if (assignment.status === "ASSIGNED") return toGeneralChargeView(assignment);
+  return assignGeneralCharge(assignment, feeHead, context, deps);
+}
+
+async function assignGeneralCharge(
+  assignment: Awaited<ReturnType<GeneralChargeRepository["reserve"]>>,
+  feeHead: Awaited<ReturnType<FeeConfigurationRepository["snapshot"]>>["feeHeads"][number],
+  context: RequestContext,
+  deps: GeneralChargeDependencies,
+) {
+  const tenant = tenantId(context);
+  const repository = await charges(deps);
   const orderRepository = await orders(deps);
   try {
     const annualOrders = await orderRepository.list(tenant, {
-      campusId: value.campusId,
-      academicYearId: value.academicYearId,
+      campusId: assignment.campusId,
+      academicYearId: assignment.academicYearId,
       sourceType: "ANNUAL",
     });
-    const students = eligibleStudents(annualOrders, value.target);
+    const students = eligibleStudents(annualOrders, assignment.target);
     let assignedCount = 0;
     for (const student of students) {
       const now = deps.now?.() ?? new Date();
@@ -164,6 +175,30 @@ export async function createGeneralCharge(
     if (error instanceof NotFoundError || error instanceof ConflictError) throw error;
     throw new ConflictError("general charge assignment failed", { cause: error });
   }
+}
+
+export async function retryGeneralCharge(
+  id: string,
+  context: RequestContext,
+  deps: GeneralChargeDependencies = {},
+) {
+  permission(context, generalChargePermissions.assign as Permission);
+  const tenant = tenantId(context);
+  const repository = await charges(deps);
+  const assignment = await repository.getById(tenant, id.trim());
+  if (!assignment) throw new NotFoundError("general charge assignment was not found");
+  if (assignment.status === "ASSIGNED") return toGeneralChargeView(assignment);
+  const snapshot = await (
+    await configuration(deps)
+  ).snapshot(tenant, {
+    campusId: assignment.campusId,
+    academicYearId: assignment.academicYearId,
+  });
+  const feeHead = snapshot.feeHeads.find(
+    (item) => item.id === assignment.feeHeadId && item.status === "ACTIVE",
+  );
+  if (!feeHead) throw new NotFoundError("active fee head was not found in this finance scope");
+  return assignGeneralCharge(assignment, feeHead, context, deps);
 }
 
 export async function listGeneralCharges(

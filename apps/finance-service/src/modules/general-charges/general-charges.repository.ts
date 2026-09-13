@@ -17,6 +17,7 @@ interface Document extends GeneralChargeRecord {
 }
 
 export interface GeneralChargeRepository {
+  getById(tenantId: string, id: string): Promise<GeneralChargeRecord | null>;
   reserve(
     tenantId: string,
     actorId: string,
@@ -64,6 +65,10 @@ const matches = (record: GeneralChargeRecord, filter: GeneralChargeFilter) =>
 
 export class InMemoryGeneralChargeRepository implements GeneralChargeRepository {
   private readonly records = new Map<string, GeneralChargeRecord>();
+  async getById(tenantId: string, id: string) {
+    const record = this.records.get(id);
+    return record?.tenantId === tenant(tenantId) ? clone(record) : null;
+  }
   async reserve(
     tenantId: string,
     actorId: string,
@@ -96,6 +101,10 @@ export class InMemoryGeneralChargeRepository implements GeneralChargeRepository 
 
 class MongoGeneralChargeRepository implements GeneralChargeRepository {
   constructor(private readonly collection: TenantMongoCollection<Document>) {}
+  async getById(tenantId: string, id: string) {
+    const record = await this.collection.findOne({ tenantId: tenant(tenantId), _id: id });
+    return record ? clone(record) : null;
+  }
   async reserve(
     tenantId: string,
     actorId: string,

@@ -17,6 +17,7 @@ export interface DepartmentFacultyView {
   employmentType?: string;
   joiningDate?: string;
   status: string;
+  loginStatus: string;
   assignmentCount: number;
   requiredPeriods: number;
   scheduledPeriods: number;

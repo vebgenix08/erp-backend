@@ -78,6 +78,7 @@ export function validateTeacherMarksWorkspaceInput(value: unknown) {
     ...(optionalText(input.academicYearId)
       ? { academicYearId: optionalText(input.academicYearId)! }
       : {}),
+    ...(optionalText(input.campusId) ? { campusId: optionalText(input.campusId)! } : {}),
     ...(optionalText(input.subjectOfferingId)
       ? { subjectOfferingId: optionalText(input.subjectOfferingId)! }
       : {}),

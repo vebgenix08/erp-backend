@@ -27,10 +27,12 @@ export function validateTeacherAttendanceWorkspaceInput(
       ? (value as Record<string, unknown>)
       : {};
   const academicYearId = optionalId(input.academicYearId);
+  const campusId = optionalId(input.campusId);
   const lessonId = optionalId(input.lessonId);
   return {
     date: date(input.date, "date"),
     ...(academicYearId ? { academicYearId } : {}),
+    ...(campusId ? { campusId } : {}),
     ...(lessonId ? { lessonId } : {}),
   };
 }

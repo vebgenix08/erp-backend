@@ -7,6 +7,7 @@ import type {
   IssueStudentDocumentInput,
   StudentDocumentFilter,
   StudentDocumentRecord,
+  StudentDocumentPageFilter,
   StudentDocumentType,
 } from "./student-documents.model";
 import {
@@ -128,6 +129,33 @@ export async function listStudentDocuments(
     if (typeof value[field] === "string" && value[field].trim())
       Object.assign(parsed, { [field]: value[field].trim() });
   return (await (await repo(deps)).list(tenant(ctx), parsed)).map(view);
+}
+export async function listStudentDocumentPage(
+  filter: unknown,
+  ctx: RequestContext,
+  deps?: StudentDocumentDeps,
+) {
+  permit(ctx, academicsPermissions.studentDocuments.read as Permission);
+  const value =
+    filter && typeof filter === "object" && !Array.isArray(filter)
+      ? (filter as Record<string, unknown>)
+      : {};
+  const parsed: StudentDocumentPageFilter = {};
+  for (const field of [
+    "studentId",
+    "campusId",
+    "academicYearId",
+    "documentType",
+    "status",
+    "search",
+  ] as const)
+    if (typeof value[field] === "string" && value[field].trim())
+      Object.assign(parsed, { [field]: value[field].trim() });
+  if (typeof value.page === "number") parsed.page = Math.max(1, Math.floor(value.page));
+  if (typeof value.pageSize === "number")
+    parsed.pageSize = Math.min(100, Math.max(1, Math.floor(value.pageSize)));
+  const page = await (await repo(deps)).listPage(tenant(ctx), parsed);
+  return { ...page, items: page.items.map(view) };
 }
 export async function getStudentDocument(
   id: string,

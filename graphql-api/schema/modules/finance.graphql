@@ -175,6 +175,7 @@ input FeeOrderFilter {
   sectionId: ID
   status: FeeOrderStatus
   sourceType: FeeOrderSourceType
+  payableOnly: Boolean
   search: String
   limit: Int
   offset: Int

@@ -4,7 +4,13 @@ import type { RequestContext } from "@school-erp/api";
 import { InMemoryFeeConfigurationRepository } from "../../fee-configuration/fee-configuration.repository";
 import { InMemoryFeeOrderRepository } from "../../fee-orders/fee-orders.repository";
 import { InMemoryGeneralChargeRepository } from "../general-charges.repository";
-import { createGeneralCharge, listGeneralCharges } from "../general-charges.service";
+import {
+  createGeneralCharge,
+  listGeneralCharges,
+  retryGeneralCharge,
+} from "../general-charges.service";
+import { InMemoryPaymentRepository } from "../../payments/payments.repository";
+import { collectPayment, getReceipt } from "../../payments/payments.service";
 
 function context(tenantId = "tenant_one"): RequestContext {
   return {
@@ -22,7 +28,12 @@ function context(tenantId = "tenant_one"): RequestContext {
       user: {
         id: "finance_admin",
         source: "headers",
-        permissions: ["finance.general-charge.assign", "finance.general-charge.read"],
+        permissions: [
+          "finance.general-charge.assign",
+          "finance.general-charge.read",
+          "finance.payment.collect",
+          "finance.receipt.read",
+        ],
       },
     },
   };
@@ -207,4 +218,128 @@ test("class assignment considers annual orders beyond the first API page", async
 
   assert.equal(result.status, "ASSIGNED");
   assert.equal(result.assignedCount, 1);
+});
+
+test("additional fee is collected against its fee head and appears on the receipt", async () => {
+  const deps = await setup();
+  const assignment = await createGeneralCharge(
+    {
+      campusId: "campus_1",
+      academicYearId: "year_2026",
+      name: "Term Examination Fee",
+      note: "Term examination administration charge",
+      feeHeadId: deps.feeHead.id,
+      amountMinor: 25_000,
+      collectionPolicy: "FULL_ONLY",
+      target: { type: "STUDENT", ids: ["student_1"] },
+      idempotencyKey: "term-exam-student-1",
+    },
+    context(),
+    deps,
+  );
+  const order = (await deps.orders.list("tenant_one", { sourceType: "GENERAL" }))[0];
+  if (!order) throw new Error("additional fee order was not created");
+  const payments = new InMemoryPaymentRepository(deps.orders);
+  await assert.rejects(
+    () =>
+      collectPayment(
+        {
+          studentId: "student_1",
+          method: "UPI",
+          reference: "UPI-TERM-EXAM-001",
+          allocations: [{ feeOrderId: order.id, amountMinor: 10_000 }],
+          idempotencyKey: "term-exam-partial-payment",
+        },
+        context(),
+        { repository: payments },
+      ),
+    /must clear the full balance/,
+  );
+  const payment = await collectPayment(
+    {
+      studentId: "student_1",
+      method: "UPI",
+      reference: "UPI-TERM-EXAM-002",
+      note: "Term examination fee received",
+      allocations: [{ feeOrderId: order.id, amountMinor: 25_000 }],
+      idempotencyKey: "term-exam-full-payment",
+    },
+    context(),
+    { repository: payments },
+  );
+  const updated = await deps.orders.getById("tenant_one", order.id);
+  assert.equal(updated?.status, "PAID");
+  assert.equal(updated?.balanceMinor, 0);
+  assert.equal(payment.allocations[0]?.chargeAllocations[0]?.feeHeadId, deps.feeHead.id);
+  assert.equal(payment.allocations[0]?.chargeAllocations[0]?.label, deps.feeHead.name);
+  const receipt = await getReceipt(payment.id, context(), {
+    repository: payments,
+    feeOrderRepository: deps.orders,
+    receiptBranding: {
+      institutionName: "Vebgenix Academy",
+      campusName: "Central Campus",
+      academicYearName: "2026 - 2027",
+      className: "Class 10",
+      admissionNumber: "ADM-2026-00001",
+      collectedByName: "Finance Officer",
+    },
+  });
+  assert.equal(receipt.allocations[0]?.chargeAllocations[0]?.label, deps.feeHead.name);
+  assert.equal(receipt.note, "Term examination fee received");
+  assert.equal(assignment.assignedCount, 1);
+});
+
+test("failed additional fee assignment can resume without duplicate fee orders", async () => {
+  const deps = await setup();
+  const input = {
+    campusId: "campus_1",
+    academicYearId: "year_2026",
+    name: "Laboratory Materials Fee",
+    feeHeadId: deps.feeHead.id,
+    amountMinor: 12_500,
+    collectionPolicy: "PARTIAL_ALLOWED" as const,
+    target: { type: "STUDENT" as const, ids: ["student_4"] },
+    idempotencyKey: "laboratory-materials-student-4",
+  };
+  await assert.rejects(() => createGeneralCharge(input, context(), deps));
+  const failed = (await listGeneralCharges({ status: "FAILED" }, context(), deps))[0];
+  if (!failed) throw new Error("failed additional fee assignment was not recorded");
+  await deps.orders.create("tenant_one", {
+    sourceType: "ANNUAL",
+    sourceId: "enrollment_student_4",
+    admissionApplicationId: "application_student_4",
+    studentId: "student_4",
+    studentName: "Student 4",
+    registrationNumber: "REG-4",
+    enrollmentId: "enrollment_student_4",
+    campusId: "campus_1",
+    academicYearId: "year_2026",
+    programId: "program_1",
+    classId: "class_10",
+    sectionId: "section_a",
+    mappingId: "mapping_1",
+    structureId: "structure_1",
+    structureCode: "ANNUAL",
+    structureName: "Annual Fee",
+    scheduleId: "schedule_1",
+    scheduleCode: "ANNUAL",
+    scheduleName: "Annual",
+    collectionPolicy: "PARTIAL_ALLOWED",
+    currency: "INR",
+    charges: [],
+    totalMinor: 0,
+    paidMinor: 0,
+    balanceMinor: 0,
+    status: "PAID",
+    createdBy: "system",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  const resumed = await retryGeneralCharge(failed.id, context(), deps);
+  assert.equal(resumed.status, "ASSIGNED");
+  assert.equal(resumed.assignedCount, 1);
+  assert.equal((await deps.orders.list("tenant_one", { sourceType: "GENERAL" })).length, 1);
+  const repeated = await retryGeneralCharge(failed.id, context(), deps);
+  assert.equal(repeated.status, "ASSIGNED");
+  assert.equal((await deps.orders.list("tenant_one", { sourceType: "GENERAL" })).length, 1);
 });

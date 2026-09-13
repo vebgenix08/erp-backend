@@ -45,6 +45,7 @@ import {
 import {
   getStudentDocument,
   issueStudentDocument,
+  listStudentDocumentPage,
   listStudentDocuments,
   revokeStudentDocument,
 } from "../modules/student-documents/student-documents.service";
@@ -540,6 +541,8 @@ export async function handleAcademicsGraphql(event: Event): Promise<unknown> {
       return getStudentByAdmissionApplicationId(id(args), ctx);
     case "studentDocuments":
       return listStudentDocuments(filter(args), ctx);
+    case "studentDocumentPage":
+      return listStudentDocumentPage(filter(args), ctx);
     case "studentDocument":
       return getStudentDocument(id(args), ctx);
     case "studentNotes":

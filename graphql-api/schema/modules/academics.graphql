@@ -1414,6 +1414,7 @@ type DepartmentFaculty {
   employmentType: String
   joiningDate: AWSDateTime
   status: String!
+  loginStatus: String!
   assignmentCount: Int!
   requiredPeriods: Float!
   scheduledPeriods: Int!
@@ -1532,6 +1533,7 @@ enum AttendanceSessionStatus {
 input TeacherAttendanceWorkspaceInput {
   date: AWSDate!
   academicYearId: ID
+  campusId: ID
   lessonId: ID
 }
 input TeacherAttendanceStudentInput {
@@ -1541,6 +1543,7 @@ input TeacherAttendanceStudentInput {
 input SaveTeacherAttendanceInput {
   date: AWSDate!
   academicYearId: ID
+  campusId: ID
   lessonId: ID!
   expectedVersion: Int
   submit: Boolean!
@@ -1650,6 +1653,7 @@ input SetAssessmentDefinitionStatusInput {
 }
 input TeacherMarksWorkspaceInput {
   academicYearId: ID
+  campusId: ID
   subjectOfferingId: ID
   assessmentId: ID
 }
@@ -1708,6 +1712,7 @@ type TeacherMarksStudent {
   studentId: ID!
   enrollmentId: ID!
   studentName: String!
+  registrationNumber: String!
   rollNumber: String
   status: StudentMarkStatus!
   marks: Float
@@ -2884,6 +2889,23 @@ input StudentDocumentFilter {
   academicYearId: ID
   documentType: StudentDocumentType
   status: StudentDocumentStatus
+  search: String
+  page: Int
+  pageSize: Int
+}
+type StudentDocumentPageSummary {
+  total: Int!
+  certificates: Int!
+  idCards: Int!
+  revoked: Int!
+}
+type StudentDocumentPage {
+  items: [StudentDocument!]!
+  summary: StudentDocumentPageSummary!
+  page: Int!
+  pageSize: Int!
+  total: Int!
+  totalPages: Int!
 }
 input IssueStudentDocumentInput {
   studentId: ID!

@@ -142,7 +142,12 @@ async function workspace(
     { store, ...(references ? { references } : {}) },
   );
   const sessions = workload.timetableEntries
-    .filter((item) => item.dayOfWeek === dayForDate(input.date) && item.state !== "CANCELLED")
+    .filter(
+      (item) =>
+        item.dayOfWeek === dayForDate(input.date) &&
+        item.state !== "CANCELLED" &&
+        (!input.campusId || item.campusId === input.campusId),
+    )
     .map((item) => sessionView(item, workload.academicYear.id))
     .sort((left, right) => left.startTime.localeCompare(right.startTime));
   const selectedSession = input.lessonId

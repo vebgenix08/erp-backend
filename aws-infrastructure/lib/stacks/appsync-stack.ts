@@ -314,6 +314,7 @@ export class AppSyncStack extends Stack {
       "classSetupWorkspace",
       "teachingAssignments",
       "studentDocuments",
+      "studentDocumentPage",
       "studentDocument",
       "students",
       "studentPage",
@@ -531,6 +532,10 @@ export class AppSyncStack extends Stack {
     financeDataSource.createResolver("FinanceMutationCreateGeneralCharge", {
       typeName: "Mutation",
       fieldName: "createGeneralCharge",
+    });
+    financeDataSource.createResolver("FinanceMutationRetryGeneralCharge", {
+      typeName: "Mutation",
+      fieldName: "retryGeneralCharge",
     });
     financeDataSource.createResolver("FinanceMutationSaveReceiptTemplate", {
       typeName: "Mutation",

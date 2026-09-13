@@ -42,6 +42,7 @@ export interface AttendanceSessionRecord {
 export interface TeacherAttendanceWorkspaceInput {
   date: string;
   academicYearId?: string;
+  campusId?: string;
   lessonId?: string;
 }
 

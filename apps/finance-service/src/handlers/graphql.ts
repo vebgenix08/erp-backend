@@ -46,6 +46,7 @@ import { generalChargePermissions } from "../modules/general-charges/general-cha
 import {
   createGeneralCharge,
   listGeneralCharges,
+  retryGeneralCharge,
 } from "../modules/general-charges/general-charges.service";
 import { readFinanceDashboardSlice } from "../modules/admin-dashboard/admin-dashboard-slice.repository";
 import { hydrateConfiguredAuthorization } from "@school-erp/service-client";
@@ -173,6 +174,8 @@ export async function handleFinanceGraphql(event: Event) {
       return collectPayment(requiredObject(args, "input"), ctx);
     case "createGeneralCharge":
       return createGeneralCharge(requiredObject(args, "input"), ctx);
+    case "retryGeneralCharge":
+      return retryGeneralCharge(requiredText(args, "id"), ctx);
     case "saveFinanceReceiptTemplate":
       return saveReceiptTemplate(requiredObject(args, "input"), ctx);
     case "createFinancePaymentAdjustment":

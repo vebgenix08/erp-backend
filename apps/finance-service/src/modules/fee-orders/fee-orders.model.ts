@@ -64,6 +64,7 @@ export interface FeeOrderFilter {
   sectionId?: string;
   status?: FeeOrderStatus;
   sourceType?: FeeOrderSourceType;
+  payableOnly?: boolean;
   search?: string;
   limit?: number;
   offset?: number;

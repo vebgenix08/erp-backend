@@ -66,6 +66,11 @@ function matches(record: FeeOrderRecord, filter: FeeOrderFilter) {
   if (filter.status && record.status !== filter.status) return false;
   if (filter.sourceType && (record.sourceType ?? "ANNUAL") !== filter.sourceType) return false;
   if (
+    filter.payableOnly &&
+    (record.balanceMinor <= 0 || ["PAID", "CLOSED", "CANCELLED"].includes(record.status))
+  )
+    return false;
+  if (
     filter.search &&
     !`${record.studentName} ${record.registrationNumber} ${record.orderNumber}`
       .toLowerCase()
@@ -268,6 +273,10 @@ class MongoFeeOrderRepository implements FeeOrderRepository {
     if (filter.sectionId) query["record.sectionId"] = filter.sectionId;
     if (filter.status) query["record.status"] = filter.status;
     if (filter.sourceType) query["record.sourceType"] = filter.sourceType;
+    if (filter.payableOnly) {
+      query["record.balanceMinor"] = { $gt: 0 };
+      if (!filter.status) query["record.status"] = { $in: ["OPEN", "PARTIALLY_PAID"] };
+    }
     if (filter.search)
       query.$or = [
         { "record.studentName": { $regex: filter.search, $options: "i" } },
@@ -287,6 +296,10 @@ class MongoFeeOrderRepository implements FeeOrderRepository {
     if (filter.sectionId) query["record.sectionId"] = filter.sectionId;
     if (filter.status) query["record.status"] = filter.status;
     if (filter.sourceType) query["record.sourceType"] = filter.sourceType;
+    if (filter.payableOnly) {
+      query["record.balanceMinor"] = { $gt: 0 };
+      if (!filter.status) query["record.status"] = { $in: ["OPEN", "PARTIALLY_PAID"] };
+    }
     if (filter.search)
       query.$or = [
         { "record.studentName": { $regex: filter.search, $options: "i" } },

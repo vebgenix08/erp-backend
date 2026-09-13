@@ -69,6 +69,7 @@ export interface TeacherMarksOffering {
 }
 
 export interface TeacherMarksStudent extends MarksSheetStudentEntry {
+  registrationNumber: string;
   attendanceAttended: number;
   attendanceHeld: number;
   attendancePercentage?: number;

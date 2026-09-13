@@ -40,3 +40,23 @@ export interface StudentDocumentFilter {
   documentType?: StudentDocumentType;
   status?: StudentDocumentStatus;
 }
+
+export interface StudentDocumentPageFilter extends StudentDocumentFilter {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface StudentDocumentPage {
+  items: StudentDocumentRecord[];
+  summary: {
+    total: number;
+    certificates: number;
+    idCards: number;
+    revoked: number;
+  };
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}

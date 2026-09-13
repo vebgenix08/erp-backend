@@ -272,6 +272,7 @@ test("HOD workspace includes only the assigned program", async () => {
   assert.equal(result.faculty[0]?.department, "Science");
   assert.equal(result.faculty[0]?.designation, "Teacher");
   assert.equal(result.faculty[0]?.status, "ACTIVE");
+  assert.equal(result.faculty[0]?.loginStatus, "NONE");
   assert.equal(result.faculty[0]?.menteeCount, 1);
   assert.deepEqual(result.faculty[0]?.allocations, [
     {
