@@ -91,10 +91,39 @@ function getActorId(context: RequestContext | FileServiceContext): string {
 }
 
 function assertPermission(context: RequestContext | FileServiceContext, permission: string): void {
-  const permissions = (context.authContext?.user?.permissions ?? []) as string[];
-  if (!permissions.includes(permission)) {
+  if (!hasPermission(context, permission)) {
     throw new BadRequestError("permission denied");
   }
+}
+
+function hasPermission(
+  context: RequestContext | FileServiceContext,
+  permission: string,
+): boolean {
+  const permissions = (context.authContext?.user?.permissions ?? []) as string[];
+  return permissions.includes(permission);
+}
+
+function isStaffProfilePhoto(record: Pick<FileRecord, "metadata">): boolean {
+  return record.metadata?.category === "staff_profile";
+}
+
+function isOwnedStaffProfilePhoto(
+  record: Pick<FileRecord, "metadata" | "createdBy">,
+  context: RequestContext | FileServiceContext,
+): boolean {
+  return isStaffProfilePhoto(record) && record.createdBy === getActorId(context);
+}
+
+function isSelfServiceProfilePhotoUpload(input: FileCreateUploadInput): boolean {
+  return (
+    input.scopeType === "TENANT" &&
+    input.metadata?.category === "staff_profile" &&
+    input.contentType.toLowerCase().startsWith("image/") &&
+    typeof input.sizeBytes === "number" &&
+    input.sizeBytes > 0 &&
+    input.sizeBytes <= 5 * 1024 * 1024
+  );
 }
 
 function bucketName(tenantId: string, deps?: StorageServiceDeps): string {
@@ -136,10 +165,14 @@ export async function createFileUploadUrl(
   context: RequestContext | FileServiceContext,
   deps?: StorageServiceDeps,
 ): Promise<FileUploadUrlResponse> {
-  assertPermission(context, filePermissions.create);
-  const repository = await resolveRepository(deps);
   const payload = validateFileCreateUploadInput(input);
+  const canManageFiles = hasPermission(context, filePermissions.create);
+  if (!canManageFiles && !isSelfServiceProfilePhotoUpload(payload)) {
+    throw new BadRequestError("permission denied");
+  }
+  const repository = await resolveRepository(deps);
   const tenantId = getTenantId(context);
+  const actorId = getActorId(context);
   const record = await repository.create({
     id: newId(),
     tenantId,
@@ -148,11 +181,16 @@ export async function createFileUploadUrl(
     fileName: payload.fileName,
     contentType: payload.contentType,
     sizeBytes: payload.sizeBytes,
-    metadata: payload.metadata ? { ...payload.metadata } : undefined,
+    metadata: payload.metadata
+      ? {
+          ...payload.metadata,
+          ...(isSelfServiceProfilePhotoUpload(payload) ? { ownerUserId: actorId } : {}),
+        }
+      : undefined,
     storageKey: storageKey(tenantId, payload),
     bucket: bucketName(tenantId, deps),
     status: "PENDING_UPLOAD",
-    createdBy: getActorId(context),
+    createdBy: actorId,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -175,11 +213,16 @@ export async function completeFileUpload(
   context: RequestContext | FileServiceContext,
   deps?: StorageServiceDeps,
 ): Promise<FileView | null> {
-  assertPermission(context, filePermissions.update);
   const repository = await resolveRepository(deps);
   const tenantId = getTenantId(context);
   const existing = await repository.getById(tenantId, id);
   if (!existing) return null;
+  if (
+    !hasPermission(context, filePermissions.update) &&
+    !isOwnedStaffProfilePhoto(existing, context)
+  ) {
+    throw new BadRequestError("permission denied");
+  }
   ensureAvailable(existing);
   const updated = await repository.update(tenantId, id, {
     status: "AVAILABLE",
@@ -216,10 +259,12 @@ export async function createFileDownloadUrl(
   context: RequestContext | FileServiceContext,
   deps?: StorageServiceDeps,
 ): Promise<FileDownloadUrlResponse | null> {
-  assertPermission(context, filePermissions.read);
   const repository = await resolveRepository(deps);
   const existing = await repository.getById(getTenantId(context), id);
   if (!existing) return null;
+  if (!hasPermission(context, filePermissions.read) && !isStaffProfilePhoto(existing)) {
+    throw new BadRequestError("permission denied");
+  }
   ensureAvailable(existing);
   const payload = validateFileDownloadUrlInput(input);
   const download = await resolveUrlPort(deps).createDownloadUrl({
@@ -239,10 +284,15 @@ export async function deleteFile(
   context: RequestContext | FileServiceContext,
   deps?: StorageServiceDeps,
 ): Promise<boolean> {
-  assertPermission(context, filePermissions.delete);
   const repository = await resolveRepository(deps);
   const existing = await repository.getById(getTenantId(context), id);
   if (!existing) return false;
+  if (
+    !hasPermission(context, filePermissions.delete) &&
+    !isOwnedStaffProfilePhoto(existing, context)
+  ) {
+    throw new BadRequestError("permission denied");
+  }
   const updated = await repository.update(getTenantId(context), id, {
     status: "DELETED",
     deletedAt: new Date(),

@@ -442,12 +442,29 @@ export async function updateEmployee(
   context: RequestContext,
   deps: EmployeeServiceDeps = {},
 ) {
-  requirePermission(context.authContext, employeePermissions.update);
   const tenantId = tenant(context);
   const repository = deps.repository ?? employeeRepository;
   const current = await repository.get(tenantId, employeeId);
   if (!current) throw new NotFoundError("employee not found");
   const update = validateEmployeeUpdate(input);
+  const permissionSet = new Set(
+    (context.authContext?.user?.permissions ?? []) as readonly string[],
+  );
+  if (!permissionSet.has(employeePermissions.update)) {
+    const principalEmployee = await resolveEmployeeByPrincipal(tenantId, actor(context), {
+      repository,
+      ...(deps.userRepository ? { userRepository: deps.userRepository } : {}),
+    });
+    const fields = Object.keys(update);
+    const isOwnProfilePhotoUpdate =
+      principalEmployee?.id === current.id &&
+      fields.length === 1 &&
+      fields[0] === "profilePhotoFileId" &&
+      Boolean(update.profilePhotoFileId);
+    if (!isOwnProfilePhotoUpdate) {
+      requirePermission(context.authContext, employeePermissions.update);
+    }
+  }
   const nextCategory = update.staffCategory ?? current.staffCategory;
   const nextType = update.staffType ?? current.staffType;
   const teachingTypes = new Set([

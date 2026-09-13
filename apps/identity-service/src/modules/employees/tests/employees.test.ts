@@ -128,6 +128,39 @@ test("employee profile and employment details can be updated", async () => {
   assert.equal(updated.profilePhotoFileId, "file_employee_portrait");
 });
 
+test("employee can update only their own profile photo without employee update permission", async () => {
+  const repository = new InMemoryEmployeeRepository();
+  const users = new InMemoryUserRepository();
+  const created = await createEmployee(base, context(), { repository });
+  const user = await users.create("employee-test-tenant", {
+    authUserId: "teacher-cognito-sub",
+    email: base.email,
+    name: base.fullName,
+    status: "ACTIVE",
+  });
+  await repository.update("employee-test-tenant", created.id, { userId: user.id });
+  const staffContext = context();
+  staffContext.authContext!.user!.id = "teacher-cognito-sub";
+  staffContext.authContext!.user!.role = "TEACHER";
+  staffContext.authContext!.user!.permissions = [];
+
+  const updated = await updateEmployee(
+    created.id,
+    { profilePhotoFileId: "file_own_portrait" },
+    staffContext,
+    { repository, userRepository: users },
+  );
+  assert.equal(updated.profilePhotoFileId, "file_own_portrait");
+
+  await assert.rejects(
+    updateEmployee(created.id, { fullName: "Unauthorized Rename" }, staffContext, {
+      repository,
+      userRepository: users,
+    }),
+    /permission/i,
+  );
+});
+
 test("employee directory applies filters and pagination in the repository", async () => {
   const repository = new InMemoryEmployeeRepository();
   for (let index = 0; index < 5; index += 1)
