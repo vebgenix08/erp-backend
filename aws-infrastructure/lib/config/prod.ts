@@ -36,7 +36,7 @@ export function buildProdConfig(inputs: EnvironmentInputs): EnvironmentConfig {
       cognito: "cognito-prod",
     },
     logRetentionDays: RetentionDays.ONE_MONTH,
-    lambdaTimeout: Duration.seconds(10),
+    lambdaTimeout: Duration.seconds(25),
     lambdaMemorySize: 256,
     interactiveReservedConcurrency: 20,
     workerReservedConcurrency: 5,

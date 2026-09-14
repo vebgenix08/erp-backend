@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { InMemoryFileRepository } from "../files.repository";
 import { completeFileUploadUseCase, createFileUploadUrlUseCase } from "../use-cases";
 import { createStorageContext } from "./fixtures";
+import { InMemoryStorageUrlPort } from "../files.service";
 
 test("complete file upload marks file available", async () => {
   const repository = new InMemoryFileRepository();
@@ -16,4 +17,22 @@ test("complete file upload marks file available", async () => {
     repository,
   });
   assert.equal(completed?.status, "AVAILABLE");
+});
+
+test("failed object verification leaves the upload pending", async () => {
+  const repository = new InMemoryFileRepository();
+  const created = await createFileUploadUrlUseCase(
+    { fileName: "photo.png", contentType: "image/png", sizeBytes: 100 },
+    createStorageContext(),
+    { repository },
+  );
+  const urlPort = new InMemoryStorageUrlPort();
+  urlPort.verifyUpload = async () => {
+    throw new Error("uploaded file size does not match");
+  };
+  await assert.rejects(
+    completeFileUploadUseCase(created.file.id, createStorageContext(), { repository, urlPort }),
+    /size does not match/,
+  );
+  assert.equal((await repository.getById("tenant_1", created.file.id))?.status, "PENDING_UPLOAD");
 });

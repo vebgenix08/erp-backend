@@ -19,6 +19,12 @@ import type {
 } from "./files.model";
 
 export interface StorageUrlPort {
+  verifyUpload(input: {
+    bucket: string;
+    storageKey: string;
+    contentType: string;
+    sizeBytes?: number | undefined;
+  }): Promise<void>;
   createUploadUrl(input: {
     bucket: string;
     storageKey: string;
@@ -33,6 +39,9 @@ export interface StorageUrlPort {
 }
 
 export class InMemoryStorageUrlPort implements StorageUrlPort {
+  async verifyUpload(): Promise<void> {
+    /* In-memory uploads have no external object store. */
+  }
   async createUploadUrl(input: {
     bucket: string;
     storageKey: string;
@@ -225,6 +234,12 @@ export async function completeFileUpload(
     throw new BadRequestError("permission denied");
   }
   ensureAvailable(existing);
+  await resolveUrlPort(deps).verifyUpload({
+    bucket: existing.bucket,
+    storageKey: existing.storageKey,
+    contentType: existing.contentType,
+    sizeBytes: existing.sizeBytes,
+  });
   const updated = await repository.update(tenantId, id, {
     status: "AVAILABLE",
     uploadedAt: new Date(),
@@ -272,6 +287,7 @@ export async function createFileDownloadUrl(
   }
   ensureAvailable(existing);
   const payload = validateFileDownloadUrlInput(input);
+  if (existing.status !== "AVAILABLE") throw new BadRequestError("file upload is not complete");
   const download = await resolveUrlPort(deps).createDownloadUrl({
     bucket: existing.bucket,
     storageKey: existing.storageKey,

@@ -36,7 +36,7 @@ export function buildDevConfig(inputs: EnvironmentInputs): EnvironmentConfig {
       cognito: "cognito-dev",
     },
     logRetentionDays: RetentionDays.ONE_WEEK,
-    lambdaTimeout: Duration.seconds(10),
+    lambdaTimeout: Duration.seconds(25),
     lambdaMemorySize: 256,
     interactiveReservedConcurrency: 8,
     workerReservedConcurrency: 2,

@@ -15,6 +15,10 @@ test("create file download url requires available file", async () => {
     createStorageContext(),
     { repository },
   );
+  await assert.rejects(
+    createFileDownloadUrlUseCase(created.file.id, {}, createStorageContext(), { repository }),
+    /upload is not complete/,
+  );
   await completeFileUploadUseCase(created.file.id, createStorageContext(), { repository });
   const downloaded = await createFileDownloadUrlUseCase(
     created.file.id,
